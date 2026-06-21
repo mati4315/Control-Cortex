@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - OBS Stream Overlay</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Admin Stylesheet -->
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+
+  <div class="admin-wrapper">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <i class="fa-solid fa-sliders brand-icon"></i>
+        <h2>Overlay Admin</h2>
+      </div>
+      
+      <nav class="nav-menu">
+        <button class="nav-btn active" data-tab="timer"><i class="fa-solid fa-stopwatch"></i> Countdown</button>
+        <button class="nav-btn" data-tab="texts"><i class="fa-solid fa-font"></i> Textos</button>
+        <button class="nav-btn" data-tab="design"><i class="fa-solid fa-palette"></i> Diseño & Colores</button>
+        <button class="nav-btn" data-tab="media"><i class="fa-solid fa-photo-film"></i> Multimedia</button>
+        <button class="nav-btn" data-tab="socials"><i class="fa-solid fa-share-nodes"></i> Redes Sociales</button>
+        <button class="nav-btn obs-nav-btn" data-tab="obs"><i class="fa-brands fa-connectdevelop"></i> OBS Control</button>
+      </nav>
+      
+      <div class="overlay-link-container">
+        <a href="/banner/" target="_blank" class="overlay-link banner-link">
+          <i class="fa-solid fa-up-right-from-square"></i>
+          Ver Banner
+        </a>
+        <a href="/overlay.html" target="_blank" class="overlay-link">
+          <i class="fa-solid fa-up-right-from-square"></i>
+          Ver Overlay
+        </a>
+      </div>
+      
+      <div class="connection-status">
+        <span class="status-indicator offline" id="status-indicator"></span>
+        <span id="status-text">DESCONECTADO</span>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- TAB: TIMER -->
+      <section class="tab-content active" id="tab-timer">
+        <div class="section-header">
+          <h1>Cronómetro Regresivo</h1>
+          <p>Controla el tiempo del stream en vivo y sincronízalo con la pantalla de OBS.</p>
+        </div>
+
+        <div class="grid-layout">
+          <!-- Control Card -->
+          <div class="card timer-card">
+            <div class="card-header">
+              <h3>Controles de Tiempo</h3>
+              <span class="live-pill" id="live-timer-state">PAUSADO</span>
+            </div>
+            
+            <div class="timer-display-box" id="admin-timer-display">
+              05:00
+            </div>
+
+            <div class="timer-action-buttons">
+              <button class="btn btn-primary" id="btn-timer-start"><i class="fa-solid fa-play"></i> INICIAR</button>
+              <button class="btn btn-warning" id="btn-timer-pause"><i class="fa-solid fa-pause"></i> PAUSAR</button>
+              <button class="btn btn-danger" id="btn-timer-reset"><i class="fa-solid fa-rotate-left"></i> REESTABLECER</button>
+            </div>
+
+            <div class="quick-timer-adjustments">
+              <h4>Ajustes Rápidos:</h4>
+              <div class="btn-group">
+                <button class="btn btn-secondary" data-adjust="60">+1 Min</button>
+                <button class="btn btn-secondary" data-adjust="-60">-1 Min</button>
+                <button class="btn btn-secondary" data-adjust="10">+10 Seg</button>
+                <button class="btn btn-secondary" data-adjust="-10">-10 Seg</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Configuration Card -->
+          <div class="card settings-card">
+            <div class="card-header">
+              <h3>Tiempo Inicial</h3>
+            </div>
+            <div class="form-group">
+              <label for="input-timer-minutes">Duración por Defecto (Minutos)</label>
+              <div class="duration-input-wrapper">
+                <input type="number" id="input-timer-minutes" min="0" max="60" value="5">
+                <span>minutos</span>
+              </div>
+              <p class="input-tip">Al hacer clic en "Guardar y Reestablecer" se aplicará este tiempo inicial al overlay.</p>
+            </div>
+            <div class="form-group">
+              <label for="input-timer-seconds">Duración por Defecto (Segundos)</label>
+              <div class="duration-input-wrapper">
+                <input type="number" id="input-timer-seconds" min="0" max="59" value="0">
+                <span>segundos</span>
+              </div>
+            </div>
+            <button class="btn btn-success" id="btn-save-default-time"><i class="fa-solid fa-floppy-disk"></i> Guardar y Aplicar</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: TEXTS -->
+      <section class="tab-content" id="tab-texts">
+        <div class="section-header">
+          <h1>Edición de Textos</h1>
+          <p>Cambia los títulos y leyendas que aparecen en la pantalla sin tocar código.</p>
+        </div>
+
+        <div class="card">
+          <form id="form-texts" class="form-grid">
+            <div class="form-group col-6">
+              <label for="input-badge-text">Insignia Superior (Badge)</label>
+              <input type="text" id="input-badge-text" placeholder="🔴 EN VIVO PRONTO">
+            </div>
+            <div class="form-group col-6">
+              <label for="input-header-text">Sub-Encabezado</label>
+              <input type="text" id="input-header-text" placeholder="STREAM COMENZANDO">
+            </div>
+            <div class="form-group col-12">
+              <label for="input-title-text">Título Principal</label>
+              <input type="text" id="input-title-text" placeholder="Empezamos Pronto">
+            </div>
+            <div class="form-group col-12">
+              <label for="input-subtitle-text">Texto Secundario (Subtítulo)</label>
+              <input type="text" id="input-subtitle-text" placeholder="Prepara tu café, ya casi empezamos...">
+            </div>
+            <div class="col-12">
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Textos</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB: DESIGN -->
+      <section class="tab-content" id="tab-design">
+        <div class="section-header">
+          <h1>Diseño, Colores y Fuentes</h1>
+          <p>Personaliza el estilo visual del overlay para adaptarlo a tu marca gamer/futurista.</p>
+        </div>
+
+        <div class="grid-layout">
+          <!-- Colors Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Paleta de Colores</h3>
+            </div>
+            <form id="form-colors" class="form-grid">
+              <div class="form-group col-6">
+                <label for="input-primary-color">Color Primario (Neón)</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="input-primary-color" value="#00f0ff">
+                  <input type="text" id="text-primary-color" value="#00f0ff">
+                </div>
+              </div>
+              <div class="form-group col-6">
+                <label for="input-secondary-color">Color Secundario</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="input-secondary-color" value="#bd00ff">
+                  <input type="text" id="text-secondary-color" value="#bd00ff">
+                </div>
+              </div>
+              <div class="form-group col-6">
+                <label for="input-glow-color">Color del Glow/Brillo</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="input-glow-color" value="#00f0ff">
+                  <input type="text" id="text-glow-color" value="#00f0ff">
+                </div>
+              </div>
+              <div class="form-group col-6">
+                <label for="input-bg-color">Color de Fondo</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="input-bg-color" value="#080710">
+                  <input type="text" id="text-bg-color" value="#080710">
+                </div>
+              </div>
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Aplicar Colores</button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Typography & Particles Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Fuentes y Partículas</h3>
+            </div>
+            <form id="form-particles-typography" class="form-grid">
+              <!-- Font Selection -->
+              <div class="form-group col-12">
+                <label for="select-font">Estilo de Fuente (Google Fonts)</label>
+                <select id="select-font">
+                  <option value="Orbitron">Orbitron (Recomendado Tech)</option>
+                  <option value="Rajdhani">Rajdhani (Gamer Compacta)</option>
+                  <option value="Share Tech Mono">Share Tech Mono (Digital Retro)</option>
+                  <option value="Outfit">Outfit (Moderna Redondeada)</option>
+                  <option value="Montserrat">Montserrat (Limpia y Negrita)</option>
+                  <option value="Inter">Inter (Minimalista Neutra)</option>
+                </select>
+              </div>
+              
+              <!-- Particle Count Slider -->
+              <div class="form-group col-12">
+                <label for="range-particles-count">Cantidad de Partículas: <span id="val-particles-count">120</span></label>
+                <input type="range" id="range-particles-count" min="20" max="250" value="120">
+              </div>
+
+              <!-- Particle Speed Slider -->
+              <div class="form-group col-12">
+                <label for="range-particles-speed">Velocidad del Flujo: <span id="val-particles-speed">1.5</span>x</label>
+                <input type="range" id="range-particles-speed" min="0.2" max="5.0" step="0.1" value="1.5">
+              </div>
+
+              <div class="form-group col-12">
+                <label class="checkbox-container">
+                  <input type="checkbox" id="check-particles-glow" checked>
+                  <span class="checkmark"></span>
+                  Activar efecto Glow en partículas
+                </label>
+              </div>
+              
+              <div class="col-12">
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Estilo</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: MEDIA -->
+      <section class="tab-content" id="tab-media">
+        <div class="section-header">
+          <h1>Multimedia y Archivos</h1>
+          <p>Sube tus propios logos, videos de fondo o música sin necesidad de modificar el código.</p>
+        </div>
+
+        <div class="grid-layout">
+          <!-- Background Type Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Tipo de Fondo</h3>
+            </div>
+            <div class="form-group">
+              <label for="select-bg-type">Efecto / Recurso de Fondo</label>
+              <select id="select-bg-type">
+                <option value="particles">Sistema de Partículas (Estilo Espacial)</option>
+                <option value="video">Video MP4/WebM Subido</option>
+                <option value="image">Imagen Estática Subida</option>
+                <option value="gradient">Color Sólido/Gradiente Configurado</option>
+              </select>
+            </div>
+            <div class="media-preview-container" id="bg-preview-box">
+              <span class="preview-text">Sin multimedia seleccionado</span>
+            </div>
+          </div>
+
+          <!-- Logo Management Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Logo del Streamer</h3>
+            </div>
+            
+            <div class="logo-toggle-group">
+              <label class="checkbox-container">
+                <input type="checkbox" id="check-logo-visible" checked>
+                <span class="checkmark"></span>
+                Mostrar Logo en el centro
+              </label>
+            </div>
+
+            <!-- Upload Logo -->
+            <div class="upload-area" id="logo-dropzone">
+              <i class="fa-solid fa-image-portrait upload-icon"></i>
+              <p>Arrastra o haz clic para subir tu <strong>Logo</strong> (PNG/JPG)</p>
+              <input type="file" id="file-logo" accept="image/*" class="file-input">
+            </div>
+            <div class="upload-progress" id="logo-progress">
+              <div class="progress-bar-fill"></div>
+            </div>
+            
+            <div class="media-preview-container mini" id="logo-preview-box">
+              <img id="logo-preview-img" src="" alt="Vista Previa" class="hidden">
+              <span id="logo-preview-placeholder">Sin Logo subido</span>
+            </div>
+          </div>
+
+          <!-- Upload Background Video / Image -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Fondo Personalizado (Video o Imagen)</h3>
+            </div>
+            
+            <div class="tabs-sub">
+              <button class="sub-tab-btn active" data-sub="video">Video</button>
+              <button class="sub-tab-btn" data-sub="image">Imagen</button>
+            </div>
+
+            <!-- Upload Video -->
+            <div class="sub-tab-content active" id="sub-video">
+              <div class="upload-area" id="video-dropzone">
+                <i class="fa-solid fa-file-video upload-icon"></i>
+                <p>Arrastra o haz clic para subir <strong>Video de Fondo</strong> (MP4/WebM max 50MB)</p>
+                <input type="file" id="file-video" accept="video/mp4,video/webm" class="file-input">
+              </div>
+              <div class="upload-progress" id="video-progress">
+                <div class="progress-bar-fill"></div>
+              </div>
+            </div>
+
+            <!-- Upload Image -->
+            <div class="sub-tab-content" id="sub-image">
+              <div class="upload-area" id="image-dropzone">
+                <i class="fa-solid fa-file-image upload-icon"></i>
+                <p>Arrastra o haz clic para subir <strong>Imagen de Fondo</strong> (PNG/JPG/WEBP)</p>
+                <input type="file" id="file-image" accept="image/*" class="file-input">
+              </div>
+              <div class="upload-progress" id="image-progress">
+                <div class="progress-bar-fill"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Background Music Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3>Música de Fondo (Audio)</h3>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-container">
+                <input type="checkbox" id="check-music-enabled">
+                <span class="checkmark"></span>
+                Activar Música de Fondo
+              </label>
+            </div>
+
+            <div class="upload-area" id="music-dropzone">
+              <i class="fa-solid fa-music upload-icon"></i>
+              <p>Arrastra o haz clic para subir <strong>Música</strong> (MP3/WAV)</p>
+              <input type="file" id="file-music" accept="audio/mp3,audio/wav,audio/mpeg" class="file-input">
+            </div>
+            <div class="upload-progress" id="music-progress">
+              <div class="progress-bar-fill"></div>
+            </div>
+
+            <div class="form-group slider-group" style="margin-top: 15px;">
+              <label for="range-music-volume">Volumen del Overlay: <span id="val-music-volume">50</span>%</label>
+              <input type="range" id="range-music-volume" min="0" max="100" value="50">
+              <p class="input-tip">Controla el volumen de reproducción directamente en el overlay de OBS.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: SOCIALS -->
+      <section class="tab-content" id="tab-socials">
+        <div class="section-header">
+          <h1>Redes Sociales</h1>
+          <p>Administra los enlaces o nombres de usuario que se mostrarán en la lista rotatoria o fija del overlay.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h3>Enlaces Sociales</h3>
+          </div>
+          
+          <form id="form-socials">
+            <div class="socials-container-list" id="social-inputs-container">
+              <!-- Rendered dynamically by script -->
+            </div>
+            
+            <div style="margin-top: 20px; display: flex; gap: 15px;">
+              <button type="button" class="btn btn-secondary" id="btn-add-social"><i class="fa-solid fa-plus"></i> Añadir Red Social</button>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> Guardar Redes Sociales</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- TAB: OBS CONTROL -->
+      <section class="tab-content" id="tab-obs">
+        <div class="section-header">
+          <h1>OBS Control & Transiciones</h1>
+          <p>Conecta el overlay con OBS Studio para automatizar el cambio de escenas cuando el contador llegue a cero.</p>
+        </div>
+
+        <div class="grid-layout">
+
+          <!-- Connection Config Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-network-wired" style="color: var(--primary);"></i> Conexión OBS WebSocket</h3>
+              <div class="obs-live-badge" id="obs-conn-badge">DESCONECTADO</div>
+            </div>
+
+            <div class="obs-status-bar" id="obs-status-bar">
+              <div class="obs-status-icon" id="obs-status-icon">
+                <i class="fa-solid fa-circle-xmark"></i>
+              </div>
+              <div class="obs-status-text">
+                <span id="obs-status-label">Sin conexión</span>
+                <small id="obs-status-detail">Configura los datos y presiona "Conectar"</small>
+              </div>
+            </div>
+
+            <form id="form-obs-config" class="form-grid" style="margin-top: 15px;">
+              <div class="form-group col-8">
+                <label for="input-obs-host">Host / IP de OBS</label>
+                <input type="text" id="input-obs-host" value="127.0.0.1" placeholder="127.0.0.1">
+              </div>
+              <div class="form-group col-4">
+                <label for="input-obs-port">Puerto</label>
+                <input type="number" id="input-obs-port" value="4455" min="1" max="65535" placeholder="4455">
+              </div>
+              <div class="form-group col-12">
+                <label for="input-obs-password">Contraseña (opcional)</label>
+                <input type="password" id="input-obs-password" placeholder="Dejar vacío si no tiene contraseña">
+              </div>
+              <div class="col-12" style="display: flex; gap: 12px; flex-wrap: wrap;">
+                <button type="submit" class="btn btn-primary" id="btn-save-obs-config">
+                  <i class="fa-solid fa-floppy-disk"></i> Guardar Configuración
+                </button>
+                <button type="button" class="btn btn-secondary" id="btn-test-obs">
+                  <i class="fa-solid fa-plug"></i> Conectar / Probar
+                </button>
+              </div>
+            </form>
+
+            <div class="obs-hint-box">
+              <i class="fa-solid fa-circle-info"></i>
+              <span>En OBS: <strong>Herramientas → WebSocket Server Settings</strong> → Activa el servidor y copia el puerto y contraseña aquí.</span>
+            </div>
+          </div>
+
+          <!-- Scene Transition Card -->
+          <div class="card">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-film" style="color: var(--secondary);"></i> Control de Escena</h3>
+            </div>
+
+            <div class="form-group">
+              <label for="input-obs-scene">Nombre de Escena Destino</label>
+              <input type="text" id="input-obs-scene" placeholder="Ej. Main Scene, Gameplay, Camera...">
+              <p class="input-tip">El nombre debe coincidir exactamente con el nombre de la escena en OBS (sensible a mayúsculas).</p>
+            </div>
+
+            <div class="form-group">
+              <label class="checkbox-container">
+                <input type="checkbox" id="check-obs-auto">
+                <span class="checkmark"></span>
+                Auto-transición cuando el contador llegue a <strong>00:00</strong>
+              </label>
+              <p class="input-tip" style="margin-top: 6px;">Al activar esto, cuando el countdown llegue a cero el servidor cambiará la escena automáticamente en OBS.</p>
+            </div>
+
+            <button class="btn btn-save-obs-scene" id="btn-save-obs-scene">
+              <i class="fa-solid fa-floppy-disk"></i> Guardar Escena
+            </button>
+
+            <div class="obs-divider"></div>
+
+            <!-- Manual Transition Button -->
+            <div class="manual-transition-section">
+              <h4>Transición Manual</h4>
+              <p class="input-tip">Cambia a la escena configurada de forma inmediata, sin esperar al countdown.</p>
+              <button class="btn btn-transition" id="btn-trigger-obs" disabled>
+                <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                <span>Cambiar a Escena Ahora</span>
+                <div class="btn-transition-glow"></div>
+              </button>
+              <div class="obs-result-msg" id="obs-result-msg"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Socket.io -->
+  <script src="/socket.io/socket.io.js"></script>
+  <!-- Admin Controller -->
+  <script src="/js/admin.js"></script>
+</body>
+</html>

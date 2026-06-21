@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lotería Ball - Panel de Control</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-bg: rgba(22, 30, 49, 0.7);
+      --border-color: rgba(255, 214, 0, 0.15);
+      --primary: #ffd600;
+      --primary-hover: #ffe066;
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(255, 214, 0, 0.05) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(30, 136, 229, 0.05) 0px, transparent 50%);
+      color: var(--text-main);
+      min-height: 100vh;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3.5rem;
+      letter-spacing: 2px;
+      color: var(--primary);
+      text-shadow: 0 0 15px rgba(255, 214, 0, 0.3);
+      margin-bottom: 10px;
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      transition: transform 0.3s ease, border-color 0.3s ease;
+    }
+
+    .card:hover {
+      border-color: rgba(255, 214, 0, 0.3);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 12px;
+    }
+
+    .card-full {
+      grid-column: span 2;
+    }
+
+    @media (max-width: 768px) {
+      .card-full {
+        grid-column: span 1;
+      }
+    }
+
+    /* Mode Selector Buttons */
+    .mode-selector {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .btn-mode {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: var(--text-muted);
+      padding: 14px 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .btn-mode:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-main);
+    }
+
+    .btn-mode.active {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: #000;
+      box-shadow: 0 0 15px rgba(255, 214, 0, 0.4);
+    }
+
+    /* Form Fields */
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .form-group label {
+      display: block;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .input-control {
+      width: 100%;
+      background: rgba(10, 15, 25, 0.8);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: #fff;
+      padding: 12px 16px;
+      font-family: inherit;
+      font-size: 0.95rem;
+      transition: all 0.3s ease;
+    }
+
+    .input-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(255, 214, 0, 0.2);
+    }
+
+    /* Controls Panel */
+    .btn-trigger {
+      width: 100%;
+      background: linear-gradient(135deg, var(--primary) 0%, #ffab00 100%);
+      border: none;
+      border-radius: 10px;
+      color: #000;
+      padding: 16px;
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(255, 214, 0, 0.3);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .btn-trigger:hover {
+      background: linear-gradient(135deg, var(--primary-hover) 0%, var(--primary) 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 214, 0, 0.45);
+    }
+
+    .btn-trigger:active {
+      transform: translateY(1px);
+    }
+
+    .btn-trigger:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text-muted);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    /* Number Selector widget inside Manual trigger */
+    .number-selector-wrap {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-random-num {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #fff;
+      padding: 0 16px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+
+    .btn-random-num:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--primary);
+    }
+
+    /* Slider / Range stylings */
+    .slider-container {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slider-val {
+      min-width: 60px;
+      text-align: right;
+      font-family: monospace;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .ticker-editor-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .ticker-editor-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ticker-editor-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .ticker-editor-row .input-control {
+      flex: 1 1 auto;
+    }
+
+    .btn-row-action {
+      flex: 0 0 auto;
+      min-width: 44px;
+      height: 44px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 900;
+      transition: all 0.2s ease;
+    }
+
+    .btn-row-action:hover {
+      border-color: var(--primary);
+      background: rgba(255, 214, 0, 0.12);
+      color: var(--primary);
+    }
+
+    .btn-ticker-add {
+      align-self: flex-start;
+      border: 1px solid rgba(255, 214, 0, 0.22);
+      background: rgba(255, 214, 0, 0.08);
+      color: var(--primary);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-ticker-add:hover {
+      background: rgba(255, 214, 0, 0.14);
+      border-color: rgba(255, 214, 0, 0.4);
+    }
+
+    /* Logs & History */
+    .log-list {
+      max-height: 200px;
+      overflow-y: auto;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      list-style-type: none;
+      font-size: 0.85rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .log-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 4px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .log-item:last-child {
+      border-bottom: none;
+    }
+
+    .log-time {
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    .log-tag {
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: bold;
+    }
+
+    .tag-manual { background: rgba(30, 136, 229, 0.25); color: #90caf9; }
+    .tag-dynamic { background: rgba(16, 185, 129, 0.25); color: #a7f3d0; }
+    .tag-test { background: rgba(156, 163, 175, 0.25); color: #e5e7eb; }
+
+    /* Info Badge / Connection Status */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+
+    .status-connected {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .status-disconnected {
+      background: rgba(239, 68, 68, 0.15);
+      color: var(--error);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .status-not-configured {
+      background: rgba(156, 163, 175, 0.15);
+      color: var(--text-muted);
+      border: 1px solid rgba(156, 163, 175, 0.3);
+    }
+
+    .status-sync {
+      background: rgba(30, 136, 229, 0.16);
+      color: #90caf9;
+      border: 1px solid rgba(30, 136, 229, 0.36);
+    }
+
+    .help-text {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.3;
+    }
+
+    .event-feedback {
+      margin-top: 10px;
+      font-size: 0.82rem;
+      min-height: 1.1rem;
+      color: var(--text-muted);
+      transition: color 0.2s ease;
+    }
+    .event-feedback.ok { color: var(--success); }
+    .event-feedback.warn { color: #fbbf24; }
+
+    .save-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .save-state {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .save-state.dirty { color: #fbbf24; }
+    .save-state.ok { color: var(--success); }
+
+    .btn-save {
+      border: 1px solid rgba(255, 214, 0, 0.35);
+      background: rgba(255, 214, 0, 0.10);
+      color: var(--primary);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-save:hover {
+      background: rgba(255, 214, 0, 0.2);
+      border-color: rgba(255, 214, 0, 0.6);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      background: rgba(255,255,255,0.03);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 52px;
+      height: 28px;
+      flex-shrink: 0;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch-slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background: rgba(255,255,255,0.2);
+      transition: .22s;
+      border-radius: 999px;
+    }
+    .switch-slider:before {
+      position: absolute;
+      content: "";
+      height: 22px;
+      width: 22px;
+      left: 3px;
+      top: 3px;
+      background: #fff;
+      transition: .22s;
+      border-radius: 50%;
+    }
+    .switch input:checked + .switch-slider {
+      background: linear-gradient(135deg, var(--primary) 0%, #ffab00 100%);
+    }
+    .switch input:checked + .switch-slider:before {
+      transform: translateX(24px);
+    }
+
+    .btn-reset {
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.12);
+      color: #fca5a5;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-reset:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.7);
+      color: #fecaca;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <h1>☄️ Lotería Ball Control Panel</h1>
+      <p>Configura, prueba y dispara la animación de la bolilla en OBS en tiempo real</p>
+    </header>
+
+    <div class="dashboard-grid">
+      
+      <!-- CARD 1: MODO DE OPERACIÓN -->
+      <div class="card card-full">
+        <h2 class="card-title">🕹️ Modo de Operación</h2>
+        <div class="mode-selector">
+          <button class="btn-mode active" id="mode-test" onclick="setMode('test')">Prueba (Auto)</button>
+          <button class="btn-mode" id="mode-manual" onclick="setMode('manual')">Disparo Manual</button>
+          <button class="btn-mode" id="mode-dynamic" onclick="setMode('dynamic')">Integración Web</button>
+        </div>
+        <p class="help-text" id="mode-desc">
+          <strong>Modo de Prueba (Auto):</strong> La bolilla se lanza automáticamente en un bucle continuo con números aleatorios, usando los parámetros de abajo. Excelente para probar el diseño.
+        </p>
+      </div>
+
+      <!-- CARD 1.1: GUÍA RÁPIDA DE INICIO -->
+      <div class="card card-full">
+        <h2 class="card-title">🚀 Guía de Inicio (Sync WS)</h2>
+        <div class="help-text" style="font-size:0.9rem; line-height:1.45;">
+          <p><strong>1)</strong> Abre una terminal en esta carpeta y ejecuta:</p>
+          <p style="font-family:monospace; color:#e5e7eb; margin:6px 0 10px;">npm install<br>npm run start:ws</p>
+          <p><strong>2)</strong> En este panel deja <strong>WebSocket URL</strong> en <code>ws://localhost:688</code>.</p>
+          <p><strong>3)</strong> Abre <code>lottery-ball.html</code> (OBS, incógnito o navegador). Se sincroniza sola al conectar.</p>
+          <p><strong>4)</strong> Verifica el badge:
+            <code>Sync WS activo</code> (modo Manual/Test) o <code>Online</code> (modo Dynamic).
+          </p>
+          <p><strong>5)</strong> Si ves <code>Sync WS offline</code>, revisa que el servidor WS siga corriendo.</p>
+        </div>
+      </div>
+
+      <!-- CARD 2: DISPARADOR MANUAL -->
+      <div class="card" id="card-trigger">
+        <h2 class="card-title">🎯 Disparador Manual</h2>
+        <div class="form-group">
+          <label>Número de Bolilla (1-99)</label>
+          <div class="number-selector-wrap">
+            <input type="number" class="input-control" id="trigger-num" min="1" max="99" value="7">
+            <button class="btn-random-num" onclick="randomiseTriggerNum()">RAND</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Nombre del Ganador / Comprador</label>
+          <input type="text" class="input-control" id="trigger-name" value="Matias Moreira" placeholder="Nombre completo">
+        </div>
+        <button class="btn-trigger" id="btn-shoot" onclick="shootBall()" disabled>
+          Lanzar Bolilla ☄️
+        </button>
+        <div class="event-feedback" id="event-feedback"></div>
+      </div>
+
+      <!-- CARD 3: CONFIGURACIONES DINÁMICAS (WEBSOCKET/API) -->
+      <div class="card" id="card-dynamic">
+        <h2 class="card-title">
+          🔌 Conexión Dinámica
+          <span class="status-badge status-not-configured" id="conn-status">Inactivo</span>
+        </h2>
+        <div class="form-group">
+          <label>Servidor WebSocket URL</label>
+          <input type="text" class="input-control" id="ws-url" value="ws://localhost:688" placeholder="ws://tu-servidor.com/ws" onchange="saveConfig()">
+          <p class="help-text">El widget o este panel se conectarán a esta dirección para recibir compras de tu web en vivo.</p>
+        </div>
+        <div class="form-group">
+          <label>API Polling URL (Alternativa)</label>
+          <input type="text" class="input-control" id="api-url" value="" placeholder="https://tu-sitio.com/api/ultima-compra" onchange="saveConfig()">
+          <p class="help-text">Si no tienes WebSockets, el widget consultará esta URL cada 3 segundos buscando compras pendientes.</p>
+        </div>
+        <div class="form-group">
+          <label>Token de Seguridad WS</label>
+          <input type="password" class="input-control" id="ws-token" value="" placeholder="Mismo token que WS_TOKEN del servidor" onchange="saveConfig()">
+          <p class="help-text">Secreto compartido con el backend. Debe coincidir con la variable WS_TOKEN del servidor WS.</p>
+        </div>
+      </div>
+
+      <!-- CARD 4: PARÁMETROS GENERALES Y FÍSICA -->
+      <div class="card card-full">
+        <h2 class="card-title">⚙️ Ajustes Físicos y Velocidad</h2>
+        <div class="toggle-row">
+          <div>
+            <strong style="font-size:0.9rem;">Velocidad Random Vinculada</strong>
+            <p class="help-text">Al lanzar, caída y deslizamiento usan la misma velocidad aleatoria entre ambos sliders.</p>
+          </div>
+          <label class="switch" title="Activar velocidad random vinculada">
+            <input type="checkbox" id="cfg-random-linked-speed" onchange="toggleRandomLinkedSpeed(this.checked)">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
+        <div class="dashboard-grid">
+          <div>
+            <div class="form-group">
+              <label>Velocidad de Caída (px/s)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-fall" min="100" max="400" value="170" oninput="updateConfigValue('FALL_SPEED', this.value)">
+                <span class="slider-val" id="val-fall">170</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Velocidad de Deslizamiento (px/s)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-slide" min="100" max="500" value="240" oninput="updateConfigValue('SLIDE_SPEED', this.value)">
+                <span class="slider-val" id="val-slide">240</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tiempo de Espera en Parada (ms)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-stop-ms" min="2000" max="20000" step="500" value="10000" oninput="updateConfigValue('STOP_MS', this.value)">
+                <span class="slider-val" id="val-stop-ms">10000</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="form-group">
+              <label>Nombre por Defecto (Prueba)</label>
+              <input type="text" class="input-control" id="cfg-default-name" value="Matias Moreira" onchange="updateConfigText('WINNER_NAME', this.value)">
+            </div>
+            <div class="form-group">
+              <label>Tamaño del Número (rem)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-number-font" min="0.70" max="2.40" step="0.05" value="1.25" oninput="updateConfigFloat('NUMBER_FONT_REM', this.value)">
+                <span class="slider-val" id="val-number-font">1.25</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Tamaño del Círculo Blanco (rem)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-badge-size" min="1.60" max="4.20" step="0.05" value="2.50" oninput="updateConfigFloat('BADGE_SIZE_REM', this.value)">
+                <span class="slider-val" id="val-badge-size">2.50</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Límite Izquierdo de Inclinación (deg)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-left-tilt" min="-60" max="0" step="1" value="-24" oninput="updateConfigValue('LEFT_TILT_DEG', this.value)">
+                <span class="slider-val" id="val-left-tilt">-24</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Límite Derecho de Inclinación (deg)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-right-tilt" min="0" max="60" step="1" value="24" oninput="updateConfigValue('RIGHT_TILT_DEG', this.value)">
+                <span class="slider-val" id="val-right-tilt">24</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Velocidad de Salida (px/s)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-exit" min="100" max="600" value="320" oninput="updateConfigValue('EXIT_SPEED', this.value)">
+                <span class="slider-val" id="val-exit">320</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Pausa de Reinicio (ms)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-pause-ms" min="100" max="3000" step="50" value="600" oninput="updateConfigValue('PAUSE_MS', this.value)">
+                <span class="slider-val" id="val-pause-ms">600</span>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Dimensiones del Lienzo (Ancho x Largo px)</label>
+              <div style="display: flex; gap: 10px; margin-top: 4px;">
+                <div style="flex: 1;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Ancho (px)</span>
+                  <input type="number" class="input-control" id="cfg-w" min="200" max="2500" value="720" onchange="updateConfigDimension('W', this.value)">
+                </div>
+                <div style="flex: 1;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-bottom: 4px;">Largo/Alto (px)</span>
+                  <input type="number" class="input-control" id="cfg-h" min="200" max="2500" value="1280" onchange="updateConfigDimension('H', this.value)">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="save-row">
+          <span class="save-state ok" id="save-state">Guardado automático activo</span>
+          <div style="display:flex; gap:10px;">
+            <button class="btn-reset" id="btn-reset" onclick="resetToDefaults()">Restaurar por defecto</button>
+            <button class="btn-save" id="btn-save" onclick="manualSave()">Guardar ahora</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- CARD 5: REGISTRO DE EVENTOS (SESIÓN ACTUAL) -->
+      <div class="card card-full">
+        <h2 class="card-title">📜 Registro de Lanzamientos (Sesión)</h2>
+        <ul class="log-list" id="log-list">
+          <li class="log-item" style="color:var(--text-muted); justify-content:center;">No hay eventos registrados en esta sesión.</li>
+        </ul>
+      </div>
+
+      <!-- CARD 5: TICKER / TEXTOS -->
+      <div class="card card-full">
+        <h2 class="card-title">📻 Ticker / Textos</h2>
+        <div class="ticker-editor-wrap">
+          <div class="toggle-row">
+            <div>
+              <strong style="font-size:0.9rem;">Ticker activo</strong>
+              <p class="help-text">Activa o desactiva la franja inferior izquierda del OBS.</p>
+            </div>
+            <label class="switch" title="Activar ticker">
+              <input type="checkbox" id="cfg-ticker-enabled" onchange="updateConfigText('TICKER_ENABLED', this.checked)">
+              <span class="switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label>Velocidad del Ticker (ms por ciclo)</label>
+            <div class="slider-container">
+              <input type="range" class="input-control" id="cfg-ticker-scroll" min="12000" max="50000" step="1000" value="28000" oninput="updateConfigValue('TICKER_SCROLL_MS', this.value)">
+              <span class="slider-val" id="val-ticker-scroll">28000</span>
+            </div>
+            <p class="help-text">Más alto = más lento y suave.</p>
+          </div>
+
+          <div class="form-group">
+            <label>Textos del Ticker</label>
+            <p class="help-text">Agrega, edita o elimina una línea por cada texto. El ticker repite estas líneas en bucle.</p>
+            <div id="ticker-text-list" class="ticker-editor-list"></div>
+            <button type="button" class="btn-ticker-add" onclick="addTickerTextRow()">+ Agregar texto</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Configuración base por defecto
+    const DEFAULT_CONFIG = {
+      W: 720,
+      H: 1280,
+      FALL_SPEED: 170,
+      SLIDE_SPEED: 240,
+      EXIT_SPEED: 320,
+      STOP_MS: 10000,
+      PAUSE_MS: 600,
+      WINNER_NAME: 'Matias Moreira',
+      MODE: 'test',
+      WEBSOCKET_URL: 'ws://localhost:688',
+      API_URL: '',
+      WS_TOKEN: '',
+      TRIGGER_NUM: 7,
+      TRIGGER_NAME: 'Matias Moreira',
+      NUMBER_FONT_REM: 1.25,
+      BADGE_SIZE_REM: 2.5,
+      LEFT_TILT_DEG: -24,
+      RIGHT_TILT_DEG: 24,
+      RANDOM_LINKED_SPEED: false,
+      TICKER_ENABLED: true,
+      TICKER_LABEL: 'Radio',
+      TICKER_TEXTS: [
+        'Loteria Ball lista para OBS',
+        'Ticker inferior izquierdo activo',
+        'Se oculta cuando se lanza una bolilla'
+      ],
+      TICKER_SCROLL_MS: 28000
+    };
+    let config = { ...DEFAULT_CONFIG };
+
+    let channel = null;
+    let wsClient = null;
+    let dirtyChanges = false;
+    let saveStateTimer = null;
+    let feedbackTimer = null;
+    let tickerRenderLock = false;
+    const VALUE_LABEL_IDS = {
+      FALL_SPEED: 'val-fall',
+      SLIDE_SPEED: 'val-slide',
+      EXIT_SPEED: 'val-exit',
+      STOP_MS: 'val-stop-ms',
+      PAUSE_MS: 'val-pause-ms',
+      NUMBER_FONT_REM: 'val-number-font',
+      BADGE_SIZE_REM: 'val-badge-size',
+      TICKER_SCROLL_MS: 'val-ticker-scroll',
+      LEFT_TILT_DEG: 'val-left-tilt',
+      RIGHT_TILT_DEG: 'val-right-tilt'
+    };
+
+    // Inicializar canal de comunicación
+    try {
+      channel = new BroadcastChannel('lottery_ball_channel');
+    } catch(e) {
+      console.error("BroadcastChannel no soportado en este navegador.", e);
+    }
+
+    // Cargar config guardada de localStorage si existe
+    function initDashboard() {
+      const saved = localStorage.getItem('lottery_ball_config');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          config = Object.assign(config, parsed);
+        } catch(e) {}
+      }
+
+      // Sincronizar UI
+      document.getElementById('cfg-fall').value = config.FALL_SPEED;
+      document.getElementById('val-fall').textContent = config.FALL_SPEED;
+
+      document.getElementById('cfg-slide').value = config.SLIDE_SPEED;
+      document.getElementById('val-slide').textContent = config.SLIDE_SPEED;
+
+      document.getElementById('cfg-exit').value = config.EXIT_SPEED;
+      document.getElementById('val-exit').textContent = config.EXIT_SPEED;
+
+      document.getElementById('cfg-stop-ms').value = config.STOP_MS;
+      document.getElementById('val-stop-ms').textContent = config.STOP_MS;
+
+      document.getElementById('cfg-pause-ms').value = config.PAUSE_MS;
+      document.getElementById('val-pause-ms').textContent = config.PAUSE_MS;
+
+      document.getElementById('cfg-default-name').value = config.WINNER_NAME;
+      document.getElementById('cfg-number-font').value = config.NUMBER_FONT_REM ?? 1.25;
+      document.getElementById('val-number-font').textContent = Number(config.NUMBER_FONT_REM ?? 1.25).toFixed(2);
+      document.getElementById('cfg-badge-size').value = config.BADGE_SIZE_REM ?? 2.5;
+      document.getElementById('val-badge-size').textContent = Number(config.BADGE_SIZE_REM ?? 2.5).toFixed(2);
+      document.getElementById('cfg-left-tilt').value = config.LEFT_TILT_DEG ?? -24;
+      document.getElementById('val-left-tilt').textContent = Number(config.LEFT_TILT_DEG ?? -24).toFixed(0);
+      document.getElementById('cfg-right-tilt').value = config.RIGHT_TILT_DEG ?? 24;
+      document.getElementById('val-right-tilt').textContent = Number(config.RIGHT_TILT_DEG ?? 24).toFixed(0);
+      document.getElementById('ws-url').value = config.WEBSOCKET_URL;
+      document.getElementById('api-url').value = config.API_URL || '';
+      document.getElementById('trigger-num').value = config.TRIGGER_NUM || 7;
+      document.getElementById('trigger-name').value = config.TRIGGER_NAME || config.WINNER_NAME || 'Matias Moreira';
+      document.getElementById('cfg-ticker-enabled').checked = config.TICKER_ENABLED !== false;
+      document.getElementById('cfg-ticker-scroll').value = config.TICKER_SCROLL_MS || 28000;
+      document.getElementById('val-ticker-scroll').textContent = String(config.TICKER_SCROLL_MS || 28000);
+      
+      document.getElementById('cfg-w').value = config.W || 720;
+      document.getElementById('cfg-h').value = config.H || 1280;
+      document.getElementById('cfg-random-linked-speed').checked = !!config.RANDOM_LINKED_SPEED;
+
+      renderTickerEditor();
+      setMode(config.MODE, false); // Sincroniza modo sin guardar redundante
+      connectDynamicWS();
+    }
+
+    // Cambiar modo de operación (test | manual | dynamic)
+    function setMode(mode, save = true) {
+      config.MODE = mode;
+      
+      // Remover active
+      document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`mode-${mode}`).classList.add('active');
+
+      const desc = document.getElementById('mode-desc');
+      const btnShoot = document.getElementById('btn-shoot');
+      const statusBadge = document.getElementById('conn-status');
+
+      if (mode === 'test') {
+        desc.innerHTML = `<strong>Modo de Prueba (Auto):</strong> La bolilla se lanza automáticamente en un bucle continuo con números aleatorios, usando los parámetros de abajo. Excelente para probar el diseño.`;
+        btnShoot.disabled = true;
+        statusBadge.className = config.WEBSOCKET_URL ? 'status-badge status-sync' : 'status-badge status-not-configured';
+        statusBadge.textContent = config.WEBSOCKET_URL ? 'Sync WS activo' : 'Inactivo';
+      } else if (mode === 'manual') {
+        desc.innerHTML = `<strong>Disparo Manual:</strong> El widget de OBS estará inactivo e invisible en segundo plano. Rellena los datos arriba y presiona "Lanzar Bolilla" para disparar la animación cuando quieras.`;
+        btnShoot.disabled = false;
+        statusBadge.className = config.WEBSOCKET_URL ? 'status-badge status-sync' : 'status-badge status-not-configured';
+        statusBadge.textContent = config.WEBSOCKET_URL ? 'Sync WS activo' : 'Inactivo';
+      } else if (mode === 'dynamic') {
+        desc.innerHTML = `<strong>Integración Web (WebSocket/API):</strong> El widget de OBS esperará llamadas entrantes automáticas desde tu página web cuando un usuario compre una bolilla. Se conectará a las direcciones configuradas a la derecha.`;
+        btnShoot.disabled = false; // Permitimos disparar de forma manual como "override" aún en dinámico
+      }
+      connectDynamicWS();
+
+      if (save) {
+        saveConfig();
+        // Enviar cambio al widget
+        broadcast({ type: 'CHANGE_MODE', mode: mode });
+        // Empujar también por WebSocket para otras instancias (OBS/incógnito)
+        sendConfigSnapshotWS('mode_change');
+      }
+    }
+
+    // Lanzar bolilla manualmente
+    function shootBall() {
+      const num = parseInt(document.getElementById('trigger-num').value) || 7;
+      const name = document.getElementById('trigger-name').value || 'Matias Moreira';
+      config.TRIGGER_NUM = num;
+      config.TRIGGER_NAME = name;
+      saveConfig();
+
+      const msg = {
+        type: 'TRIGGER_BALL',
+        number: num,
+        name: name
+      };
+      if (config.WS_TOKEN) {
+        msg.token = config.WS_TOKEN;
+      }
+      broadcast(msg);
+
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        sendMessageWS(msg);
+      }
+
+      const wsOk = !!(wsClient && wsClient.readyState === WebSocket.OPEN);
+      showEventFeedback(
+        wsOk ? `Enviado: bolilla #${num} para ${name}` : `Enviado localmente (#${num}). WS no conectado.`,
+        wsOk ? 'ok' : 'warn'
+      );
+
+      addLog(num, name, config.MODE);
+    }
+
+    // WebSocket del lado del dashboard para captar compras y retransmitirlas a OBS
+    function connectDynamicWS() {
+      disconnectDynamicWS();
+
+      if (!config.WEBSOCKET_URL) {
+        return;
+      }
+
+      const statusBadge = document.getElementById('conn-status');
+      statusBadge.className = 'status-badge status-disconnected';
+      statusBadge.textContent = 'Conectando...';
+
+      try {
+        wsClient = new WebSocket(config.WEBSOCKET_URL);
+
+        wsClient.onopen = () => {
+          if (config.MODE === 'dynamic') {
+            statusBadge.className = 'status-badge status-connected';
+            statusBadge.textContent = 'Online';
+          } else {
+            statusBadge.className = 'status-badge status-sync';
+            statusBadge.textContent = 'Sync WS activo';
+          }
+          console.log("WebSocket Dashboard conectado a", config.WEBSOCKET_URL);
+          sendConfigSnapshotWS('dashboard_onopen');
+        };
+
+        wsClient.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data?.type === 'WIDGET_HELLO' || data?.type === 'REQUEST_CONFIG') {
+              sendConfigSnapshotWS('widget_request');
+              return;
+            }
+            if (data && data.number && data.name) {
+              // Recibimos compra y la disparamos
+              broadcast({
+                type: 'TRIGGER_BALL',
+                number: data.number,
+                name: data.name,
+                profilePicUrl: data.profilePicUrl || ''
+              }, { sendWs: false });
+              addLog(data.number, data.name, 'dynamic');
+            }
+          } catch(e) {
+            console.error("Error parseando mensaje WS:", e);
+          }
+        };
+
+        wsClient.onerror = () => {
+          statusBadge.className = 'status-badge status-disconnected';
+          statusBadge.textContent = config.MODE === 'dynamic' ? 'Error' : 'Sync WS error';
+        };
+
+        wsClient.onclose = () => {
+          statusBadge.className = 'status-badge status-disconnected';
+          statusBadge.textContent = config.MODE === 'dynamic' ? 'Desconectado' : 'Sync WS offline';
+          // Reintentar en 5 segundos
+          setTimeout(connectDynamicWS, 5000);
+        };
+
+      } catch(e) {
+        statusBadge.className = 'status-badge status-disconnected';
+        statusBadge.textContent = 'Error';
+      }
+    }
+
+    function disconnectDynamicWS() {
+      if (wsClient) {
+        try {
+          wsClient.onclose = null; // Quitar reconnect
+          wsClient.close();
+        } catch(e){}
+        wsClient = null;
+      }
+    }
+
+    function sendConfigSnapshotWS(reason = 'update') {
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
+      try {
+        wsClient.send(JSON.stringify({
+          type: 'CONFIG_SNAPSHOT',
+          source: 'dashboard',
+          reason,
+          config
+        }));
+      } catch (e) {
+        console.error("No se pudo enviar CONFIG_SNAPSHOT por WS:", e);
+      }
+    }
+
+    function sendMessageWS(msg) {
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
+      try {
+        wsClient.send(JSON.stringify(msg));
+      } catch (e) {
+        console.error("No se pudo enviar mensaje por WS:", e);
+      }
+    }
+
+    function normalizeTickerTexts(texts) {
+      const fallback = [
+        'Loteria Ball lista para OBS',
+        'Ticker inferior izquierdo activo',
+        'Se oculta cuando se lanza una bolilla'
+      ];
+      const list = Array.isArray(texts) ? texts : [];
+      const cleaned = list
+        .map((item) => typeof item === 'string' ? item.trim() : '')
+        .filter(Boolean);
+      return cleaned.length ? cleaned : fallback;
+    }
+
+    function getTickerEditorValues() {
+      const list = document.getElementById('ticker-text-list');
+      if (!list) return normalizeTickerTexts(config.TICKER_TEXTS);
+      return [...list.querySelectorAll('.ticker-item-input')]
+        .map((input) => input.value.trim())
+        .filter(Boolean);
+    }
+
+    function syncTickerConfigFromEditor() {
+      config.TICKER_TEXTS = normalizeTickerTexts(getTickerEditorValues());
+    }
+
+    function renderTickerEditor() {
+      const list = document.getElementById('ticker-text-list');
+      if (!list) return;
+
+      const values = normalizeTickerTexts(config.TICKER_TEXTS);
+      tickerRenderLock = true;
+      list.innerHTML = '';
+
+      values.forEach((value, index) => {
+        const row = document.createElement('div');
+        row.className = 'ticker-editor-row';
+        row.innerHTML = `
+          <input type="text" class="input-control ticker-item-input" data-index="${index}" value="${value.replace(/"/g, '&quot;')}" placeholder="Texto ${index + 1}">
+          <button type="button" class="btn-row-action" title="Eliminar texto">−</button>
+        `;
+        const input = row.querySelector('.ticker-item-input');
+        const removeBtn = row.querySelector('.btn-row-action');
+
+        input.addEventListener('input', () => {
+          if (tickerRenderLock) return;
+          syncTickerConfigFromEditor();
+          saveConfig();
+          sendConfigUpdate();
+        });
+
+        removeBtn.addEventListener('click', () => {
+          row.remove();
+          if (!list.querySelector('.ticker-editor-row')) {
+            addTickerTextRow('');
+          }
+          syncTickerConfigFromEditor();
+          saveConfig();
+          sendConfigUpdate();
+        });
+
+        list.appendChild(row);
+      });
+
+      tickerRenderLock = false;
+    }
+
+    function addTickerTextRow(value = '') {
+      const list = document.getElementById('ticker-text-list');
+      if (!list) return;
+      const row = document.createElement('div');
+      row.className = 'ticker-editor-row';
+      row.innerHTML = `
+        <input type="text" class="input-control ticker-item-input" value="${String(value).replace(/"/g, '&quot;')}" placeholder="Nuevo texto">
+        <button type="button" class="btn-row-action" title="Eliminar texto">−</button>
+      `;
+      const input = row.querySelector('.ticker-item-input');
+      const removeBtn = row.querySelector('.btn-row-action');
+
+      input.addEventListener('input', () => {
+        syncTickerConfigFromEditor();
+        saveConfig();
+        sendConfigUpdate();
+      });
+
+      removeBtn.addEventListener('click', () => {
+        row.remove();
+        if (!list.querySelector('.ticker-editor-row')) {
+          addTickerTextRow('');
+        }
+        syncTickerConfigFromEditor();
+        saveConfig();
+        sendConfigUpdate();
+      });
+
+      list.appendChild(row);
+      input.focus();
+      syncTickerConfigFromEditor();
+    }
+
+    // Funciones de actualización de config
+    function updateConfigValue(key, val) {
+      const labelId = VALUE_LABEL_IDS[key];
+      const label = labelId ? document.getElementById(labelId) : null;
+      if (label) label.textContent = val;
+      config[key] = parseInt(val);
+      markDirty();
+      saveConfig();
+      sendConfigUpdate();
+    }
+
+    function updateConfigFloat(key, val) {
+      const num = parseFloat(val);
+      const safe = Number.isFinite(num) ? num : 0;
+      const labelId = VALUE_LABEL_IDS[key];
+      const label = labelId ? document.getElementById(labelId) : null;
+      if (label) label.textContent = safe.toFixed(2);
+      config[key] = safe;
+      markDirty();
+      saveConfig();
+      sendConfigUpdate();
+    }
+
+    function updateConfigText(key, val) {
+      config[key] = val;
+      markDirty();
+      saveConfig();
+      sendConfigUpdate();
+    }
+
+    function updateConfigDimension(key, val) {
+      config[key] = parseInt(val) || (key === 'W' ? 720 : 1280);
+      markDirty();
+      saveConfig();
+      sendConfigUpdate();
+    }
+
+    function toggleRandomLinkedSpeed(checked) {
+      config.RANDOM_LINKED_SPEED = !!checked;
+      if (config.RANDOM_LINKED_SPEED) {
+        const linked = Math.round((config.FALL_SPEED + config.SLIDE_SPEED) / 2);
+        config.FALL_SPEED = linked;
+        config.SLIDE_SPEED = linked;
+        document.getElementById('cfg-fall').value = linked;
+        document.getElementById('val-fall').textContent = linked;
+        document.getElementById('cfg-slide').value = linked;
+        document.getElementById('val-slide').textContent = linked;
+      }
+      markDirty();
+      saveConfig();
+      sendConfigUpdate();
+    }
+
+    function saveConfig() {
+      // Leer valores dinámicos
+      config.WEBSOCKET_URL = document.getElementById('ws-url').value;
+      config.API_URL = document.getElementById('api-url').value;
+      config.WS_TOKEN = document.getElementById('ws-token').value;
+      config.W = parseInt(document.getElementById('cfg-w').value) || 720;
+      config.H = parseInt(document.getElementById('cfg-h').value) || 1280;
+      config.TRIGGER_NUM = parseInt(document.getElementById('trigger-num').value) || 7;
+      config.TRIGGER_NAME = document.getElementById('trigger-name').value || config.WINNER_NAME || 'Matias Moreira';
+      config.NUMBER_FONT_REM = parseFloat(document.getElementById('cfg-number-font').value) || 1.25;
+      config.BADGE_SIZE_REM = parseFloat(document.getElementById('cfg-badge-size').value) || 2.5;
+      config.LEFT_TILT_DEG = parseInt(document.getElementById('cfg-left-tilt').value, 10);
+      config.RIGHT_TILT_DEG = parseInt(document.getElementById('cfg-right-tilt').value, 10);
+      config.RANDOM_LINKED_SPEED = !!document.getElementById('cfg-random-linked-speed').checked;
+      config.TICKER_ENABLED = !!document.getElementById('cfg-ticker-enabled').checked;
+      config.TICKER_SCROLL_MS = parseInt(document.getElementById('cfg-ticker-scroll').value, 10) || 28000;
+      if (!tickerRenderLock) {
+        syncTickerConfigFromEditor();
+      }
+      localStorage.setItem('lottery_ball_config', JSON.stringify(config));
+      setSavedState('Configuración guardada');
+    }
+
+    function markDirty() {
+      dirtyChanges = true;
+      const state = document.getElementById('save-state');
+      if (!state) return;
+      state.className = 'save-state dirty';
+      state.textContent = 'Cambios detectados... guardando';
+    }
+
+    function setSavedState(message) {
+      dirtyChanges = false;
+      const state = document.getElementById('save-state');
+      if (!state) return;
+      state.className = 'save-state ok';
+      state.textContent = message || 'Guardado';
+      if (saveStateTimer) clearTimeout(saveStateTimer);
+      saveStateTimer = setTimeout(() => {
+        state.textContent = 'Guardado automático activo';
+      }, 1800);
+    }
+
+    function manualSave() {
+      saveConfig();
+      sendConfigUpdate();
+      setSavedState('Guardado manual exitoso');
+    }
+
+    function resetToDefaults() {
+      const ok = confirm('¿Restaurar todos los ajustes a valores por defecto?');
+      if (!ok) return;
+
+      config = { ...DEFAULT_CONFIG };
+
+      document.getElementById('cfg-fall').value = config.FALL_SPEED;
+      document.getElementById('val-fall').textContent = config.FALL_SPEED;
+      document.getElementById('cfg-slide').value = config.SLIDE_SPEED;
+      document.getElementById('val-slide').textContent = config.SLIDE_SPEED;
+      document.getElementById('cfg-exit').value = config.EXIT_SPEED;
+      document.getElementById('val-exit').textContent = config.EXIT_SPEED;
+      document.getElementById('cfg-stop-ms').value = config.STOP_MS;
+      document.getElementById('val-stop-ms').textContent = config.STOP_MS;
+      document.getElementById('cfg-pause-ms').value = config.PAUSE_MS;
+      document.getElementById('val-pause-ms').textContent = config.PAUSE_MS;
+      document.getElementById('cfg-default-name').value = config.WINNER_NAME;
+      document.getElementById('cfg-number-font').value = config.NUMBER_FONT_REM;
+      document.getElementById('val-number-font').textContent = Number(config.NUMBER_FONT_REM).toFixed(2);
+      document.getElementById('cfg-badge-size').value = config.BADGE_SIZE_REM;
+      document.getElementById('val-badge-size').textContent = Number(config.BADGE_SIZE_REM).toFixed(2);
+      document.getElementById('cfg-left-tilt').value = config.LEFT_TILT_DEG;
+      document.getElementById('val-left-tilt').textContent = Number(config.LEFT_TILT_DEG).toFixed(0);
+      document.getElementById('cfg-right-tilt').value = config.RIGHT_TILT_DEG;
+      document.getElementById('val-right-tilt').textContent = Number(config.RIGHT_TILT_DEG).toFixed(0);
+      document.getElementById('cfg-random-linked-speed').checked = !!config.RANDOM_LINKED_SPEED;
+      document.getElementById('ws-url').value = config.WEBSOCKET_URL;
+      document.getElementById('api-url').value = config.API_URL;
+      document.getElementById('ws-token').value = config.WS_TOKEN;
+      document.getElementById('cfg-w').value = config.W;
+      document.getElementById('cfg-h').value = config.H;
+      document.getElementById('trigger-num').value = config.TRIGGER_NUM;
+      document.getElementById('trigger-name').value = config.TRIGGER_NAME;
+      document.getElementById('cfg-ticker-enabled').checked = !!config.TICKER_ENABLED;
+      document.getElementById('cfg-ticker-scroll').value = config.TICKER_SCROLL_MS;
+      document.getElementById('val-ticker-scroll').textContent = config.TICKER_SCROLL_MS;
+      renderTickerEditor();
+
+      setMode(config.MODE, false);
+      saveConfig();
+      sendConfigUpdate();
+      setSavedState('Valores por defecto restaurados');
+    }
+
+    function sendConfigUpdate() {
+      broadcast({
+        type: 'UPDATE_CONFIG',
+        config: config
+      });
+      sendConfigSnapshotWS('local_update');
+    }
+
+    // Helpers
+    function broadcast(msg, options = {}) {
+      const { sendWs = true } = options;
+      if (channel) {
+        channel.postMessage(msg);
+      }
+      if (sendWs) {
+        sendMessageWS(msg);
+      }
+      // También guardar en localStorage para activar storage handlers de fallback
+      localStorage.setItem('lottery_ball_msg', JSON.stringify({
+        msg: msg,
+        timestamp: Date.now()
+      }));
+    }
+
+    function randomiseTriggerNum() {
+      const rand = Math.floor(Math.random() * 99) + 1;
+      document.getElementById('trigger-num').value = rand;
+      markDirty();
+      saveConfig();
+    }
+
+    function showEventFeedback(text, tone = 'ok') {
+      const el = document.getElementById('event-feedback');
+      if (!el) return;
+      el.className = `event-feedback ${tone}`;
+      el.textContent = text;
+      if (feedbackTimer) clearTimeout(feedbackTimer);
+      feedbackTimer = setTimeout(() => {
+        el.className = 'event-feedback';
+        el.textContent = '';
+      }, 2200);
+    }
+
+    function attachAutoSaveListeners() {
+      const autoFields = [
+        'trigger-num', 'trigger-name',
+        'ws-url', 'api-url',
+        'cfg-default-name',
+        'cfg-w', 'cfg-h',
+        'cfg-number-font', 'cfg-badge-size',
+        'cfg-ticker-scroll',
+        'cfg-left-tilt', 'cfg-right-tilt'
+      ];
+      autoFields.forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => {
+          markDirty();
+          saveConfig();
+        });
+      });
+    }
+
+    function addLog(number, name, mode) {
+      const logList = document.getElementById('log-list');
+      
+      // Limpiar texto vacío inicial
+      if (logList.children.length === 1 && logList.children[0].style.justifyContent === 'center') {
+        logList.innerHTML = '';
+      }
+
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString();
+      const li = document.createElement('li');
+      li.className = 'log-item';
+
+      let tagClass = 'tag-manual';
+      let tagLabel = 'MANUAL';
+      if (mode === 'dynamic') {
+        tagClass = 'tag-dynamic';
+        tagLabel = 'WEB';
+      } else if (mode === 'test') {
+        tagClass = 'tag-test';
+        tagLabel = 'TEST';
+      }
+
+      li.innerHTML = `
+        <div>
+          <span class="log-tag ${tagClass}">${tagLabel}</span>
+          <strong>Bolilla #${number}</strong> asignada a <em>${name}</em>
+        </div>
+        <span class="log-time">${timeStr}</span>
+      `;
+
+      logList.insertBefore(li, logList.firstChild);
+
+      // Limitar a 30 entradas
+      if (logList.children.length > 30) {
+        logList.lastChild.remove();
+      }
+    }
+
+    // Al arrancar
+    window.onload = () => {
+      initDashboard();
+      attachAutoSaveListeners();
+    };
+
+    window.addEventListener('beforeunload', () => {
+      saveConfig();
+    });
+  </script>
+</body>
+</html>

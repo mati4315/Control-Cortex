@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Luces de Fiesta & Boliche</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Share+Tech+Mono&display=swap');
+        
+        :root {
+            --neon-blue: #00f0ff;
+            --neon-pink: #ff007f;
+            --neon-green: #39ff14;
+            --neon-purple: #8b5cf6;
+            --bg-color: #070913;
+            --card-bg: rgba(15, 23, 42, 0.45);
+            --border-color: rgba(255, 255, 255, 0.06);
+            --text-main: #f1f5f9;
+            --text-muted: #64748b;
+            --input-bg: rgba(10, 15, 30, 0.7);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at 10% 20%, #1e1b4b 0%, #080711 45%, #030206 100%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 1.5rem 1.5rem 100px 1.5rem;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(10, 15, 30, 0.5);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-blue);
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1.3fr 0.7fr;
+            gap: 1.5rem;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 950px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 1.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: rgba(0, 240, 255, 0.15);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7), 0 0 15px rgba(0, 240, 255, 0.05);
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(to right, #00f0ff, #ff007f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.5rem;
+        }
+
+        h2 {
+            font-size: 1.2rem;
+            color: #ffffff;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 0.6rem;
+            margin-bottom: 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        /* Layout Helpers */
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 600px) {
+            .grid-2, .grid-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.4rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Custom Inputs */
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 0.65rem 0.8rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: var(--input-bg);
+            color: var(--text-main);
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+            background-color: rgba(10, 15, 30, 0.9);
+        }
+
+        /* Sliders */
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.1);
+            outline: none;
+            margin: 10px 0;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--neon-blue);
+            cursor: pointer;
+            box-shadow: 0 0 8px var(--neon-blue);
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.25);
+        }
+
+        /* Toggles */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.02);
+            padding: 0.6rem 0.9rem;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+            margin-bottom: 0.8rem;
+        }
+        .toggle-container span {
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 22px;
+        }
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .slider-switch {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(255,255,255,0.15);
+            transition: .3s;
+            border-radius: 34px;
+        }
+        .slider-switch:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider-switch {
+            background-color: var(--neon-pink);
+            box-shadow: 0 0 8px rgba(255, 0, 127, 0.5);
+        }
+        input:checked + .slider-switch:before {
+            transform: translateX(22px);
+        }
+
+        /* Buttons */
+        button {
+            padding: 0.7rem 1.2rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-neon {
+            background: linear-gradient(135deg, var(--neon-blue) 0%, #0959bb 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 240, 255, 0.2);
+        }
+        .btn-neon:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(0, 240, 255, 0.4);
+        }
+
+        .btn-pink {
+            background: linear-gradient(135deg, var(--neon-pink) 0%, #a20555 100%);
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(255, 0, 127, 0.2);
+        }
+        .btn-pink:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(255, 0, 127, 0.4);
+        }
+
+        .btn-gray {
+            background-color: #1e293b;
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .btn-gray:hover {
+            background-color: #334155;
+            color: white;
+        }
+
+        /* Color inputs */
+        .color-inputs {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        input[type="color"] {
+            -webkit-appearance: none;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        input[type="color"]::-webkit-color-swatch {
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+        }
+
+        /* Presets Grid */
+        .presets-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 450px) {
+            .presets-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        .preset-btn {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 0.8rem 0.5rem;
+            text-align: center;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .preset-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: white;
+        }
+        .preset-btn.active {
+            background: rgba(0, 240, 255, 0.1);
+            border-color: var(--neon-blue);
+            color: var(--neon-blue);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+        }
+
+        /* Beat Visualizer */
+        .beat-visualizer {
+            background: #090913;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 1.2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .beat-lamp {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #1e1b4b;
+            margin: 0 auto 10px auto;
+            border: 2px solid rgba(255,255,255,0.1);
+            transition: background-color 0.1s, box-shadow 0.1s;
+        }
+        .beat-lamp.pulse {
+            background-color: var(--neon-pink);
+            box-shadow: 0 0 25px var(--neon-pink), 0 0 10px var(--neon-pink);
+        }
+        .bpm-display {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 2.2rem;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+            margin: 5px 0;
+        }
+
+        /* Connections status */
+        .connection-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: rgba(10, 15, 30, 0.4);
+            border: 1px solid var(--border-color);
+            padding: 0.6rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 0.5rem;
+        }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 600;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.green {
+            background-color: var(--neon-green);
+            box-shadow: 0 0 8px var(--neon-green);
+        }
+
+        /* Preview Area */
+        .preview-container iframe {
+            border: 1px solid var(--border-color);
+            width: 100%;
+            height: 220px;
+            background-color: #030206;
+            border-radius: 12px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.9);
+        }
+
+        /* Floating footer save bar */
+        .save-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(7, 9, 19, 0.9);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+        }
+        .save-bar button {
+            width: 100%;
+            max-width: 450px;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="max-width: 1300px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px;">
+        <div>
+            <h1>🎛️ Control de Luces de Fiesta</h1>
+            <div class="subtitle">Personaliza tu simulador de juegos de luces boliche para OBS en tiempo real</div>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button id="copy-obs-btn" class="btn-gray">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copiar URL OBS</span>
+            </button>
+            <a href="overlay.html" target="_blank" style="text-decoration: none;">
+                <button class="btn-neon">🔗 Abrir Overlay</button>
+            </a>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        
+        <!-- COLUMNA IZQUIERDA: CONFIGURACION DETALLADA DE LUCES -->
+        <div class="left-col">
+            
+            <!-- TARJETA: PRESETS Y CONTROLES RAPIDOS -->
+            <div class="card">
+                <h2>⚡ Presets de Iluminación</h2>
+                <div class="presets-grid">
+                    <div class="preset-btn active" data-preset="automatic">
+                        <span>🌟</span>
+                        <span>Automático</span>
+                    </div>
+                    <div class="preset-btn" data-preset="electronic">
+                        <span>⚡</span>
+                        <span>Electronic</span>
+                    </div>
+                    <div class="preset-btn" data-preset="retro_disco">
+                        <span>🪩</span>
+                        <span>Disco Retro</span>
+                    </div>
+                    <div class="preset-btn" data-preset="chill_out">
+                        <span>❄️</span>
+                        <span>Chill Out</span>
+                    </div>
+                    <div class="preset-btn" data-preset="psychedelic">
+                        <span>🌀</span>
+                        <span>Psicodélico</span>
+                    </div>
+                    <div class="preset-btn" data-preset="laser_show">
+                        <span>🟢</span>
+                        <span>Solo Lasers</span>
+                    </div>
+                </div>
+
+                <!-- MODO ALEATORIO -->
+                <div id="random-mode-panel" style="
+                    background: linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(255,0,127,0.08) 100%);
+                    border: 1px solid rgba(139,92,246,0.35);
+                    border-radius: 12px;
+                    padding: 0.9rem 1.1rem;
+                    margin-bottom: 1.1rem;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    gap: 12px;
+                    flex-wrap: wrap;
+                ">
+                    <div style="display:flex; align-items:center; gap: 10px;">
+                        <span style="font-size:1.5rem; line-height:1;">🎲</span>
+                        <div>
+                            <div style="font-weight:700; font-size:0.95rem; color:#e2d9f3;">Modo Aleatorio</div>
+                            <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Cambia todos los parámetros automáticamente</div>
+                        </div>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+                        <div id="random-countdown-badge" style="
+                            display:none;
+                            font-family:'Share Tech Mono', monospace;
+                            font-size:0.85rem;
+                            color:#a78bfa;
+                            background: rgba(139,92,246,0.15);
+                            border: 1px solid rgba(139,92,246,0.3);
+                            border-radius: 20px;
+                            padding: 3px 12px;
+                            white-space:nowrap;
+                        ">siguiente en <span id="random-countdown-num">5</span>s</div>
+                        <label class="switch">
+                            <input type="checkbox" id="random-mode">
+                            <span class="slider-switch" style="background: linear-gradient(135deg,#8b5cf6,#ff007f);"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid-3">
+                    <div class="form-group">
+                        <label id="speed-label">Velocidad General (50%)</label>
+                        <input type="range" id="master-speed" min="5" max="100" value="50">
+                    </div>
+                    <div class="form-group">
+                        <label id="intensity-label">Brillo / Intensidad (80%)</label>
+                        <input type="range" id="master-intensity" min="10" max="100" value="80">
+                    </div>
+                    <div class="form-group">
+                        <label id="fog-label">Humo / Niebla (40%)</label>
+                        <input type="range" id="master-fog" min="0" max="100" value="40">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>Paleta de Colores</label>
+                        <select id="color-palette">
+                            <option value="rainbow">Arcoíris (Rainbow)</option>
+                            <option value="neon">Fiesta Neon (Pink/Cyan)</option>
+                            <option value="warm">Colores Cálidos (Red/Gold)</option>
+                            <option value="cold">Colores Fríos (Blue/Purple)</option>
+                            <option value="laser">Láser Club (Red/Green)</option>
+                            <option value="custom">Personalizado (Elegir abajo)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="custom-colors-wrapper" style="display: none;">
+                        <label>Colores Personalizados</label>
+                        <div class="color-inputs">
+                            <input type="color" id="custom-color-1" value="#ff0055">
+                            <span style="font-size:0.8rem; color:var(--text-muted);">A</span>
+                            <input type="color" id="custom-color-2" value="#00ffcc">
+                            <span style="font-size:0.8rem; color:var(--text-muted);">B</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA: ESPECIFICACIONES DE DISPOSITIVOS -->
+            <div class="grid-2">
+                
+                <!-- DISPOSITIVO: DISCO BALL -->
+                <div class="card">
+                    <h2>🪩 Bola de Espejos</h2>
+                    <div class="toggle-container">
+                        <span>Activar Bola de Disco</span>
+                        <label class="switch">
+                            <input type="checkbox" id="disco-ball" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label id="disco-ball-speed-label">Velocidad Giro (40%)</label>
+                        <input type="range" id="disco-ball-speed" min="5" max="100" value="40">
+                    </div>
+                    <div class="toggle-container">
+                        <span>Puntos Proyectados</span>
+                        <label class="switch">
+                            <input type="checkbox" id="disco-ball-dots" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- DISPOSITIVO: SPOTLIGHTS (CABEZALES MOVILES) -->
+                <div class="card">
+                    <h2>🔦 Cabezales Móviles</h2>
+                    <div class="toggle-container">
+                        <span>Activar Cabezales</span>
+                        <label class="switch">
+                            <input type="checkbox" id="spotlights" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Cantidad de Luces</label>
+                            <select id="spotlight-count">
+                                <option value="2">2 Cabezales</option>
+                                <option value="4" selected>4 Cabezales</option>
+                                <option value="6">6 Cabezales</option>
+                                <option value="8">8 Cabezales</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Patrón Movimiento</label>
+                            <select id="spotlight-pattern">
+                                <option value="sweep" selected>Barrido Cruzado</option>
+                                <option value="circles">Círculos</option>
+                                <option value="sync">Sincronizado</option>
+                                <option value="dance">Baile Rápido</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Efecto de Haz (Gobo)</label>
+                            <select id="spotlight-gobo">
+                                <option value="cone" selected>Sólido Cono</option>
+                                <option value="dots">Puntos Volumétricos</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label id="spotlight-speed-label">Velocidad (40%)</label>
+                            <input type="range" id="spotlight-speed" min="5" max="100" value="40">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DISPOSITIVO: LASERS -->
+                <div class="card">
+                    <h2>🟢 Láseres de Fiesta</h2>
+                    <div class="toggle-container">
+                        <span>Activar Láseres</span>
+                        <label class="switch">
+                            <input type="checkbox" id="lasers" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Cantidad Ejes</label>
+                            <select id="laser-count">
+                                <option value="2">2 Beams</option>
+                                <option value="4" selected>4 Beams</option>
+                                <option value="6">6 Beams</option>
+                                <option value="8">8 Beams</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Patrón de Escaneo</label>
+                            <select id="laser-pattern">
+                                <option value="bounce" selected>Barrido Rápido</option>
+                                <option value="wave">Onda</option>
+                                <option value="cross">Efecto X</option>
+                                <option value="circle">Espiral</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Color Láser</label>
+                            <select id="laser-color-mode">
+                                <option value="rainbow" selected>Paleta General</option>
+                                <option value="laser">Rojo / Verde</option>
+                                <option value="cold">Azul / Morado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label id="laser-speed-label">Velocidad (50%)</label>
+                            <input type="range" id="laser-speed" min="5" max="100" value="50">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DISPOSITIVO: ESTROBO & WASH -->
+                <div class="card">
+                    <h2>🚨 Estrobo y Wash (Bañadores)</h2>
+                    <div class="toggle-container">
+                        <span>Activar Estroboscopio</span>
+                        <label class="switch">
+                            <input type="checkbox" id="strobe">
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label>Modo de Estrobo</label>
+                            <select id="strobe-mode">
+                                <option value="freq" selected>Por Frecuencia (Hz)</option>
+                                <option value="beat">Al Ritmo del Beat</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="strobe-freq-wrapper">
+                            <label id="strobe-speed-label">Frecuencia (10 Hz)</label>
+                            <input type="range" id="strobe-speed" min="2" max="20" value="10">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Color de Flash Estrobo</label>
+                        <div class="color-inputs">
+                            <input type="color" id="strobe-color" value="#ffffff">
+                            <span style="font-size: 0.85rem; color: var(--text-muted);">Estrobo Flash</span>
+                        </div>
+                    </div>
+                    
+                    <hr style="border: 0; border-top: 1px dashed rgba(255,255,255,0.06); margin: 15px 0;">
+                    
+                    <div class="toggle-container">
+                        <span>Activar Bañadores (Wash)</span>
+                        <label class="switch">
+                            <input type="checkbox" id="wash" checked>
+                            <span class="slider-switch"></span>
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label id="wash-speed-label">Velocidad Pulsación (50%)</label>
+                        <input type="range" id="wash-speed" min="5" max="100" value="50">
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- COLUMNA DERECHA: BEAT SYNC, CONEXION Y VISTA PREVIA -->
+        <div class="right-col">
+            
+            <!-- TARJETA: BEAT ENGINE (SINCRONIZACIÓN DE RITMO) -->
+            <div class="card">
+                <h2>🥁 Ritmo y Sincronización</h2>
+                
+                <div class="beat-visualizer">
+                    <div id="beat-lamp" class="beat-lamp"></div>
+                    <div class="bpm-display"><span id="bpm-number">128</span> <span style="font-size:0.9rem; color:var(--text-muted)">BPM</span></div>
+                    <span style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Visualizador de Beat</span>
+                </div>
+
+                <div class="toggle-container">
+                    <span>Beat Virtual Automático</span>
+                    <label class="switch">
+                        <input type="checkbox" id="virtual-beat" checked>
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+
+                <div class="form-group" id="bpm-slider-wrapper">
+                    <label id="bpm-label">BPM del Ritmo (128)</label>
+                    <input type="range" id="bpm" min="60" max="200" value="128">
+                </div>
+
+                <div class="toggle-container">
+                    <span>Modo Audio-Reactivo (Mic)</span>
+                    <label class="switch">
+                        <input type="checkbox" id="audio-reactive">
+                        <span class="slider-switch"></span>
+                    </label>
+                </div>
+
+                <div class="form-group" id="sensitivity-wrapper" style="display: none;">
+                    <label id="sensitivity-label">Sensibilidad de Entrada (50%)</label>
+                    <input type="range" id="audio-sensitivity" min="10" max="100" value="50">
+                    <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px; line-height: 1.2;">
+                        Reacciona al bajo (Kick/Bass) capturado en la página del overlay.
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-top: 1rem;">
+                    <button id="tap-btn" class="btn-gray">🎚️ TAP TEMPO</button>
+                    <button id="pulse-btn" class="btn-pink">💥 PULSO BEAT</button>
+                </div>
+            </div>
+
+            <!-- TARJETA: VISTA PREVIA (REAL-TIME PREVIEW) -->
+            <div class="card">
+                <h2>📺 Vista Previa</h2>
+                <div class="preview-container">
+                    <iframe id="preview-iframe" src="/overlay.html"></iframe>
+                </div>
+            </div>
+
+            <!-- TARJETA: CONEXIONES ACTIVAS -->
+            <div class="card">
+                <h2>👥 Estado de Red</h2>
+                <div id="connections-list">
+                    <div class="connection-item">
+                        <span>Overlay para OBS</span>
+                        <div class="status-indicator">
+                            <span class="status-dot green"></span>
+                            <span id="overlay-status-text">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- BOTON GUARDAR FIJO (FOOTER) -->
+    <div class="save-bar">
+        <button id="save-btn" class="btn-neon">💾 Guardar Configuración</button>
+    </div>
+
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        let socket = null;
+        
+        // Debounce utility to prevent flooding server with slide changes
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+        
+        const debouncedUpdate = debounce(() => {
+            sendConfigUpdate();
+        }, 300);
+
+        // DOM elements cache
+        const masterSpeed = document.getElementById('master-speed');
+        const masterIntensity = document.getElementById('master-intensity');
+        const masterFog = document.getElementById('master-fog');
+        const colorPalette = document.getElementById('color-palette');
+        const customColor1 = document.getElementById('custom-color-1');
+        const customColor2 = document.getElementById('custom-color-2');
+        const customColorsWrapper = document.getElementById('custom-colors-wrapper');
+
+        const discoBall = document.getElementById('disco-ball');
+        const discoBallSpeed = document.getElementById('disco-ball-speed');
+        const discoBallDots = document.getElementById('disco-ball-dots');
+
+        const spotlights = document.getElementById('spotlights');
+        const spotlightCount = document.getElementById('spotlight-count');
+        const spotlightPattern = document.getElementById('spotlight-pattern');
+        const spotlightGobo = document.getElementById('spotlight-gobo');
+        const spotlightSpeed = document.getElementById('spotlight-speed');
+
+        const lasers = document.getElementById('lasers');
+        const laserCount = document.getElementById('laser-count');
+        const laserPattern = document.getElementById('laser-pattern');
+        const laserColorMode = document.getElementById('laser-color-mode');
+        const laserSpeed = document.getElementById('laser-speed');
+
+        const strobe = document.getElementById('strobe');
+        const strobeMode = document.getElementById('strobe-mode');
+        const strobeSpeed = document.getElementById('strobe-speed');
+        const strobeColor = document.getElementById('strobe-color');
+        const strobeFreqWrapper = document.getElementById('strobe-freq-wrapper');
+        const wash = document.getElementById('wash');
+        const washSpeed = document.getElementById('wash-speed');
+
+        const virtualBeat = document.getElementById('virtual-beat');
+        const bpm = document.getElementById('bpm');
+        const audioReactive = document.getElementById('audio-reactive');
+        const audioSensitivity = document.getElementById('audio-sensitivity');
+        const sensitivityWrapper = document.getElementById('sensitivity-wrapper');
+        const bpmSliderWrapper = document.getElementById('bpm-slider-wrapper');
+        const bpmNumber = document.getElementById('bpm-number');
+        const beatLamp = document.getElementById('beat-lamp');
+        
+        const previewIframe = document.getElementById('preview-iframe');
+        const copyObsBtn = document.getElementById('copy-obs-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const tapBtn = document.getElementById('tap-btn');
+        const pulseBtn = document.getElementById('pulse-btn');
+        const randomMode = document.getElementById('random-mode');
+        const randomCountdownBadge = document.getElementById('random-countdown-badge');
+        const randomCountdownNum = document.getElementById('random-countdown-num');
+
+        // Presets Definition
+        const PRESETS = {
+            automatic: {
+                preset: 'automatic', speed: 50, intensity: 80, fog: 40, colorPalette: 'rainbow',
+                discoBall: true, discoBallSpeed: 40, discoBallDots: true,
+                spotlights: true, spotlightCount: 4, spotlightPattern: 'sweep', spotlightGobo: 'cone', spotlightSpeed: 40,
+                lasers: true, laserCount: 4, laserPattern: 'bounce', laserColorMode: 'rainbow', laserSpeed: 50,
+                strobe: false, strobeMode: 'freq', strobeSpeed: 10, strobeColor: '#ffffff',
+                wash: true, washSpeed: 50, audioReactive: false, bpm: 128, virtualBeat: true
+            },
+            electronic: {
+                preset: 'electronic', speed: 85, intensity: 90, fog: 50, colorPalette: 'neon',
+                discoBall: true, discoBallSpeed: 70, discoBallDots: true,
+                spotlights: true, spotlightCount: 6, spotlightPattern: 'dance', spotlightGobo: 'dots', spotlightSpeed: 80,
+                lasers: true, laserCount: 6, laserPattern: 'cross', laserColorMode: 'laser', laserSpeed: 80,
+                strobe: true, strobeMode: 'beat', strobeSpeed: 12, strobeColor: '#ffffff',
+                wash: true, washSpeed: 80, audioReactive: false, bpm: 138, virtualBeat: true
+            },
+            retro_disco: {
+                preset: 'retro_disco', speed: 35, intensity: 80, fog: 25, colorPalette: 'warm',
+                discoBall: true, discoBallSpeed: 30, discoBallDots: true,
+                spotlights: true, spotlightCount: 4, spotlightPattern: 'circles', spotlightGobo: 'cone', spotlightSpeed: 30,
+                lasers: false, laserCount: 2, laserPattern: 'bounce', laserColorMode: 'rainbow', laserSpeed: 30,
+                strobe: false, strobeMode: 'freq', strobeSpeed: 8, strobeColor: '#ffffff',
+                wash: true, washSpeed: 40, audioReactive: false, bpm: 115, virtualBeat: true
+            },
+            chill_out: {
+                preset: 'chill_out', speed: 15, intensity: 60, fog: 65, colorPalette: 'cold',
+                discoBall: true, discoBallSpeed: 15, discoBallDots: false,
+                spotlights: true, spotlightCount: 2, spotlightPattern: 'sweep', spotlightGobo: 'cone', spotlightSpeed: 20,
+                lasers: false, laserCount: 2, laserPattern: 'wave', laserColorMode: 'cold', laserSpeed: 15,
+                strobe: false, strobeMode: 'freq', strobeSpeed: 5, strobeColor: '#ffffff',
+                wash: true, washSpeed: 20, audioReactive: false, bpm: 90, virtualBeat: true
+            },
+            psychedelic: {
+                preset: 'psychedelic', speed: 65, intensity: 85, fog: 45, colorPalette: 'rainbow',
+                discoBall: true, discoBallSpeed: 80, discoBallDots: true,
+                spotlights: true, spotlightCount: 6, spotlightPattern: 'circles', spotlightGobo: 'dots', spotlightSpeed: 60,
+                lasers: true, laserCount: 6, laserPattern: 'circle', laserColorMode: 'rainbow', laserSpeed: 70,
+                strobe: true, strobeMode: 'freq', strobeSpeed: 14, strobeColor: '#ff00ff',
+                wash: true, washSpeed: 70, audioReactive: false, bpm: 130, virtualBeat: true
+            },
+            laser_show: {
+                preset: 'laser_show', speed: 75, intensity: 95, fog: 60, colorPalette: 'laser',
+                discoBall: false, discoBallSpeed: 20, discoBallDots: false,
+                spotlights: false, spotlightCount: 4, spotlightPattern: 'sweep', spotlightGobo: 'cone', spotlightSpeed: 40,
+                lasers: true, laserCount: 8, laserPattern: 'cross', laserColorMode: 'laser', laserSpeed: 80,
+                strobe: false, strobeMode: 'freq', strobeSpeed: 10, strobeColor: '#ffffff',
+                wash: true, washSpeed: 60, audioReactive: false, bpm: 128, virtualBeat: true
+            }
+        };
+
+        let currentPreset = 'automatic';
+
+        // Load Preset into DOM and update UI
+        function loadPresetValues(presetKey) {
+            const data = PRESETS[presetKey];
+            if (!data) return;
+
+            currentPreset = presetKey;
+            
+            masterSpeed.value = data.speed;
+            masterIntensity.value = data.intensity;
+            masterFog.value = data.fog;
+            colorPalette.value = data.colorPalette;
+            
+            discoBall.checked = data.discoBall;
+            discoBallSpeed.value = data.discoBallSpeed;
+            discoBallDots.checked = data.discoBallDots;
+
+            spotlights.checked = data.spotlights;
+            spotlightCount.value = data.spotlightCount;
+            spotlightPattern.value = data.spotlightPattern;
+            spotlightGobo.value = data.spotlightGobo;
+            spotlightSpeed.value = data.spotlightSpeed;
+
+            lasers.checked = data.lasers;
+            laserCount.value = data.laserCount;
+            laserPattern.value = data.laserPattern;
+            laserColorMode.value = data.laserColorMode;
+            laserSpeed.value = data.laserSpeed;
+
+            strobe.checked = data.strobe;
+            strobeMode.value = data.strobeMode;
+            strobeSpeed.value = data.strobeSpeed;
+            strobeColor.value = data.strobeColor;
+            wash.checked = data.wash;
+            washSpeed.value = data.washSpeed;
+
+            virtualBeat.checked = data.virtualBeat;
+            bpm.value = data.bpm;
+            audioReactive.checked = data.audioReactive;
+
+            // Trigger updates
+            updateLabelsAndWrappers();
+            highlightPresetButton(presetKey);
+        }
+
+        function highlightPresetButton(presetKey) {
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                const pk = btn.getAttribute('data-preset');
+                btn.classList.toggle('active', pk === presetKey);
+            });
+        }
+
+        // Setup Preset Buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const presetKey = btn.getAttribute('data-preset');
+                loadPresetValues(presetKey);
+                sendConfigUpdate();
+            });
+        });
+
+        // Update Labels and Show/Hide panels dynamically
+        function updateLabelsAndWrappers() {
+            document.getElementById('speed-label').innerText = `Velocidad General (${masterSpeed.value}%)`;
+            document.getElementById('intensity-label').innerText = `Brillo / Intensidad (${masterIntensity.value}%)`;
+            document.getElementById('fog-label').innerText = `Humo / Niebla (${masterFog.value}%)`;
+            document.getElementById('disco-ball-speed-label').innerText = `Velocidad Giro (${discoBallSpeed.value}%)`;
+            document.getElementById('spotlight-speed-label').innerText = `Velocidad (${spotlightSpeed.value}%)`;
+            document.getElementById('laser-speed-label').innerText = `Velocidad (${laserSpeed.value}%)`;
+            document.getElementById('strobe-speed-label').innerText = `Frecuencia (${strobeSpeed.value} Hz)`;
+            document.getElementById('wash-speed-label').innerText = `Velocidad Pulsación (${washSpeed.value}%)`;
+            document.getElementById('bpm-label').innerText = `BPM del Ritmo (${bpm.value})`;
+            bpmNumber.innerText = bpm.value;
+
+            // Custom colors wrapper
+            if (colorPalette.value === 'custom') {
+                customColorsWrapper.style.display = 'block';
+            } else {
+                customColorsWrapper.style.display = 'none';
+            }
+
+            // Audio reactive vs virtual beat sliders
+            if (audioReactive.checked) {
+                sensitivityWrapper.style.display = 'block';
+                bpmSliderWrapper.style.display = 'none';
+            } else {
+                sensitivityWrapper.style.display = 'none';
+                bpmSliderWrapper.style.display = 'block';
+            }
+
+            // Strobe mode wrapper
+            if (strobeMode.value === 'freq') {
+                strobeFreqWrapper.style.display = 'block';
+            } else {
+                strobeFreqWrapper.style.display = 'none';
+            }
+        }
+
+        // Get full config payload from form values
+        function getConfigFromForm() {
+            return {
+                preset: currentPreset,
+                speed: parseInt(masterSpeed.value),
+                intensity: parseInt(masterIntensity.value),
+                fog: parseInt(masterFog.value),
+                colorPalette: colorPalette.value,
+                customColor1: customColor1.value,
+                customColor2: customColor2.value,
+
+                discoBall: discoBall.checked,
+                discoBallSpeed: parseInt(discoBallSpeed.value),
+                discoBallDots: discoBallDots.checked,
+
+                spotlights: spotlights.checked,
+                spotlightCount: parseInt(spotlightCount.value),
+                spotlightPattern: spotlightPattern.value,
+                spotlightGobo: spotlightGobo.value,
+                spotlightSpeed: parseInt(spotlightSpeed.value),
+
+                lasers: lasers.checked,
+                laserCount: parseInt(laserCount.value),
+                laserPattern: laserPattern.value,
+                laserColorMode: laserColorMode.value,
+                laserSpeed: parseInt(laserSpeed.value),
+
+                strobe: strobe.checked,
+                strobeMode: strobeMode.value,
+                strobeSpeed: parseInt(strobeSpeed.value),
+                strobeColor: strobeColor.value,
+                wash: wash.checked,
+                washSpeed: parseInt(washSpeed.value),
+
+                virtualBeat: virtualBeat.checked,
+                bpm: parseInt(bpm.value),
+                audioReactive: audioReactive.checked,
+                audioSensitivity: parseInt(audioSensitivity.value)
+            };
+        }
+
+        // Send changes to Server via Socket.IO
+        function sendConfigUpdate() {
+            if (socket) {
+                const config = getConfigFromForm();
+                socket.emit('updateConfig', config);
+            }
+        }
+
+        // Attach change listeners to all controls
+        const inputs = [
+            masterSpeed, masterIntensity, masterFog, colorPalette, customColor1, customColor2,
+            discoBall, discoBallSpeed, discoBallDots, spotlights, spotlightCount, spotlightPattern,
+            spotlightGobo, spotlightSpeed, lasers, laserCount, laserPattern, laserColorMode,
+            laserSpeed, strobe, strobeMode, strobeSpeed, strobeColor, wash, washSpeed,
+            virtualBeat, bpm, audioReactive, audioSensitivity
+        ];
+
+        inputs.forEach(input => {
+            input.addEventListener('change', () => {
+                updateLabelsAndWrappers();
+                sendConfigUpdate();
+            });
+            input.addEventListener('input', () => {
+                updateLabelsAndWrappers();
+                debouncedUpdate();
+            });
+        });
+
+        // Beat TAP TEMPO Calculator
+        let tapTimes = [];
+        tapBtn.addEventListener('click', () => {
+            const now = Date.now();
+            // Clear taps older than 3 seconds
+            tapTimes = tapTimes.filter(t => now - t < 3000);
+            tapTimes.push(now);
+
+            // Flash beat visualizer lamp manually on tap
+            beatLamp.classList.add('pulse');
+            setTimeout(() => beatLamp.classList.remove('pulse'), 80);
+
+            if (tapTimes.length >= 2) {
+                let intervals = [];
+                for (let i = 1; i < tapTimes.length; i++) {
+                    intervals.push(tapTimes[i] - tapTimes[i-1]);
+                }
+                const averageInterval = intervals.reduce((a,b) => a+b, 0) / intervals.length;
+                let calculatedBpm = Math.round(60000 / averageInterval);
+                
+                // Keep it in a logical club music range (60 - 200)
+                calculatedBpm = Math.max(60, Math.min(200, calculatedBpm));
+                
+                bpm.value = calculatedBpm;
+                updateLabelsAndWrappers();
+                sendConfigUpdate();
+            }
+        });
+
+        // Manual PULSE Beat button
+        pulseBtn.addEventListener('click', () => {
+            beatLamp.classList.add('pulse');
+            setTimeout(() => beatLamp.classList.remove('pulse'), 120);
+
+            if (socket) {
+                // Instantly emit beatTrigger event to trigger flashes on overlay
+                socket.emit('beatTrigger', { origin: 'dashboard', time: Date.now() });
+            }
+        });
+
+        // Sync local visualizer to virtual beat timer if active
+        let beatIntervalTimer = null;
+        function setupLocalBeatVisualizer() {
+            clearInterval(beatIntervalTimer);
+            if (!virtualBeat.checked || audioReactive.checked) return;
+
+            const speedFactor = 60000 / parseInt(bpm.value);
+            beatIntervalTimer = setInterval(() => {
+                beatLamp.classList.add('pulse');
+                setTimeout(() => beatLamp.classList.remove('pulse'), 100);
+            }, speedFactor);
+        }
+
+        // Dynamic Socket.IO setup (handles local file:/// testing)
+        const isFileProtocol = window.location.protocol === 'file:';
+        const socketTarget = isFileProtocol ? 'http://127.0.0.1:3758' : '';
+
+        if (isFileProtocol) {
+            previewIframe.src = 'http://127.0.0.1:3758/overlay.html';
+        }
+
+        const script = document.createElement('script');
+        script.src = socketTarget + '/socket.io/socket.io.js';
+        script.onload = () => {
+            socket = io(socketTarget, { query: { type: 'dashboard' } });
+
+            socket.on('configUpdate', (config) => {
+                // Populate forms if not currently editing (not in focus)
+                const isEditing = document.activeElement && 
+                                  (document.activeElement.tagName === 'INPUT' || 
+                                   document.activeElement.tagName === 'SELECT');
+                
+                if (!isEditing) {
+                    if (config.preset) currentPreset = config.preset;
+                    if (config.speed !== undefined) masterSpeed.value = config.speed;
+                    if (config.intensity !== undefined) masterIntensity.value = config.intensity;
+                    if (config.fog !== undefined) masterFog.value = config.fog;
+                    if (config.colorPalette) colorPalette.value = config.colorPalette;
+                    if (config.customColor1) customColor1.value = config.customColor1;
+                    if (config.customColor2) customColor2.value = config.customColor2;
+
+                    if (config.discoBall !== undefined) discoBall.checked = config.discoBall;
+                    if (config.discoBallSpeed !== undefined) discoBallSpeed.value = config.discoBallSpeed;
+                    if (config.discoBallDots !== undefined) discoBallDots.checked = config.discoBallDots;
+
+                    if (config.spotlights !== undefined) spotlights.checked = config.spotlights;
+                    if (config.spotlightCount !== undefined) spotlightCount.value = config.spotlightCount;
+                    if (config.spotlightPattern) spotlightPattern.value = config.spotlightPattern;
+                    if (config.spotlightGobo) spotlightGobo.value = config.spotlightGobo;
+                    if (config.spotlightSpeed !== undefined) spotlightSpeed.value = config.spotlightSpeed;
+
+                    if (config.lasers !== undefined) lasers.checked = config.lasers;
+                    if (config.laserCount !== undefined) laserCount.value = config.laserCount;
+                    if (config.laserPattern) laserPattern.value = config.laserPattern;
+                    if (config.laserColorMode) laserColorMode.value = config.laserColorMode;
+                    if (config.laserSpeed !== undefined) laserSpeed.value = config.laserSpeed;
+
+                    if (config.strobe !== undefined) strobe.checked = config.strobe;
+                    if (config.strobeMode) strobeMode.value = config.strobeMode;
+                    if (config.strobeSpeed !== undefined) strobeSpeed.value = config.strobeSpeed;
+                    if (config.strobeColor) strobeColor.value = config.strobeColor;
+                    if (config.wash !== undefined) wash.checked = config.wash;
+                    if (config.washSpeed !== undefined) washSpeed.value = config.washSpeed;
+
+                    if (config.virtualBeat !== undefined) virtualBeat.checked = config.virtualBeat;
+                    if (config.bpm !== undefined) bpm.value = config.bpm;
+                    if (config.audioReactive !== undefined) audioReactive.checked = config.audioReactive;
+                    if (config.audioSensitivity !== undefined) audioSensitivity.value = config.audioSensitivity;
+
+                    updateLabelsAndWrappers();
+                    highlightPresetButton(currentPreset);
+                    setupLocalBeatVisualizer();
+                }
+            });
+
+            // Listen for beat triggers synced from overlay/audio reaction
+            socket.on('beatTrigger', (data) => {
+                beatLamp.classList.add('pulse');
+                setTimeout(() => beatLamp.classList.remove('pulse'), 100);
+            });
+
+            // Update Connection status
+            socket.on('connectionStatus', (status) => {
+                const overlayStatusText = document.getElementById('overlay-status-text');
+                if (status.overlays > 0) {
+                    overlayStatusText.innerText = `${status.overlays} Activo(s)`;
+                    overlayStatusText.previousElementSibling.className = 'status-dot green';
+                } else {
+                    overlayStatusText.innerText = 'Sin Conexión';
+                    overlayStatusText.previousElementSibling.className = 'status-dot';
+                    overlayStatusText.previousElementSibling.style.backgroundColor = '#64748b';
+                    overlayStatusText.previousElementSibling.style.boxShadow = 'none';
+                }
+            });
+        };
+        document.head.appendChild(script);
+
+        // Save Button Click
+        saveBtn.addEventListener('click', () => {
+            sendConfigUpdate();
+            const originalText = saveBtn.innerText;
+            saveBtn.innerText = '✨ ¡Configuración Guardada! ✨';
+            saveBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            saveBtn.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.4)';
+            setTimeout(() => {
+                saveBtn.innerText = originalText;
+                saveBtn.style.background = '';
+                saveBtn.style.boxShadow = '';
+            }, 1800);
+        });
+
+        // Copy OBS URL Action
+        if (copyObsBtn) {
+            copyObsBtn.addEventListener('click', () => {
+                const overlayUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:3758/overlay.html' : window.location.origin + '/overlay.html';
+                navigator.clipboard.writeText(overlayUrl).then(() => {
+                    const originalHtml = copyObsBtn.innerHTML;
+                    copyObsBtn.innerHTML = `✔️ ¡Copiado!`;
+                    copyObsBtn.style.borderColor = varColor('--neon-green');
+                    copyObsBtn.style.color = varColor('--neon-green');
+                    setTimeout(() => {
+                        copyObsBtn.innerHTML = originalHtml;
+                        copyObsBtn.style.borderColor = '';
+                        copyObsBtn.style.color = '';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error copying text: ', err);
+                });
+            });
+        }
+
+        // Helper to read CSS variables
+        function varColor(varName) {
+            return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+        }
+
+        // ============================================================
+        //  MODO ALEATORIO (RANDOM MODE)
+        // ============================================================
+        const RANDOM_PALETTES   = ['rainbow','neon','warm','cold','laser'];
+        const RANDOM_SP_PATTERN = ['sweep','circles','sync','dance'];
+        const RANDOM_SP_GOBO    = ['cone','dots'];
+        const RANDOM_LZ_PATTERN = ['bounce','wave','cross','circle'];
+        const RANDOM_LZ_COLOR   = ['rainbow','laser','cold'];
+        const RANDOM_STR_MODE   = ['freq','beat'];
+        const RANDOM_COUNTS     = [2,4,6,8];
+
+        let randomTimer     = null;   // setInterval handle
+        let randomCountdown = 0;      // seconds remaining
+        let randomTick      = null;   // setInterval for countdown display
+
+        function pick(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+        function rInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+        function rBool(trueChance = 0.6) {
+            return Math.random() < trueChance;
+        }
+        function randomHex() {
+            return '#' + Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0');
+        }
+
+        function applyRandomConfig() {
+            // Flash the random-mode panel to signal a change
+            const panel = document.getElementById('random-mode-panel');
+            panel.style.boxShadow = '0 0 20px rgba(139,92,246,0.6)';
+            setTimeout(() => panel.style.boxShadow = '', 400);
+
+            // --- Master controls ---
+            masterSpeed.value     = rInt(15, 95);
+            masterIntensity.value = rInt(50, 100);
+            masterFog.value       = rInt(10, 75);
+            colorPalette.value    = pick(RANDOM_PALETTES);
+
+            // --- Disco Ball ---
+            discoBall.checked      = rBool(0.75);
+            discoBallSpeed.value   = rInt(10, 90);
+            discoBallDots.checked  = rBool(0.7);
+
+            // --- Spotlights ---
+            spotlights.checked        = rBool(0.8);
+            spotlightCount.value      = pick(RANDOM_COUNTS);
+            spotlightPattern.value    = pick(RANDOM_SP_PATTERN);
+            spotlightGobo.value       = pick(RANDOM_SP_GOBO);
+            spotlightSpeed.value      = rInt(10, 90);
+
+            // --- Lasers ---
+            lasers.checked         = rBool(0.75);
+            laserCount.value       = pick(RANDOM_COUNTS);
+            laserPattern.value     = pick(RANDOM_LZ_PATTERN);
+            laserColorMode.value   = pick(RANDOM_LZ_COLOR);
+            laserSpeed.value       = rInt(10, 95);
+
+            // --- Strobe (lower chance to avoid seizure risk) ---
+            strobe.checked      = rBool(0.3);
+            strobeMode.value    = pick(RANDOM_STR_MODE);
+            strobeSpeed.value   = rInt(4, 18);
+            strobeColor.value   = rBool(0.6) ? '#ffffff' : randomHex();
+
+            // --- Wash ---
+            wash.checked      = rBool(0.85);
+            washSpeed.value   = rInt(15, 90);
+
+            // --- BPM ---
+            bpm.value = rInt(80, 170);
+
+            // Update labels, wrappers and send to overlay
+            currentPreset = 'automatic';
+            updateLabelsAndWrappers();
+            highlightPresetButton('automatic');
+            setupLocalBeatVisualizer();
+            sendConfigUpdate();
+        }
+
+        function startRandomCountdown(seconds) {
+            clearInterval(randomTick);
+            randomCountdown = seconds;
+            randomCountdownNum.innerText = randomCountdown;
+
+            randomTick = setInterval(() => {
+                randomCountdown--;
+                randomCountdownNum.innerText = randomCountdown;
+                if (randomCountdown <= 0) clearInterval(randomTick);
+            }, 1000);
+        }
+
+        function startRandomMode() {
+            clearInterval(randomTimer);
+            randomCountdownBadge.style.display = 'inline-block';
+
+            // Apply immediately on activation
+            applyRandomConfig();
+
+            // Schedule recurring changes every 3-5 seconds (random interval)
+            function scheduleNext() {
+                const delay = rInt(3, 5) * 1000;
+                startRandomCountdown(delay / 1000);
+                randomTimer = setTimeout(() => {
+                    if (!randomMode.checked) return;
+                    applyRandomConfig();
+                    scheduleNext();
+                }, delay);
+            }
+            scheduleNext();
+        }
+
+        function stopRandomMode() {
+            clearTimeout(randomTimer);
+            clearInterval(randomTick);
+            randomTimer = null;
+            randomCountdownBadge.style.display = 'none';
+        }
+
+        randomMode.addEventListener('change', () => {
+            if (randomMode.checked) {
+                startRandomMode();
+            } else {
+                stopRandomMode();
+            }
+        });
+
+        // Initialize UI values
+        updateLabelsAndWrappers();
+        setupLocalBeatVisualizer();
+    </script>
+</body>
+</html>

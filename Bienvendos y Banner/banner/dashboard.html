@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Social Loop Dashboard - CDelu</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/banner/css/banner.css">
+</head>
+<body class="dashboard-page">
+  <main class="dashboard-shell">
+    <header class="dashboard-topbar">
+      <div>
+        <p class="dashboard-kicker">Social Loop</p>
+        <h1 class="dashboard-title">Overlay lower-third para OBS</h1>
+        <p class="dashboard-copy">Editá la rotación de Instagram, Facebook, TikTok y web; el preview muestra la pieza como se verá en tu escena.</p>
+      </div>
+      <div class="dashboard-actions">
+        <a class="ghost-button" href="/banner" target="_blank" rel="noreferrer">Abrir overlay</a>
+        <button class="solid-button" id="copy-link-btn" type="button">Copiar enlace</button>
+        <button class="ghost-button" id="reset-btn" type="button">Restaurar base</button>
+      </div>
+    </header>
+
+    <section class="dashboard-grid">
+      <article class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Vista previa OBS</h2>
+            <p class="panel-subtitle">Esta es la lectura real del lower-third en un browser source.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="preview-frame" style="min-height: 420px;">
+            <div id="preview-stage" style="width:100%;height:100%;"></div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Editor</h2>
+            <p class="panel-subtitle">Orden, visibilidad y duración del loop.</p>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field">
+              <label for="loop-interval">Intervalo del loop (ms)</label>
+              <input id="loop-interval" type="number" min="1500" step="100" value="4200">
+            </div>
+          </div>
+
+          <div class="section">
+            <div class="section-title-row">
+              <h3>Redes</h3>
+              <button class="ghost-button" id="add-social-btn" type="button">Añadir red</button>
+            </div>
+            <div class="social-editor-list" id="social-editor-list"></div>
+          </div>
+
+          <div class="hint-box">
+            Para OBS usá la URL <strong>/banner</strong>. Este dashboard solo controla el contenido y el ritmo de rotación.
+          </div>
+        </div>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/banner/js/shared.js"></script>
+  <script src="/banner/js/dashboard.js"></script>
+</body>
+</html>

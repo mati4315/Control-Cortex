@@ -1,0 +1,29 @@
+# Dependencias
+node_modules/
+
+# Archivos sensibles / secretos
+service-account.json
+*.key
+*.pem
+*.pfx
+.env
+
+# Estado local del watcher
+.watcher-state.json
+.avatar-cache.json
+
+# Copias de seguridad
+copia de seguridad/
+backup/
+*.rar
+*.zip
+*.7z
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+desktop.ini

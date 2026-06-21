@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control Cortex - OBS Service Orchestrator</title>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="bg-glow glow-1"></div>
+  <div class="bg-glow glow-2"></div>
+  <div class="bg-glow glow-3"></div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header class="main-header">
+      <div class="brand">
+        <div class="logo-wrapper">
+          <i class="fa-solid fa-brain logo-icon animate-pulse"></i>
+        </div>
+        <div class="brand-text">
+          <h1>Control Cortex</h1>
+          <p>OBS Microservices Orchestrator</p>
+        </div>
+      </div>
+
+      <!-- Global Stats -->
+      <div class="global-stats">
+        <div class="stat-card">
+          <div class="stat-icon cpu-color"><i class="fa-solid fa-microchip"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">CPU Global</span>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="global-cpu-fill" style="width: 0%"></div>
+            </div>
+            <span class="stat-value" id="global-cpu-val">0%</span>
+          </div>
+        </div>
+
+        <div class="stat-card">
+          <div class="stat-icon ram-color"><i class="fa-solid fa-memory"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">RAM Global</span>
+            <div class="progress-bar-container">
+              <div class="progress-bar-fill" id="global-ram-fill" style="width: 0%"></div>
+            </div>
+            <span class="stat-value" id="global-ram-val">0% / 0GB</span>
+          </div>
+        </div>
+
+        <div class="stat-card summary-card">
+          <div class="stat-icon active-color"><i class="fa-solid fa-circle-check"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">Servicios Activos</span>
+            <span class="stat-value"><span id="active-services-count" class="badge-active">0</span> / <span id="total-services-count">0</span></span>
+          </div>
+        </div>
+
+        <div class="stat-card service-stats-card">
+          <div class="stat-icon cpu-color"><i class="fa-solid fa-chart-line"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">CPU Servicios</span>
+            <span class="stat-value" id="services-cpu-val">0%</span>
+          </div>
+        </div>
+
+        <div class="stat-card service-stats-card">
+          <div class="stat-icon ram-color"><i class="fa-solid fa-server"></i></div>
+          <div class="stat-info">
+            <span class="stat-label">RAM Servicios</span>
+            <span class="stat-value" id="services-ram-val">0 MB</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Left Column: Services Grid -->
+      <section class="services-section">
+        <div class="section-header">
+          <h2><i class="fa-solid fa-cubes"></i> Microservicios Registrados</h2>
+          <div class="header-actions-group">
+            <button class="btn btn-success btn-sm" id="btn-start-all" title="Iniciar todos los servicios">
+              <i class="fa-solid fa-play"></i> Iniciar Todos
+            </button>
+            <button class="btn btn-danger btn-sm" id="btn-stop-all" title="Detener todos los servicios">
+              <i class="fa-solid fa-square"></i> Detener Todos
+            </button>
+            <button class="btn btn-primary btn-sm" id="btn-open-add-modal">
+              <i class="fa-solid fa-plus"></i> Registrar
+            </button>
+          </div>
+        </div>
+
+        <!-- Services Cards Container -->
+        <div class="services-grid" id="services-container">
+          <!-- Loading state -->
+          <div class="loading-state">
+            <i class="fa-solid fa-circle-notch fa-spin"></i>
+            <p>Obteniendo lista de servicios...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Terminal & Logs -->
+      <section class="console-section">
+        <div class="section-header">
+          <div class="console-title-info">
+            <h2><i class="fa-solid fa-terminal"></i> Consola en Tiempo Real</h2>
+            <div class="console-service-selector-row">
+              <span class="active-log-service" id="active-log-service-name">Selecciona un servicio</span>
+              <div id="selected-service-controls" class="selected-service-controls"></div>
+            </div>
+          </div>
+          <div class="console-actions">
+            <button class="btn btn-icon btn-secondary" id="btn-clear-logs" title="Limpiar Consola">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <button class="btn btn-icon btn-secondary" id="btn-download-logs" title="Descargar Logs" disabled>
+              <i class="fa-solid fa-download"></i>
+            </button>
+            <div class="toggle-container">
+              <label class="toggle-switch">
+                <input type="checkbox" id="chk-autoscroll" checked>
+                <span class="slider"></span>
+              </label>
+              <span class="toggle-label">Auto-scroll</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Terminal Window -->
+        <div class="terminal-window">
+          <div class="terminal-header">
+            <div class="terminal-buttons">
+              <span class="term-dot close"></span>
+              <span class="term-dot minimize"></span>
+              <span class="term-dot maximize"></span>
+            </div>
+            <div class="terminal-tab" id="terminal-tab-name">bash</div>
+          </div>
+          <div class="terminal-body" id="terminal-output">
+            <div class="console-placeholder">
+              <i class="fa-solid fa-keyboard placeholder-icon"></i>
+              <p>Selecciona un servicio de la lista de la izquierda para ver su output en tiempo real.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add Service Modal -->
+  <div class="modal-overlay" id="add-service-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3><i class="fa-solid fa-plus-circle"></i> Registrar Nuevo Microservicio</h3>
+        <button class="btn-close-modal" id="btn-close-modal"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="add-service-form">
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="srv-id">ID Único del Servicio <span class="required">*</span></label>
+              <input type="text" id="srv-id" name="id" placeholder="ej. trigger-studio" required autocomplete="off">
+              <span class="form-help">Solo letras, números, guiones y guiones bajos.</span>
+            </div>
+            <div class="form-group col-6">
+              <label for="srv-name">Nombre Visible <span class="required">*</span></label>
+              <input type="text" id="srv-name" name="name" placeholder="ej. Trigger Studio" required autocomplete="off">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="srv-desc">Descripción</label>
+            <input type="text" id="srv-desc" name="description" placeholder="ej. Control de alertas visuales y sonoras en OBS" autocomplete="off">
+          </div>
+
+          <div class="form-group">
+            <label for="srv-dir">Directorio de Ejecución (Ruta Absoluta) <span class="required">*</span></label>
+            <input type="text" id="srv-dir" name="directory" placeholder="ej. D:/Mis plugins OBS/Trigger Studio/server" required autocomplete="off">
+            <span class="form-help">Ejemplo en Windows: D:/Mis plugins OBS/Trigger Studio/server</span>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="srv-script">Script Principal de Entrada <span class="required">*</span></label>
+              <input type="text" id="srv-script" name="script" placeholder="ej. server.js o dist/index.js" required autocomplete="off">
+              <span class="form-help">Ruta relativa al directorio de ejecución</span>
+            </div>
+            <div class="form-group col-6">
+              <label for="srv-url">URL del Panel / Dashboard (Opcional)</label>
+              <input type="url" id="srv-url" name="dashboardUrl" placeholder="ej. http://localhost:2188" autocomplete="off">
+            </div>
+          </div>
+
+          <!-- Env Variables Section -->
+          <div class="env-vars-section">
+            <div class="env-header">
+              <label>Variables de Entorno (Opcional)</label>
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-add-env-row">
+                <i class="fa-solid fa-plus"></i> Agregar Variable
+              </button>
+            </div>
+            <div class="env-rows-container" id="env-rows">
+              <!-- Default PORT key-value -->
+              <div class="env-row">
+                <input type="text" class="env-key" placeholder="Key (ej. PORT)" value="PORT" autocomplete="off">
+                <input type="text" class="env-val" placeholder="Value (ej. 3000)" autocomplete="off">
+                <button type="button" class="btn-remove-env"><i class="fa-solid fa-trash-can"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-error-msg" id="form-error-msg"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-form">
+            <span id="btn-submit-text">Registrar Servicio</span>
+            <i class="fa-solid fa-circle-notch fa-spin spinner" id="form-submit-spinner" style="display: none;"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Application Script -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Control - Overlay de Clima y Tiempo</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        :root {
+            --theme-color: #8b5cf6;
+            --theme-color-dark: color-mix(in srgb, var(--theme-color) 65%, #000);
+            --theme-color-light: color-mix(in srgb, var(--theme-color) 75%, #fff);
+            --theme-color-glow: color-mix(in srgb, var(--theme-color) 35%, transparent);
+            --bg-color: #0b0f19;
+            --card-bg: rgba(30, 41, 59, 0.6);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --input-bg: rgba(15, 23, 42, 0.6);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top right, #1e1b4b 0%, #0f172a 40%, #0b0f19 100%);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem 1.5rem 120px 1.5rem;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 4px;
+            border: 2px solid rgba(15, 23, 42, 0.5);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 1.25fr 0.75fr;
+            gap: 1.8rem;
+            width: 100%;
+            max-width: 1100px;
+        }
+
+        @media (max-width: 850px) {
+            .dashboard-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            padding: 1.8rem;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.5rem;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 15px var(--theme-color-glow);
+        }
+
+        h1, h2, h3 {
+            margin-top: 0;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        h1 {
+            font-size: 1.7rem;
+            color: #38bdf8;
+            margin-bottom: 1.8rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-shadow: 0 2px 8px rgba(56, 189, 248, 0.2);
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h3 {
+            font-size: 1.05rem;
+            color: #cbd5e1;
+            margin-bottom: 1rem;
+        }
+
+        .row {
+            display: flex;
+            gap: 1.2rem;
+        }
+
+        .col {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .form-group {
+            margin-bottom: 1.2rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"], input[type="number"], select {
+            width: 100%;
+            padding: 0.75rem 0.9rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--input-bg);
+            color: var(--text-main);
+            font-size: 0.95rem;
+            box-sizing: border-box;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(4px);
+        }
+
+        input[type="text"]:focus, input[type="number"]:focus, select:focus {
+            outline: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+            background-color: rgba(15, 23, 42, 0.85);
+        }
+
+        button {
+            width: 100%;
+            padding: 0.8rem 1.2rem;
+            background-color: var(--theme-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background-color: var(--theme-color-light);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px var(--theme-color-glow);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.add-btn {
+            background-color: #10b981;
+            margin-bottom: 1rem;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+        button.add-btn:hover { 
+            background-color: #059669; 
+            box-shadow: 0 6px 16px rgba(16, 185, 129, 0.3);
+        }
+
+        button.remove-btn {
+            background-color: #ef4444;
+            padding: 0.45rem 0.9rem;
+            width: auto;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 10px rgba(239, 68, 68, 0.15);
+        }
+        button.remove-btn:hover { 
+            background-color: #dc2626; 
+            box-shadow: 0 6px 14px rgba(239, 68, 68, 0.25);
+        }
+
+        .location-card {
+            background-color: rgba(15, 23, 42, 0.45);
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 1.25rem;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .location-card:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+            background-color: rgba(15, 23, 42, 0.6);
+        }
+        
+        .location-card.hidden {
+            opacity: 0.45;
+        }
+
+        .location-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 0.65rem;
+        }
+
+        .location-actions {
+            display: flex;
+            gap: 0.6rem;
+        }
+        
+        .toggle-btn {
+            background-color: #3b82f6;
+            padding: 0.45rem 0.9rem;
+            width: auto;
+            font-size: 0.85rem;
+            box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);
+        }
+        .toggle-btn:hover { 
+            background-color: #2563eb; 
+            box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25);
+        }
+        .toggle-btn.is-hidden { 
+            background-color: #64748b; 
+            box-shadow: 0 4px 10px rgba(100, 116, 139, 0.15);
+        }
+        .toggle-btn.is-hidden:hover { 
+            background-color: #475569; 
+        }
+
+        .reorder-btn {
+            background-color: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-color);
+            padding: 0.45rem 0.6rem;
+            width: auto !important;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            box-shadow: none !important;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .reorder-btn:hover:not(:disabled) {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: var(--text-main);
+            transform: translateY(-1px);
+        }
+        .reorder-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        /* Color Picker Swatches */
+        .color-selector-wrapper {
+            display: flex;
+            gap: 0.75rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .swatch {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .swatch:hover {
+            transform: scale(1.15);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .swatch.active {
+            border-color: #ffffff;
+            transform: scale(1.1);
+            box-shadow: 0 0 12px var(--theme-color);
+        }
+
+        /* Live control styling */
+        .ctrl-btn-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 0.6rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .ctrl-btn {
+            background-color: #334155;
+            padding: 0.75rem;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        .ctrl-btn:hover {
+            background-color: #475569;
+            transform: translateY(-1px);
+        }
+        .ctrl-btn.active-play {
+            background-color: #10b981;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+        }
+        .ctrl-btn.active-play:hover {
+            background-color: #059669;
+        }
+        .ctrl-btn.active-pause {
+            background-color: #f59e0b;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2);
+        }
+        .ctrl-btn.active-pause:hover {
+            background-color: #d97706;
+        }
+
+        /* Queue views list */
+        .queue-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 250px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .queue-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            padding: 0.65rem 0.9rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .queue-item:hover {
+            background-color: rgba(30, 41, 59, 0.5);
+            border-color: rgba(255, 255, 255, 0.15);
+            transform: translateX(2px);
+        }
+
+        .queue-item.active {
+            background-color: var(--theme-color-glow);
+            border-color: var(--theme-color);
+            color: #ffffff;
+            font-weight: 600;
+            box-shadow: inset 0 0 10px var(--theme-color-glow);
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 3px 8px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-time {
+            background-color: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(2, 132, 199, 0.3);
+        }
+
+        .badge-temp {
+            background-color: #d97706;
+            color: #ffffff;
+            box-shadow: 0 2px 6px rgba(217, 119, 6, 0.3);
+        }
+
+        /* Preview iframe */
+        .preview-container {
+            margin-top: 1rem;
+        }
+        
+        .preview-container iframe {
+            border: 1px solid var(--border-color);
+            width: 100%;
+            height: 180px;
+            background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3hKhf4T4/0R54F9D/4n1wD9xHhh9wIgBozQYtQGjNBi1AQAaKwQ1v0nJCAAAAABJRU5ErkJggg==');
+            border-radius: 12px;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+
+        .save-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .save-bar button {
+            max-width: 400px;
+            margin: 0 auto;
+            display: block;
+        }
+
+        /* Backdrop selector styling */
+        .backdrop-btn {
+            background-color: #1e293b;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-muted);
+            padding: 0.6rem;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .backdrop-btn:hover {
+            background-color: #334155;
+            color: var(--text-main);
+            transform: none;
+            box-shadow: none;
+        }
+        .backdrop-btn.active {
+            background-color: #0284c7;
+            border-color: #38bdf8;
+            color: white;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+        }
+        .backdrop-btn.active:hover {
+            background-color: #0284c7;
+        }
+
+        /* Copy OBS button styling */
+        #copy-obs-btn {
+            cursor: pointer;
+        }
+        #copy-obs-btn:hover {
+            background-color: rgba(16, 185, 129, 0.2) !important;
+            border-color: #10b981 !important;
+            transform: translateY(-1px);
+        }
+
+        /* Connections status styles */
+        .connection-status-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 0.5rem;
+        }
+        .connection-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: rgba(15, 23, 42, 0.4);
+            border: 1px solid var(--border-color);
+            padding: 0.65rem 0.9rem;
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .connection-item .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+        .status-dot-green {
+            width: 10px;
+            height: 10px;
+            background-color: #10b981;
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 10px #10b981;
+        }
+        .no-connections {
+            color: #64748b;
+            font-size: 0.9rem;
+            text-align: center;
+            padding: 0.75rem;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="dashboard-container">
+        <!-- Columna Izquierda: Configuracion de Ubicaciones -->
+        <div class="col">
+            <div class="card" style="margin-bottom: 1rem;">
+                <h1 style="display: flex; justify-content: space-between; align-items: center; width: 100%; margin-bottom: 1.5rem; flex-wrap: wrap; gap: 12px;">
+                    <span>📺 Control de Overlay (OBS)</span>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button id="copy-obs-btn" style="width: auto; padding: 6px 12px; font-size: 0.9rem; background-color: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: #10b981; border-radius: 8px; box-shadow: none; font-weight: 600; transition: all 0.25s ease;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            <span>Copiar URL OBS</span>
+                        </button>
+                        <a href="overlay.html" id="open-overlay-link" target="_blank" style="font-size: 0.9rem; color: #38bdf8; text-decoration: none; display: flex; align-items: center; gap: 6px; font-weight: 600; border: 1px solid rgba(56, 189, 248, 0.3); padding: 6px 12px; border-radius: 8px; background-color: rgba(56, 189, 248, 0.05); transition: all 0.25s ease;">
+                            🔗 Abrir Overlay
+                        </a>
+                    </div>
+                </h1>
+                
+                <div class="section-title">
+                    <h2>
+                        <span>Ubicaciones del Rotador</span>
+                        <button id="refresh-weather-btn" style="width: auto; padding: 0.45rem 0.9rem; font-size: 0.85rem; background-color: #0284c7; box-shadow: 0 4px 10px rgba(2, 132, 199, 0.15);">
+                            🔄 Refrescar Clima
+                        </button>
+                    </h2>
+                </div>
+                
+                <div id="locations-container">
+                    <!-- Ubicaciones renderizadas dinamicamente -->
+                </div>
+                
+                <button id="add-loc-btn" class="add-btn">+ Añadir Ubicación</button>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Controles del Ticker, Color, Estilo y Preview -->
+        <div class="col">
+            <!-- Ticker Live Control Panel -->
+            <div class="card">
+                <h2>Control de Ciclo en Vivo</h2>
+                <div class="ctrl-btn-group">
+                    <button id="prev-btn" class="ctrl-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M19 20L9 12l10-8v16zM5 19V5"></path></svg>
+                        <span>Ant.</span>
+                    </button>
+                    <button id="play-pause-btn" class="ctrl-btn active-pause">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+                        <span>Pausar</span>
+                    </button>
+                    <button id="next-btn" class="ctrl-btn">
+                        <span>Sig.</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-left:4px;"><path d="M5 4l10 8-10 8V4zM19 5v14"></path></svg>
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Orden de Ciclos (Click para ir directo):</label>
+                    <div id="queue-list" class="queue-list">
+                        <!-- Queue items list -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Overlays Conectados -->
+            <div class="card">
+                <h2>Overlays Activos Conectados</h2>
+                <div id="connection-status-list" class="connection-status-list">
+                    <div class="no-connections">Sin overlays activos conectados.</div>
+                </div>
+            </div>
+
+            <!-- Estilo y Apariencia -->
+            <div class="card">
+                <h2>Diseño y Apariencia</h2>
+                
+                <div class="form-group">
+                    <label>Color de Tema</label>
+                    <div class="color-selector-wrapper">
+                        <div class="swatch" style="background-color: #e11d48;" data-color="#e11d48"></div>
+                        <div class="swatch" style="background-color: #2563eb;" data-color="#2563eb"></div>
+                        <div class="swatch" style="background-color: #10b981;" data-color="#10b981"></div>
+                        <div class="swatch" style="background-color: #8b5cf6;" data-color="#8b5cf6"></div>
+                        <div class="swatch" style="background-color: #f59e0b;" data-color="#f59e0b"></div>
+                        <input type="color" id="theme-color-picker" value="#e11d48" style="padding: 0; width: 34px; height: 34px; border: none; cursor: pointer; border-radius: 50%;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Tipografía (Google Fonts)</label>
+                    <select id="font-select">
+                        <option value="Roboto">Roboto</option>
+                        <option value="Inter">Inter</option>
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Poppins">Poppins</option>
+                        <option value="Oswald">Oswald</option>
+                        <option value="Share Tech Mono">Share Tech Mono (Digital)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Efecto de Animación</label>
+                    <select id="transition-select">
+                        <option value="slide-up">Deslizar hacia Arriba (Slide Up)</option>
+                        <option value="slide-left">Deslizar hacia la Izquierda (Slide Left)</option>
+                        <option value="slide-right">Deslizar hacia la Derecha (Slide Right)</option>
+                        <option value="fade">Desvanecer (Fade)</option>
+                        <option value="zoom">Acercamiento (Zoom)</option>
+                        <option value="flip">Rotación 3D (Flip 3D)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Preset de Estilo</label>
+                    <select id="theme-preset-select">
+                        <option value="classic">Clásico (Classic)</option>
+                        <option value="glass">Efecto de Cristal (Glassmorphism)</option>
+                        <option value="cyber">Cyberpunk (Neon Glow)</option>
+                        <option value="dark">Modo Oscuro Elegante (Elegant Dark)</option>
+                        <option value="retro">Retro CRT (Vintage Scanlines)</option>
+                    </select>
+                </div>
+
+                <div class="row">
+                    <div class="col form-group" style="display: flex; align-items: center; gap: 8px; margin-top: 1.2rem;">
+                        <input type="checkbox" id="show-live-bar" style="width: 18px; height: 18px; cursor: pointer;">
+                        <label for="show-live-bar" style="margin-bottom: 0; cursor: pointer;">Etiqueta "EN VIVO"</label>
+                    </div>
+                    <div class="col form-group">
+                        <label>Texto Etiqueta</label>
+                        <input type="text" id="live-bar-text" value="EN VIVO">
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col form-group">
+                        <label>Estilo de Layout</label>
+                        <select id="layout-select">
+                            <option value="card">Tarjeta Compacta (Card)</option>
+                            <option value="ticker">Cinta Horizontal (Ticker)</option>
+                        </select>
+                    </div>
+                    <div class="col form-group">
+                        <label>Posición en Pantalla</label>
+                        <select id="position-select">
+                            <option value="top-left">Arriba Izquierda</option>
+                            <option value="top-right">Arriba Derecha</option>
+                            <option value="bottom-left">Abajo Izquierda</option>
+                            <option value="bottom-right">Abajo Derecha</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- General Configurations -->
+            <div class="card">
+                <h2>Configuración General</h2>
+                <div class="row">
+                    <div class="col form-group">
+                        <label>Duración (segundos)</label>
+                        <input type="number" id="cycle-duration" value="10" min="3" max="60">
+                    </div>
+                    <div class="col form-group">
+                        <label>Formato de Hora</label>
+                        <select id="format-select">
+                            <option value="12h">12 Horas (AM/PM)</option>
+                            <option value="24h">24 Horas</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Vista Previa -->
+            <div class="card">
+                <h2>Vista Previa del Overlay</h2>
+                <div class="preview-container">
+                    <iframe id="preview-iframe" src="/overlay.html"></iframe>
+                </div>
+                <div class="form-group" style="margin-top: 1.25rem;">
+                    <label>Fondo de Vista Previa</label>
+                    <div id="backdrop-selector" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;">
+                        <button type="button" class="backdrop-btn active" data-bg="checkerboard">🏁 Cuadrícula</button>
+                        <button type="button" class="backdrop-btn" data-bg="obs">🎬 Gris OBS</button>
+                        <button type="button" class="backdrop-btn" data-bg="game">🎮 Gameplay</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Boton Guardar Fijo -->
+            <div class="save-bar">
+                <button id="save-btn">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let socket = null;
+        
+        // Debounce utility to prevent flooding server
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+        window.debouncedTriggerConfigUpdate = debounce(() => {
+            triggerLiveConfigUpdate();
+        }, 500);
+
+        const locationsContainer = document.getElementById('locations-container');
+        const cycleDuration = document.getElementById('cycle-duration');
+        const formatSelect = document.getElementById('format-select');
+        const fontSelect = document.getElementById('font-select');
+        const transitionSelect = document.getElementById('transition-select');
+        const themePresetSelect = document.getElementById('theme-preset-select');
+        const showLiveBar = document.getElementById('show-live-bar');
+        const liveBarText = document.getElementById('live-bar-text');
+        const layoutSelect = document.getElementById('layout-select');
+        const positionSelect = document.getElementById('position-select');
+        const themeColorPicker = document.getElementById('theme-color-picker');
+        const saveBtn = document.getElementById('save-btn');
+        const addLocBtn = document.getElementById('add-loc-btn');
+
+        // Play/Pause / Step Controllers
+        const playPauseBtn = document.getElementById('play-pause-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const queueList = document.getElementById('queue-list');
+        const previewIframe = document.getElementById('preview-iframe');
+
+        let locations = [];
+        let viewQueue = [];
+        let activeViewIndex = 0;
+        let cyclePaused = false;
+        let localThemeColor = '#8b5cf6';
+
+        const weatherCodesMap = {
+            0:  { emoji: '☀️', emojiNight: '🌙', text: 'Despejado' },
+            1:  { emoji: '☀️', emojiNight: '🌙', text: 'Principalmente despejado' },
+            2:  { emoji: '⛅', emojiNight: '🌛', text: 'Parcialmente nublado' },
+            3:  { emoji: '☁️', emojiNight: '☁️', text: 'Nublado' },
+            45: { emoji: '🌫️', emojiNight: '🌫️', text: 'Niebla' },
+            48: { emoji: '🌫️', emojiNight: '🌫️', text: 'Niebla con escarcha' },
+            51: { emoji: '🌦️', emojiNight: '🌧️', text: 'Llovizna ligera' },
+            53: { emoji: '🌦️', emojiNight: '🌧️', text: 'Llovizna moderada' },
+            55: { emoji: '🌦️', emojiNight: '🌧️', text: 'Llovizna densa' },
+            61: { emoji: '🌧️', emojiNight: '🌧️', text: 'Lluvia ligera' },
+            63: { emoji: '🌧️', emojiNight: '🌧️', text: 'Lluvia moderada' },
+            65: { emoji: '🌧️', emojiNight: '🌧️', text: 'Lluvia fuerte' },
+            71: { emoji: '❄️', emojiNight: '❄️', text: 'Nieve ligera' },
+            73: { emoji: '❄️', emojiNight: '❄️', text: 'Nieve moderada' },
+            75: { emoji: '❄️', emojiNight: '❄️', text: 'Nieve fuerte' },
+            80: { emoji: '🌦️', emojiNight: '🌧️', text: 'Lluvia ligera intermitente' },
+            81: { emoji: '🌧️', emojiNight: '🌧️', text: 'Lluvia moderada intermitente' },
+            82: { emoji: '🌧️', emojiNight: '🌧️', text: 'Lluvia violenta intermitente' },
+            95: { emoji: '⛈️', emojiNight: '⛈️', text: 'Tormenta' },
+            96: { emoji: '⛈️', emojiNight: '⛈️', text: 'Tormenta con granizo ligero' },
+            99: { emoji: '⛈️', emojiNight: '⛈️', text: 'Tormenta con granizo fuerte' }
+        };
+
+        function getWeatherEmoji(weatherCode, isDay) {
+            const entry = weatherCodesMap[weatherCode];
+            if (!entry) return isDay === 0 ? '🌙' : '🌡️';
+            return isDay === 0 ? (entry.emojiNight || entry.emoji) : entry.emoji;
+        }
+
+        function updateWeatherBadge(index) {
+            const loc = locations[index];
+            const badge = document.getElementById(`loc-weather-badge-${index}`);
+            if (!badge) return;
+            if (loc && loc.city && loc.city.trim() !== '') {
+                const tempStr = loc.temp || '--°C';
+                const wCode = loc.weatherCode !== undefined ? loc.weatherCode : -1;
+                const emoji = getWeatherEmoji(wCode, loc.isDay);
+                badge.innerHTML = `<span style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-weight: normal; margin-left: 8px;">${emoji} ${tempStr}</span>`;
+            } else {
+                badge.innerHTML = '';
+            }
+        }
+
+        const timezones = [
+            {val: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires, Argentina (GMT-3)'},
+            {val: 'Australia/Brisbane', label: 'Brisbane, Australia (GMT+10)'},
+            {val: 'America/Lima', label: 'Lima, Perú (GMT-5)'},
+            {val: 'America/Bogota', label: 'Bogotá, Colombia (GMT-5)'},
+            {val: 'America/Mexico_City', label: 'Ciudad de México (GMT-6)'},
+            {val: 'America/Santiago', label: 'Santiago, Chile (GMT-4)'},
+            {val: 'America/Caracas', label: 'Caracas, Venezuela (GMT-4)'},
+            {val: 'America/Montevideo', label: 'Montevideo, Uruguay (GMT-3)'},
+            {val: 'America/Asuncion', label: 'Asunción, Paraguay (GMT-3)'},
+            {val: 'America/La_Paz', label: 'La Paz, Bolivia (GMT-4)'},
+            {val: 'America/New_York', label: 'Nueva York, EE.UU. (EST/EDT)'},
+            {val: 'Europe/Madrid', label: 'Madrid, España (CET/CEST)'},
+            {val: 'Europe/London', label: 'Londres, Reino Unido (GMT/BST)'},
+            {val: 'Asia/Tokyo', label: 'Tokio, Japón (GMT+9)'},
+            {val: 'UTC', label: 'UTC'}
+        ];
+
+        const popularFlags = [
+            {val: 'none', label: 'Sin bandera'},
+            {val: 'ar', label: '🇦🇷 Argentina'},
+            {val: 'au', label: '🇦🇺 Australia'},
+            {val: 'es', label: '🇪🇸 España'},
+            {val: 'us', label: '🇺🇸 Estados Unidos'},
+            {val: 'br', label: '🇧🇷 Brasil'},
+            {val: 'cl', label: '🇨🇱 Chile'},
+            {val: 'mx', label: '🇲🇽 México'},
+            {val: 'pe', label: '🇵🇪 Perú'},
+            {val: 'co', label: '🇨🇴 Colombia'},
+            {val: 'uy', label: '🇺🇾 Uruguay'},
+            {val: 'py', label: '🇵🇾 Paraguay'},
+            {val: 've', label: '🇻🇪 Venezuela'},
+            {val: 'bo', label: '🇧🇴 Bolivia'},
+            {val: 'gb', label: '🇬🇧 Reino Unido'},
+            {val: 'jp', label: '🇯🇵 Japón'}
+        ];
+
+        function getFlagEmoji(flagCode) {
+            const flagObj = popularFlags.find(f => f.val === flagCode);
+            if (!flagObj || flagCode === 'none') return '🏳️';
+            const match = flagObj.label.match(/^([^\s]+)/);
+            return match ? match[1] : '🏳️';
+        }
+
+        window.updateFlagPreview = function(index) {
+            const select = document.getElementById(`loc-flag-${index}`);
+            const preview = document.getElementById(`flag-preview-${index}`);
+            if (select && preview) {
+                preview.innerHTML = getFlagEmoji(select.value);
+            }
+        }
+
+        function applyDashboardTheme(color) {
+            localThemeColor = color;
+            document.documentElement.style.setProperty('--theme-color', color);
+            themeColorPicker.value = color;
+            
+            // Highlight selected swatch
+            document.querySelectorAll('.swatch').forEach(sw => {
+                if (sw.getAttribute('data-color') === color) {
+                    sw.classList.add('active');
+                } else {
+                    sw.classList.remove('active');
+                }
+            });
+        }
+
+        // Color Swatches interaction
+        document.querySelectorAll('.swatch').forEach(swatch => {
+            swatch.addEventListener('click', () => {
+                const color = swatch.getAttribute('data-color');
+                applyDashboardTheme(color);
+                triggerLiveConfigUpdate();
+            });
+        });
+
+        themeColorPicker.addEventListener('input', (e) => {
+            applyDashboardTheme(e.target.value);
+            window.debouncedTriggerConfigUpdate();
+        });
+
+        function renderLocations() {
+            // Preserve scroll position to prevent jumping to the top
+            const savedScrollY = window.scrollY;
+
+            // Save active element focus and selection cursor positions to prevent focus loss
+            const activeEl = document.activeElement;
+            let activeId = null;
+            let selectionStart = 0;
+            let selectionEnd = 0;
+            
+            if (activeEl && locationsContainer.contains(activeEl)) {
+                activeId = activeEl.id;
+                if (activeEl.tagName === 'INPUT') {
+                    selectionStart = activeEl.selectionStart;
+                    selectionEnd = activeEl.selectionEnd;
+                }
+            }
+
+            locationsContainer.innerHTML = '';
+            locations.forEach((loc, index) => {
+                const card = document.createElement('div');
+                card.className = `location-card ${!loc.visible ? 'hidden' : ''}`;
+                
+                let tzOptions = timezones.map(t => 
+                    `<option value="${t.val}" ${t.val === loc.timezone ? 'selected' : ''}>${t.label}</option>`
+                ).join('');
+
+                let flagOptions = popularFlags.map(f => 
+                    `<option value="${f.val}" ${f.val === loc.flag ? 'selected' : ''}>${f.label}</option>`
+                ).join('');
+
+                card.innerHTML = `
+                    <div class="location-header">
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <button class="reorder-btn" onclick="moveLocationUp(${index})" title="Subir" ${index === 0 ? 'disabled' : ''}>▲</button>
+                            <button class="reorder-btn" onclick="moveLocationDown(${index})" title="Bajar" ${index === locations.length - 1 ? 'disabled' : ''}>▼</button>
+                            <strong>Ubicación ${index + 1}</strong>
+                            <span id="loc-weather-badge-${index}"></span>
+                        </div>
+                        <div class="location-actions">
+                            <button class="toggle-btn ${!loc.visible ? 'is-hidden' : ''}" onclick="toggleLocation(${index})">
+                                ${loc.visible ? '👁️ Ocultar' : '🙈 Mostrar'}
+                            </button>
+                            <button class="remove-btn" onclick="removeLocation(${index})">🗑️ Quitar</button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col form-group">
+                            <label>Etiqueta en Pantalla</label>
+                            <input type="text" id="loc-text-${index}" value="${loc.text}" oninput="saveInputsToArray(); rebuildViewQueue(); window.debouncedTriggerConfigUpdate();">
+                        </div>
+                        <div class="col form-group">
+                            <label>Zona Horaria</label>
+                            <select id="loc-tz-${index}" onchange="saveInputsToArray(); rebuildViewQueue();">
+                                ${tzOptions}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col form-group">
+                            <label>Ciudad para Clima</label>
+                            <input type="text" id="loc-city-${index}" value="${loc.city || ''}" placeholder="Ej: Gold Coast" oninput="saveInputsToArray(); rebuildViewQueue(); window.debouncedTriggerConfigUpdate();">
+                        </div>
+                        <div class="col form-group">
+                            <label>Bandera a Mostrar</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span id="flag-preview-${index}" style="font-size: 1.4rem; line-height: 1; padding: 4px; background: rgba(255,255,255,0.05); border-radius: 6px; border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; min-width: 38px; height: 38px; box-sizing: border-box;">
+                                    ${getFlagEmoji(loc.flag)}
+                                </span>
+                                <select id="loc-flag-${index}" onchange="updateFlagPreview(${index}); saveInputsToArray(); rebuildViewQueue(); window.debouncedTriggerConfigUpdate();" style="flex: 1; margin: 0;">
+                                    ${flagOptions}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                locationsContainer.appendChild(card);
+                updateWeatherBadge(index);
+            });
+
+            // Restore active element focus and cursor selection positions
+            if (activeId) {
+                const restoredEl = document.getElementById(activeId);
+                if (restoredEl) {
+                    restoredEl.focus();
+                    if (restoredEl.tagName === 'INPUT') {
+                        restoredEl.setSelectionRange(selectionStart, selectionEnd);
+                    }
+                }
+            }
+
+            // Restore scroll position
+            window.scrollTo({ top: savedScrollY, behavior: 'instant' });
+        }
+
+        window.toggleLocation = function(index) {
+            locations[index].visible = !locations[index].visible;
+            saveInputsToArray();
+            renderLocations();
+            rebuildViewQueue();
+            triggerLiveConfigUpdate();
+        };
+
+        window.removeLocation = function(index) {
+            if(confirm('¿Seguro que quieres eliminar esta ubicación?')) {
+                locations.splice(index, 1);
+                saveInputsToArray();
+                renderLocations();
+                rebuildViewQueue();
+                triggerLiveConfigUpdate();
+            }
+        };
+
+        window.moveLocationUp = function(index) {
+            if (index <= 0) return;
+            saveInputsToArray();
+            const temp = locations[index];
+            locations[index] = locations[index - 1];
+            locations[index - 1] = temp;
+            renderLocations();
+            rebuildViewQueue();
+            triggerLiveConfigUpdate();
+        };
+
+        window.moveLocationDown = function(index) {
+            if (index >= locations.length - 1) return;
+            saveInputsToArray();
+            const temp = locations[index];
+            locations[index] = locations[index + 1];
+            locations[index + 1] = temp;
+            renderLocations();
+            rebuildViewQueue();
+            triggerLiveConfigUpdate();
+        };
+
+        addLocBtn.addEventListener('click', () => {
+            saveInputsToArray();
+            locations.push({
+                id: 'loc_' + Date.now(),
+                text: 'Nueva Ubicación',
+                timezone: 'America/Argentina/Buenos_Aires',
+                city: '',
+                flag: 'none',
+                visible: true,
+                temp: '--°C'
+            });
+            renderLocations();
+            rebuildViewQueue();
+            triggerLiveConfigUpdate();
+        });
+
+        function saveInputsToArray() {
+            locations.forEach((loc, index) => {
+                const textInput = document.getElementById(`loc-text-${index}`);
+                const tzInput = document.getElementById(`loc-tz-${index}`);
+                const cityInput = document.getElementById(`loc-city-${index}`);
+                const flagInput = document.getElementById(`loc-flag-${index}`);
+                
+                if (textInput) loc.text = textInput.value;
+                if (tzInput) loc.timezone = tzInput.value;
+                if (cityInput) loc.city = cityInput.value;
+                if (flagInput) loc.flag = flagInput.value;
+            });
+        }
+
+        // Rebuild and display the view queue in the dashboard
+        function rebuildViewQueue() {
+            viewQueue = [];
+            locations.forEach(loc => {
+                if (!loc.visible) return;
+                viewQueue.push({ type: 'time', location: loc, label: `${loc.text} (Hora)` });
+                if (loc.city && loc.city.trim() !== '') {
+                    viewQueue.push({ type: 'temp', location: loc, label: `${loc.text} (Clima: ${loc.city})` });
+                }
+            });
+            renderQueueList();
+        }
+
+        function renderQueueList() {
+            queueList.innerHTML = '';
+            if (viewQueue.length === 0) {
+                queueList.innerHTML = '<div style="color: var(--text-muted); font-size: 0.85rem; padding: 0.5rem 0;">No hay vistas activas. Activa alguna ubicación.</div>';
+                return;
+            }
+            viewQueue.forEach((view, index) => {
+                const item = document.createElement('div');
+                item.className = 'queue-item';
+                item.dataset.index = index;
+                
+                const tempVal = view.location.temp || '--°C';
+                const wCode = view.location.weatherCode !== undefined ? view.location.weatherCode : -1;
+                const emoji = getWeatherEmoji(wCode, view.location.isDay);
+
+                const typeBadge = view.type === 'time' 
+                    ? '<span class="badge badge-time">🕒 Hora</span>' 
+                    : `<span class="badge badge-temp">${emoji} Clima (${tempVal})</span>`;
+
+                item.innerHTML = `
+                    <span>${view.label}</span>
+                    ${typeBadge}
+                `;
+                item.addEventListener('click', () => {
+                    activeViewIndex = index;
+                    // Force pause on manual selection
+                    cyclePaused = true;
+                    updatePlayPauseUI();
+                    triggerLiveConfigUpdate();
+                });
+                queueList.appendChild(item);
+            });
+            highlightActiveQueueItem();
+        }
+
+        // Only updates the CSS class — no DOM rebuild, no scroll jump
+        function highlightActiveQueueItem() {
+            queueList.querySelectorAll('.queue-item').forEach((el, i) => {
+                el.classList.toggle('active', i === activeViewIndex);
+            });
+        }
+
+        const playIconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M8 5v14l11-7z"></path></svg>`;
+        const pauseIconSvg = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; vertical-align:middle; margin-right:4px;"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>`;
+
+        function updatePlayPauseUI() {
+            if (cyclePaused) {
+                playPauseBtn.innerHTML = playIconSvg + '<span>Reanudar</span>';
+                playPauseBtn.className = 'ctrl-btn active-play';
+            } else {
+                playPauseBtn.innerHTML = pauseIconSvg + '<span>Pausar</span>';
+                playPauseBtn.className = 'ctrl-btn active-pause';
+            }
+        }
+
+        playPauseBtn.addEventListener('click', () => {
+            cyclePaused = !cyclePaused;
+            updatePlayPauseUI();
+            triggerLiveConfigUpdate();
+        });
+
+        prevBtn.addEventListener('click', () => {
+            if (viewQueue.length === 0) return;
+            activeViewIndex--;
+            if (activeViewIndex < 0) {
+                activeViewIndex = viewQueue.length - 1;
+            }
+            cyclePaused = true; // Pause to let the user inspect
+            updatePlayPauseUI();
+            triggerLiveConfigUpdate();
+        });
+
+        nextBtn.addEventListener('click', () => {
+            if (viewQueue.length === 0) return;
+            activeViewIndex++;
+            if (activeViewIndex >= viewQueue.length) {
+                activeViewIndex = 0;
+            }
+            cyclePaused = true; // Pause to let the user inspect
+            updatePlayPauseUI();
+            triggerLiveConfigUpdate();
+        });
+
+        // Trigger config update through Socket (non-destructive styles & pause state)
+        function triggerLiveConfigUpdate() {
+            if (!socket) return;
+            saveInputsToArray();
+            const config = {
+                locations: locations,
+                cycleDuration: parseInt(cycleDuration.value) || 10,
+                timeFormat: formatSelect.value,
+                themeColor: localThemeColor,
+                themePreset: themePresetSelect.value,
+                fontFamily: fontSelect.value,
+                transitionType: transitionSelect.value,
+                cyclePaused: cyclePaused,
+                activeViewIndex: activeViewIndex,
+                showLiveBar: showLiveBar.checked,
+                liveBarText: liveBarText.value,
+                layoutStyle: layoutSelect.value,
+                position: positionSelect.value
+            };
+            socket.emit('updateConfig', config);
+        }
+
+        // Live updating selectors on change
+        fontSelect.addEventListener('change', triggerLiveConfigUpdate);
+        transitionSelect.addEventListener('change', triggerLiveConfigUpdate);
+        themePresetSelect.addEventListener('change', triggerLiveConfigUpdate);
+        showLiveBar.addEventListener('change', triggerLiveConfigUpdate);
+        liveBarText.addEventListener('input', window.debouncedTriggerConfigUpdate);
+        cycleDuration.addEventListener('input', window.debouncedTriggerConfigUpdate);
+        formatSelect.addEventListener('change', triggerLiveConfigUpdate);
+        layoutSelect.addEventListener('change', triggerLiveConfigUpdate);
+        positionSelect.addEventListener('change', triggerLiveConfigUpdate);
+
+        // Weather Force-Refresh Action
+        document.getElementById('refresh-weather-btn').addEventListener('click', () => {
+            if (socket) {
+                socket.emit('forceWeatherUpdate');
+                const btn = document.getElementById('refresh-weather-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '🔄 Refrescando...';
+                btn.disabled = true;
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 2000);
+            }
+        });
+
+        // Dynamic Socket.IO client script loader (file:// compatibility)
+        const isFileProtocol = window.location.protocol === 'file:';
+        const socketHost = isFileProtocol ? 'http://127.0.0.1:3757' : '';
+
+        // If file:/// protocol, make sure iframe preview resolves to full url
+        if (isFileProtocol) {
+            previewIframe.src = 'http://127.0.0.1:3757/overlay.html';
+        }
+
+        const script = document.createElement('script');
+        script.src = socketHost + '/socket.io/socket.io.js';
+        script.onload = () => {
+            socket = io(socketHost, { query: { type: 'dashboard' } });
+
+            // Listen for config update from the server
+            socket.on('configUpdate', (config) => {
+                if (config.locations) {
+                    const isUserEditing = document.activeElement && locationsContainer.contains(document.activeElement);
+                    if (isUserEditing) {
+                        // Merge only temp and weatherCode updates from the server config into our local array
+                        config.locations.forEach(serverLoc => {
+                            const localLoc = locations.find(l => l.id === serverLoc.id);
+                            if (localLoc) {
+                                localLoc.temp = serverLoc.temp;
+                                localLoc.weatherCode = serverLoc.weatherCode;
+                            }
+                        });
+                        locations.forEach((loc, index) => {
+                            updateWeatherBadge(index);
+                        });
+                        rebuildViewQueue();
+                    } else {
+                        // User is not editing — safe to re-render, but preserve scroll position
+                        const scrollY = window.scrollY;
+                        locations = config.locations;
+                        renderLocations();
+                        rebuildViewQueue();
+                        window.scrollTo({ top: scrollY, behavior: 'instant' });
+                    }
+                }
+                if (config.cycleDuration !== undefined) cycleDuration.value = config.cycleDuration;
+                if (config.timeFormat !== undefined) formatSelect.value = config.timeFormat;
+                if (config.fontFamily !== undefined) fontSelect.value = config.fontFamily;
+                if (config.transitionType !== undefined) transitionSelect.value = config.transitionType;
+                if (config.themePreset !== undefined) themePresetSelect.value = config.themePreset;
+                if (config.showLiveBar !== undefined) showLiveBar.checked = config.showLiveBar;
+                if (config.liveBarText !== undefined) liveBarText.value = config.liveBarText;
+                if (config.themeColor !== undefined) {
+                    applyDashboardTheme(config.themeColor);
+                }
+                if (config.cyclePaused !== undefined) {
+                    cyclePaused = config.cyclePaused;
+                    updatePlayPauseUI();
+                }
+                if (config.activeViewIndex !== undefined) {
+                    activeViewIndex = config.activeViewIndex;
+                    highlightActiveQueueItem();
+                }
+            });
+
+            // Listen for internal active index changes from overlay
+            socket.on('viewChanged', (index) => {
+                activeViewIndex = index;
+                highlightActiveQueueItem();
+            });
+
+            // Listen for connection status updates
+            socket.on('connectionStatus', (status) => {
+                const list = document.getElementById('connection-status-list');
+                if (!list) return;
+                list.innerHTML = '';
+                
+                if (status.overlays === 0 && status.dashboards === 0) {
+                    list.innerHTML = '<div class="no-connections">Sin overlays o paneles activos.</div>';
+                    return;
+                }
+                
+                if (status.overlays > 0) {
+                    const item = document.createElement('div');
+                    item.className = 'connection-item';
+                    item.innerHTML = `
+                        <span>Widget de Overlay (OBS)</span>
+                        <div class="status-indicator">
+                            <span class="status-dot-green"></span>
+                            <span>${status.overlays} Activo(s)</span>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                }
+                
+                if (status.dashboards > 0) {
+                    const item = document.createElement('div');
+                    item.className = 'connection-item';
+                    item.innerHTML = `
+                        <span>Panel de Control</span>
+                        <div class="status-indicator">
+                            <span class="status-dot-green"></span>
+                            <span>${status.dashboards} Activo(s)</span>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                }
+            });
+        };
+        document.head.appendChild(script);
+
+        function highlightActiveQueueItem() {
+            document.querySelectorAll('.queue-item').forEach((item, index) => {
+                if (index === activeViewIndex) {
+                    item.classList.add('active');
+                    // Scroll to item if off view
+                    item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    item.classList.remove('active');
+                }
+            });
+        }
+
+        // Full updates & weather check trigger on save button click
+        saveBtn.addEventListener('click', () => {
+            triggerLiveConfigUpdate();
+            
+            // Visual feedback
+            const originalText = saveBtn.innerText;
+            saveBtn.innerText = '¡Cambios Guardados!';
+            saveBtn.style.backgroundColor = '#16a34a';
+            setTimeout(() => {
+                saveBtn.innerText = originalText;
+                saveBtn.style.backgroundColor = ''; // fallback to theme-color style rule
+            }, 1500);
+        });
+
+        // Copy OBS URL Action
+        const copyObsBtn = document.getElementById('copy-obs-btn');
+        if (copyObsBtn) {
+            copyObsBtn.addEventListener('click', () => {
+                const overlayUrl = window.location.protocol === 'file:' ? 'http://127.0.0.1:3757/overlay.html' : window.location.origin + '/overlay.html';
+                navigator.clipboard.writeText(overlayUrl).then(() => {
+                    const originalHtml = copyObsBtn.innerHTML;
+                    copyObsBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle; margin-right:4px;"><polyline points="20 6 9 17 4 12"></polyline></svg> Copiado!`;
+                    copyObsBtn.style.borderColor = '#10b981';
+                    copyObsBtn.style.backgroundColor = 'rgba(16, 185, 129, 0.2)';
+                    copyObsBtn.style.color = '#10b981';
+                    setTimeout(() => {
+                        copyObsBtn.innerHTML = originalHtml;
+                        copyObsBtn.style.borderColor = '';
+                        copyObsBtn.style.backgroundColor = '';
+                        copyObsBtn.style.color = '';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('Error copying text: ', err);
+                });
+            });
+        }
+
+        // Preview Backdrop Simulator Action
+        const backdropBtns = document.querySelectorAll('.backdrop-btn');
+        backdropBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                backdropBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                
+                const bgType = btn.getAttribute('data-bg');
+                if (bgType === 'checkerboard') {
+                    previewIframe.style.backgroundImage = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3hKhf4T4/0R54F9D/4n1wD9xHhh9wIgBozQYtQGjNBi1AQAaKwQ1v0nJCAAAAABJRU5ErkJggg==')";
+                    previewIframe.style.backgroundColor = '';
+                } else if (bgType === 'obs') {
+                    previewIframe.style.backgroundImage = 'none';
+                    previewIframe.style.backgroundColor = '#18181b';
+                } else if (bgType === 'game') {
+                    previewIframe.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)), url("https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=400&q=80")';
+                    previewIframe.style.backgroundSize = 'cover';
+                    previewIframe.style.backgroundPosition = 'center';
+                }
+            });
+        });
+    </script>
+</body>
+</html>

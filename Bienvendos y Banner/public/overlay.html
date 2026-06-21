@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlay Empezamos Pronto</title>
+  
+  <!-- Google Fonts - Orbitron loaded as default -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link id="current-font" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&family=Share+Tech+Mono&family=Inter:wght@400;600;800&family=Outfit:wght@400;700;900&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome for Social Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Overlay Stylesheet -->
+  <link rel="stylesheet" href="/css/overlay.css">
+</head>
+<body>
+
+  <!-- Background Layer -->
+  <div id="bg-container" class="bg-layer">
+    <!-- Canvas for Particles -->
+    <canvas id="particles-canvas"></canvas>
+    
+    <!-- Image Background -->
+    <div id="bg-image" class="bg-element"></div>
+    
+    <!-- Video Background -->
+    <video id="bg-video" class="bg-element" loop muted playsinline></video>
+    
+    <!-- Solid/Gradient color is applied directly to the container -->
+  </div>
+
+  <!-- Audio Player -->
+  <audio id="bg-audio" loop></audio>
+
+  <!-- Overlay Frame / Crop Marks -->
+  <div class="crop-marks">
+    <div class="crop-mark top-left"></div>
+    <div class="crop-mark top-right"></div>
+    <div class="crop-mark bottom-left"></div>
+    <div class="crop-mark bottom-right"></div>
+  </div>
+
+  <!-- Main Content Container (Scaled for 720x1280 OBS Source) -->
+  <main class="overlay-container">
+    
+    <!-- Live Pill Badge -->
+    <header class="badge-container">
+      <div id="live-badge" class="pulse-badge">
+        <span class="pulse-dot"></span>
+        <span id="badge-text">EN VIVO PRONTO</span>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <section class="content-area">
+      <!-- Logo Container -->
+      <div id="logo-wrapper" class="logo-wrapper">
+        <div class="logo-glow"></div>
+        <div class="logo-circle">
+          <img id="logo-img" src="" alt="Logo" class="hidden">
+          <div id="logo-placeholder" class="logo-placeholder">
+            <i class="fa-solid fa-gamepad"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Header Texts -->
+      <div class="titles-container">
+        <p id="header-text" class="header-text">STREAM COMENZANDO</p>
+        <h1 id="title-text" class="main-title">Empezamos Pronto</h1>
+        <div class="separator-line">
+          <div class="separator-dot"></div>
+        </div>
+      </div>
+
+      <!-- Countdown Area -->
+      <div class="countdown-container">
+        <!-- Minutes -->
+        <div class="digits-group">
+          <div class="digit-box" id="min-tens">0</div>
+          <div class="digit-box" id="min-units">5</div>
+        </div>
+        
+        <!-- Colon -->
+        <span class="colon" id="countdown-colon">:</span>
+        
+        <!-- Seconds -->
+        <div class="digits-group">
+          <div class="digit-box" id="sec-tens">0</div>
+          <div class="digit-box" id="sec-units">0</div>
+        </div>
+      </div>
+      <div class="countdown-labels">
+        <span>MIN</span>
+        <span>SEG</span>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="progress-bar-container">
+        <div id="progress-bar" class="progress-bar"></div>
+      </div>
+
+      <!-- Subtitle -->
+      <div class="subtitle-container">
+        <p id="subtitle-text" class="subtitle">Prepara tu café, ya casi empezamos...</p>
+      </div>
+
+      <!-- Social Media List -->
+      <nav id="socials-list" class="socials-list">
+        <!-- Rendered dynamically in overlay.js -->
+      </nav>
+    </section>
+
+  </main>
+
+  <!-- JS Libraries -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  
+  <!-- Overlay Logic -->
+  <script src="/js/overlay.js"></script>
+</body>
+</html>

@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=720, height=1280">
+  <title>Lotería Ball Widget - OBS</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700;900&family=Bebas+Neue&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 720px;
+      height: 1280px;
+      overflow: hidden;
+      background: transparent;
+      position: relative;
+    }
+
+    #ticker-overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 18px;
+      width: 100%;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(10px);
+      transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0.3s;
+      pointer-events: none;
+      z-index: 35;
+    }
+
+    #ticker-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+      transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0s;
+    }
+
+    .ticker-shell {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: stretch;
+      overflow: hidden;
+      border-radius: 0;
+      background: linear-gradient(105deg, rgba(10, 18, 31, 0.90) 0%, rgba(23, 30, 51, 0.92) 55%, rgba(12, 18, 32, 0.94) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.28);
+      box-shadow:
+        0 12px 30px rgba(0, 0, 0, 0.38),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .ticker-viewport {
+      flex: 1 1 auto;
+      overflow: hidden;
+      position: relative;
+      width: 100%;
+    }
+
+    .ticker-track {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      width: max-content;
+      animation: ticker-scroll linear infinite;
+      will-change: transform;
+    }
+
+    .ticker-group {
+      display: flex;
+      align-items: center;
+      gap: 54px;
+      padding-right: 54px;
+      width: max-content;
+      flex: 0 0 auto;
+    }
+
+    .ticker-item {
+      flex: 0 0 auto;
+    }
+
+    .ticker-text {
+      display: inline-flex;
+      align-items: center;
+      min-height: 40px;
+      color: #f8fafc;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 1.08rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    @keyframes ticker-scroll {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    /* ══════════════════════════════════════
+       BALL WRAPPER  (JS moves this)
+       ══════════════════════════════════════ */
+    #ball-wrapper {
+      position: absolute;
+      width: 96px;
+      height: 96px;
+      top: -120px;
+      left: 620px;
+    }
+
+    /* ══════════════════════════════════════
+       BASE SPHERE
+       ══════════════════════════════════════ */
+    .lottery-ball {
+      width: 96px;
+      height: 96px;
+      border-radius: 50%;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+      --stop-tilt-final: -24deg;
+      --stop-tilt-overshoot: -32deg;
+    }
+
+    .lottery-ball.rolling { animation: counter-spin 3.4s linear infinite; }
+    .lottery-ball.rolling.spin-fast { animation-duration: 1.05s; }
+    .lottery-ball.rolling.spin-slow { animation-duration: 3.1s; }
+    .lottery-ball.spin-stop {
+      animation: stop-settle 0.55s cubic-bezier(0.18, 0.9, 0.28, 1) 1 both;
+    }
+
+    .ball-body {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+    }
+
+    /* Ball number wrapper (no counter-spin so it rotates with the ball) */
+    .ball-number {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 3;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    /* White circular badge */
+    .number-badge {
+      font-family: 'Trebuchet MS', 'Verdana', sans-serif;
+       /* este es el tamaño del numero  */
+      font-size: 1.5rem;
+      font-weight: 900;
+      letter-spacing: 0.005em;
+      color: #1f2937;
+      text-shadow: none;
+
+      /* este es el tamaño del circulo branco que rodea el numero  */
+      min-width: 3rem;
+      height: 3rem;
+      padding: 0 0.15rem;
+      border-radius: 999px;
+      background: #ffffff;
+      border: 1px solid rgba(0, 0, 0, 0.15);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 2px 5px rgba(0, 0, 0, 0.28),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.12);
+      line-height: 1;
+      text-decoration: underline;
+    }
+
+    .ball-gloss {
+      position: absolute;
+      top: 7%; left: 14%;
+      width: 38%; height: 28%;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at 38% 38%, rgba(255,255,255,0.80) 0%, rgba(255,255,255,0.00) 100%);
+      transform: rotate(-30deg);
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .ball-shade {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at 68% 72%, rgba(0,0,0,0.30) 0%, transparent 60%);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    .ball-border {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(0,0,0,0.55);
+      z-index: 5;
+      pointer-events: none;
+    }
+
+    /* Outer glow */
+    .ball-glow {
+      position: absolute;
+      inset: -19px;
+      border-radius: 50%;
+      animation: glow-pulse 2s ease-in-out infinite alternate;
+      pointer-events: none;
+      z-index: -1;
+    }
+    @keyframes glow-pulse {
+      from { transform: scale(0.88); opacity: 0.55; }
+      to   { transform: scale(1.10); opacity: 0.95; }
+    }
+
+    /* ══════════════════════════════════════
+       ANIMATIONS
+       ══════════════════════════════════════ */
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    @keyframes counter-spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(-360deg); }
+    }
+    @keyframes stop-settle {
+      0%   { transform: rotate(0deg) scale(1); }
+      72%  { transform: rotate(var(--stop-tilt-overshoot, -32deg)) scale(1.015); }
+      100% { transform: rotate(var(--stop-tilt-final, -24deg)) scale(1); }
+    }
+    @keyframes trail-fade {
+      0%   { opacity: 0.65; transform: scale(1); }
+      100% { opacity: 0;    transform: scale(0.15); }
+    }
+
+    /* ══════════════════════════════════════
+       FLOOR SHADOW
+       ══════════════════════════════════════ */
+    #ball-shadow {
+      position: absolute;
+      bottom: 10px;
+      width: 84px;
+      height: 19px;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,0.44) 0%, rgba(0,0,0,0.22) 42%, transparent 76%);
+      border-radius: 50%;
+      opacity: 0;
+      filter: blur(0.45px);
+      transform-origin: center;
+      transition: opacity 0.22s linear;
+      pointer-events: none;
+      will-change: transform, opacity, filter, left;
+    }
+
+    /* ══════════════════════════════════════
+       NAME BANNER  (slides out to the right of the ball)
+       ══════════════════════════════════════ */
+    #name-banner {
+      position: absolute;
+      /* JS sets bottom/left dynamically */
+      height: 82px;
+      width: 0;                          /* collapsed by default */
+      overflow: hidden;
+      transition: width 0.75s cubic-bezier(0.34, 1.42, 0.64, 1);
+      pointer-events: none;
+      z-index: 50;
+    }
+
+    /* The inner card – fixed size, gets revealed as width opens */
+    .banner-card {
+      width: 408px;
+      height: 82px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      /* Dark lottery-style panel */
+      background: linear-gradient(105deg, #0d1b2a 0%, #1b2d42 55%, #0d1b2a 100%);
+      border-top: 2px solid #ffd600;
+      border-right: 2px solid #ffd600;
+      border-bottom: 2px solid #ffd600;
+      border-radius: 0 14px 14px 0;
+      box-shadow:
+        0 6px 24px rgba(0,0,0,0.60),
+        0 0 20px rgba(255,214,0,0.18),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      overflow: hidden;
+    }
+
+    /* Avatar circular */
+    .banner-avatar {
+      position: relative;
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      overflow: hidden;
+      flex-shrink: 0;
+      margin: 0 12px 0 16px;
+      border: 2.5px solid #ffd600;
+      box-shadow:
+        0 0 14px rgba(255,214,0,0.35),
+        0 2px 8px rgba(0,0,0,0.4);
+      background-color: #1b2d42;
+    }
+    .banner-avatar img {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+    }
+    /* Gold left accent stripe */
+    .banner-accent {
+      width: 6px;
+      height: 100%;
+      background: linear-gradient(180deg, #ffe066 0%, #ffd600 50%, #ffab00 100%);
+      flex-shrink: 0;
+    }
+
+    /* Text block */
+    .banner-text {
+      padding: 0 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 1px;
+    }
+
+    .banner-label {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 0.7rem;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: #ffd600;
+      opacity: 0.85;
+    }
+
+    .banner-name {
+      font-family: 'Bebas Neue', 'Montserrat', sans-serif;
+      font-weight: 400;
+      font-size: 2.1rem;
+      letter-spacing: 0.06em;
+      color: #ffffff;
+      line-height: 1;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      white-space: nowrap;
+      text-decoration: underline;
+    }
+
+    /* Stars sparkle that appear when banner opens */
+    .sparkle {
+      position: absolute;
+      border-radius: 50%;
+      background: #ffd600;
+      pointer-events: none;
+      animation: sparkle-pop 0.6s ease-out forwards;
+    }
+    @keyframes sparkle-pop {
+      0%   { transform: scale(0); opacity: 1; }
+      60%  { transform: scale(1.4); opacity: 0.9; }
+      100% { transform: scale(0.2); opacity: 0; }
+    }
+
+    /* Countdown ring that fills around the ball while stopped */
+    #countdown-ring {
+      position: absolute;
+      width: 116px;
+      height: 116px;
+      top: -10px;
+      left: -10px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 10;
+    }
+    #countdown-ring svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-90deg);
+    }
+    #countdown-ring circle {
+      fill: none;
+      stroke: #ffd600;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-dasharray: 283;   /* 2π × 45 ≈ 283 */
+      stroke-dashoffset: 283;
+      transition: stroke-dashoffset linear;
+      filter: drop-shadow(0 0 4px rgba(255,214,0,0.6));
+    }
+  </style>
+</head>
+<body>
+
+  <div id="ticker-overlay" aria-hidden="true">
+    <div class="ticker-shell">
+      <div class="ticker-viewport">
+        <div class="ticker-track" id="ticker-track"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="ball-shadow"></div>
+
+  <!-- Name banner – starts collapsed, left edge anchored to ball stop point -->
+  <div id="name-banner">
+    <div class="banner-card">
+      <div class="banner-accent"></div>
+      <div class="banner-avatar" id="banner-avatar" style="display:none">
+        <img id="banner-avatar-img" src="" alt="">
+      </div>
+      <div class="banner-text">
+        <span class="banner-label">Numero selecionado por:</span>
+        <span class="banner-name" id="banner-name">Matias Moreira</span>
+      </div>
+    </div>
+  </div>
+
+  <div id="ball-wrapper">
+    <!-- Countdown ring (sits outside ball, counter-spins handled by JS) -->
+    <div id="countdown-ring">
+      <svg viewBox="0 0 96 96">
+        <circle id="ring-circle" cx="48" cy="48" r="45"/>
+      </svg>
+    </div>
+
+    <div class="ball-glow" id="ball-glow"></div>
+    <div class="lottery-ball rolling" id="lottery-ball">
+      <div class="ball-body" id="ball-body"></div>
+      <div class="ball-shade"></div>
+      <div class="ball-number">
+        <span class="number-badge" id="ball-number">7</span>
+      </div>
+      <div class="ball-gloss"></div>
+      <div class="ball-border"></div>
+    </div>
+  </div>
+
+  <script>
+    /* ══════════════════════════════════════════════════════════
+       COLOR PALETTE  (stable by number: (n-1) % 9)
+       ══════════════════════════════════════════════════════════ */
+    const BALL_COLORS = [
+      /* 0 yellow  */ { bg: 'radial-gradient(circle at 35% 30%, #fff9c4 0%, #ffd600 35%, #f9a825 65%, #e65100 100%)', glow: 'rgba(255,214,0,0.45)' },
+      /* 1 blue    */ { bg: 'radial-gradient(circle at 35% 30%, #bbdefb 0%, #1e88e5 35%, #1565c0 65%, #0d47a1 100%)', glow: 'rgba(30,136,229,0.45)' },
+      /* 2 green   */ { bg: 'radial-gradient(circle at 35% 30%, #c8e6c9 0%, #43a047 35%, #2e7d32 65%, #1b5e20 100%)', glow: 'rgba(67,160,71,0.45)' },
+      /* 3 orange  */ { bg: 'radial-gradient(circle at 35% 30%, #ffe0b2 0%, #fb8c00 35%, #e65100 65%, #bf360c 100%)', glow: 'rgba(251,140,0,0.45)' },
+      /* 4 red     */ { bg: 'radial-gradient(circle at 35% 30%, #ffcdd2 0%, #e53935 35%, #c62828 65%, #b71c1c 100%)', glow: 'rgba(229,57,53,0.45)' },
+      /* 5 purple  */ { bg: 'radial-gradient(circle at 35% 30%, #e1bee7 0%, #8e24aa 35%, #6a1b9a 65%, #4a148c 100%)', glow: 'rgba(142,36,170,0.45)' },
+      /* 6 cyan    */ { bg: 'radial-gradient(circle at 35% 30%, #b2ebf2 0%, #00acc1 35%, #00838f 65%, #006064 100%)', glow: 'rgba(0,172,193,0.45)' },
+      /* 7 black   */ { bg: 'radial-gradient(circle at 35% 30%, #616161 0%, #424242 35%, #212121 65%, #000000 100%)', glow: 'rgba(100,100,100,0.40)' },
+      /* 8 white   */ { bg: 'radial-gradient(circle at 35% 30%, #ffffff 0%, #eeeeee 40%, #bdbdbd 75%, #9e9e9e 100%)', glow: 'rgba(200,200,200,0.45)' },
+    ];
+    function colorForNumber(n) {
+      return BALL_COLORS[((n - 1) % BALL_COLORS.length + BALL_COLORS.length) % BALL_COLORS.length];
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       CONFIG
+       ══════════════════════════════════════════════════════════ */
+    const CONFIG = {
+      W: 720, H: 1280,
+      BALL_SIZE: 96,
+      START_Y:   -120,
+      BOTTOM_Y:  1280 - 130,   // floor level (ball top)
+      FALL_SPEED:  204,        // px/s
+      SLIDE_SPEED: 288,        // px/s
+      EXIT_SPEED:  384,        // px/s (exit after reveal)
+      STOP_X:       19,        // where ball stops (left edge)
+      REVEAL_X:    384,        // x at which banner starts opening
+      STOP_MS:   10000,        // pause at bottom-left (ms)
+      PAUSE_MS:    600,        // pause before restart
+      TRAIL_MS:     90,
+      NUMBERS: Array.from({length: 90}, (_, i) => i + 1),
+      WINNER_NAME: 'Matias Moreira',
+      NUMBER_FONT_REM: 1.5,
+      BADGE_SIZE_REM: 3.0,
+      LEFT_TILT_DEG: -24,
+      RIGHT_TILT_DEG: 24,
+      RANDOM_LINKED_SPEED: false,
+      MODE: 'test',            // 'test' | 'manual' | 'dynamic'
+      WEBSOCKET_URL: 'ws://localhost:688',
+      API_URL: '',
+      TICKER_ENABLED: true,
+      TICKER_LABEL: 'Radio',
+      TICKER_TEXTS: [
+        'Loteria Ball lista para OBS',
+        'Ticker inferior izquierdo activo',
+        'Se oculta cuando se lanza una bolilla'
+      ],
+      TICKER_SCROLL_MS: 28000
+    };
+
+    /* ══════════════════════════════════════════════════════════
+       DOM REFS
+       ══════════════════════════════════════════════════════════ */
+    const wrapper    = document.getElementById('ball-wrapper');
+    const shadow     = document.getElementById('ball-shadow');
+    const bodyEl     = document.getElementById('ball-body');
+    const numEl      = document.getElementById('ball-number');
+    const glowEl     = document.getElementById('ball-glow');
+    const banner     = document.getElementById('name-banner');
+    const bannerName = document.getElementById('banner-name');
+    const bannerAvatar = document.getElementById('banner-avatar');
+    const bannerAvatarImg = document.getElementById('banner-avatar-img');
+    const tickerOverlay = document.getElementById('ticker-overlay');
+    const tickerTrack = document.getElementById('ticker-track');
+    const ringEl     = document.getElementById('countdown-ring');
+    const ringCircle = document.getElementById('ring-circle');
+
+    let x = 0, y = 0;
+    let phase = 'pausing';   // falling | sliding | stopped | exit | pausing
+    let lastTime  = null;
+    let trailTimer = null;
+    let stopTimer  = null;
+    let bannerOpen = false;
+    let initialSyncResolved = false;
+    let initialSyncTimer = null;
+    let lastTriggerSignature = '';
+    let lastTriggerAt = 0;
+    const recentTriggerIds = new Set();
+    const TRIGGER_DEDUP_MS = 2000;
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizeTickerTexts(texts) {
+      const fallback = [
+        'Loteria Ball lista para OBS',
+        'Ticker inferior izquierdo activo',
+        'Se oculta cuando se lanza una bolilla'
+      ];
+      const list = Array.isArray(texts) ? texts : [];
+      const cleaned = list
+        .map((item) => typeof item === 'string' ? item.trim() : '')
+        .filter(Boolean);
+      return cleaned.length ? cleaned : fallback;
+    }
+
+    function renderTicker() {
+      if (!tickerTrack) return;
+      const items = normalizeTickerTexts(CONFIG.TICKER_TEXTS);
+      const scrollMs = Math.max(6000, parseInt(CONFIG.TICKER_SCROLL_MS, 10) || 20000);
+      const groupHtml = items.map((text) => `
+        <span class="ticker-item">
+          <span class="ticker-text">${escapeHtml(text)}</span>
+        </span>
+      `).join('<span class="ticker-item"><span class="ticker-text">•</span></span>');
+
+      tickerTrack.innerHTML = groupHtml ? `<div class="ticker-group">${groupHtml}</div><div class="ticker-group" aria-hidden="true">${groupHtml}</div>` : '';
+      tickerTrack.style.animationDuration = `${scrollMs}ms`;
+    }
+
+    function syncTickerVisibility() {
+      if (!tickerOverlay) return;
+      const shouldShow = CONFIG.TICKER_ENABLED !== false && phase === 'pausing';
+      tickerOverlay.classList.toggle('visible', shouldShow);
+      tickerOverlay.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+    }
+
+    function showTicker() {
+      syncTickerVisibility();
+    }
+
+    function hideTicker() {
+      if (!tickerOverlay) return;
+      tickerOverlay.classList.remove('visible');
+      tickerOverlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function shouldAcceptTrigger(number, name, eventId) {
+      const now = Date.now();
+      const signature = `${String(number)}::${String(name)}`;
+
+      if (eventId) {
+        if (recentTriggerIds.has(eventId)) {
+          return false;
+        }
+        recentTriggerIds.add(eventId);
+        setTimeout(() => recentTriggerIds.delete(eventId), 30000);
+      }
+
+      if (signature === lastTriggerSignature && (now - lastTriggerAt) < TRIGGER_DEDUP_MS) {
+        return false;
+      }
+
+      lastTriggerSignature = signature;
+      lastTriggerAt = now;
+      return true;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       CONFIG LOADING
+       ══════════════════════════════════════════════════════════ */
+    function loadSavedConfig() {
+      try {
+        const saved = localStorage.getItem('lottery_ball_config');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          Object.assign(CONFIG, parsed);
+        }
+      } catch(e) {
+        console.error("Error loading config:", e);
+      }
+      renderTicker();
+      syncTickerVisibility();
+    }
+
+    function applyDimensions() {
+      document.documentElement.style.width = CONFIG.W + 'px';
+      document.documentElement.style.height = CONFIG.H + 'px';
+      document.body.style.width = CONFIG.W + 'px';
+      document.body.style.height = CONFIG.H + 'px';
+      CONFIG.BOTTOM_Y = CONFIG.H - 130;
+      syncBannerPos();
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       POSITION HELPERS
+       ══════════════════════════════════════════════════════════ */
+    function setPos(px, py) {
+      wrapper.style.left = px + 'px';
+      wrapper.style.top  = py + 'px';
+      x = px; y = py;
+    }
+
+    function parkBall() {
+      const startX = CONFIG.W - CONFIG.BALL_SIZE - 30;
+      setPos(startX, CONFIG.START_Y);
+      shadow.style.opacity = '0';
+      phase = 'pausing';
+      stopTrail();
+      hideCountdownRing();
+      closeBanner();
+      setSpinState('off');
+      showTicker();
+    }
+
+    function resolveInitialSync() {
+      if (initialSyncResolved) return;
+      initialSyncResolved = true;
+      if (initialSyncTimer) {
+        clearTimeout(initialSyncTimer);
+        initialSyncTimer = null;
+      }
+      if (CONFIG.MODE === 'test') {
+        resetBall();
+      } else {
+        parkBall();
+      }
+    }
+
+    function updateShadow(px, py, opacityBoost = 0) {
+      const minScale = 0.58;
+      const maxScale = 1.1;
+      const fallRange = Math.max(1, CONFIG.BOTTOM_Y - CONFIG.START_Y);
+      const floorProgress = Math.max(0, Math.min(1, (py - CONFIG.START_Y) / fallRange));
+      const sx = minScale + (maxScale - minScale) * floorProgress;
+      const sy = 0.72 + floorProgress * 0.34;
+      const drift = Math.sin(performance.now() / 140) * (phase === 'stopped' ? 0.8 : 0.35);
+      const alpha = Math.max(0, Math.min(0.78, floorProgress * 0.66 + opacityBoost));
+      const blur = Math.max(0.2, (1 - floorProgress) * 1.25);
+
+      shadow.style.left = (px + 6 + drift).toFixed(2) + 'px';
+      shadow.style.opacity = alpha.toFixed(2);
+      shadow.style.filter = `blur(${blur.toFixed(2)}px)`;
+      shadow.style.transform = `scale(${sx.toFixed(3)}, ${sy.toFixed(3)})`;
+    }
+
+    function syncBannerPos() {
+      // Banner left edge = right edge of ball stop position
+      const bannerLeft = CONFIG.STOP_X + CONFIG.BALL_SIZE;
+      // Banner vertical: aligned with ball centre
+      const bannerTop  = CONFIG.BOTTOM_Y + (CONFIG.BALL_SIZE / 2) - (82 / 2);
+      banner.style.left = bannerLeft + 'px';
+      banner.style.top  = bannerTop  + 'px';
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       COLORS
+       ══════════════════════════════════════════════════════════ */
+    function applyColor(n) {
+      const c = colorForNumber(n);
+      bodyEl.style.background = c.bg;
+      glowEl.style.background = `radial-gradient(circle, ${c.glow} 0%, transparent 70%)`;
+    }
+
+    function applyNumberStyles() {
+      const fontRem = Math.max(0.7, Math.min(2.4, parseFloat(CONFIG.NUMBER_FONT_REM) || 1.25));
+      const badgeRem = Math.max(1.6, Math.min(4.2, parseFloat(CONFIG.BADGE_SIZE_REM) || 2.5));
+      numEl.style.fontSize = fontRem.toFixed(2) + 'rem';
+      numEl.style.minWidth = badgeRem.toFixed(2) + 'rem';
+      numEl.style.height = badgeRem.toFixed(2) + 'rem';
+    }
+
+    function randomNumber() {
+      const pool = CONFIG.NUMBERS;
+      return pool[Math.floor(Math.random() * pool.length)];
+    }
+
+    function setSpinState(mode) {
+      const ball = document.getElementById('lottery-ball');
+      if (!ball) return;
+      ball.classList.remove('spin-fast', 'spin-slow', 'spin-stop');
+      if (mode === 'fast') {
+        ball.classList.add('rolling', 'spin-fast');
+      } else if (mode === 'slow') {
+        ball.classList.add('rolling', 'spin-slow');
+      } else if (mode === 'stop') {
+        const leftRaw = parseFloat(CONFIG.LEFT_TILT_DEG);
+        const rightRaw = parseFloat(CONFIG.RIGHT_TILT_DEG);
+        const leftLimit = Number.isFinite(leftRaw) ? leftRaw : -24;
+        const rightLimit = Number.isFinite(rightRaw) ? rightRaw : 24;
+        const minTilt = Math.min(leftLimit, rightLimit);
+        const maxTilt = Math.max(leftLimit, rightLimit);
+        const span = maxTilt - minTilt;
+        const finalTilt = span > 0.001 ? (minTilt + Math.random() * span) : minTilt;
+        const overshoot = finalTilt + (finalTilt >= 0 ? 9 : -9);
+        ball.style.setProperty('--stop-tilt-final', `${finalTilt.toFixed(2)}deg`);
+        ball.style.setProperty('--stop-tilt-overshoot', `${overshoot.toFixed(2)}deg`);
+        ball.classList.remove('rolling');
+        ball.classList.add('spin-stop');
+      } else if (mode === 'off') {
+        ball.classList.remove('rolling');
+      }
+    }
+
+    function applyRandomLinkedSpeedIfNeeded() {
+      if (!CONFIG.RANDOM_LINKED_SPEED) return;
+      const min = Math.min(parseFloat(CONFIG.FALL_SPEED) || 170, parseFloat(CONFIG.SLIDE_SPEED) || 240);
+      const max = Math.max(parseFloat(CONFIG.FALL_SPEED) || 170, parseFloat(CONFIG.SLIDE_SPEED) || 240);
+      const randomSpeed = min + Math.random() * Math.max(0, max - min);
+      const speed = Math.round(randomSpeed);
+      CONFIG.FALL_SPEED = speed;
+      CONFIG.SLIDE_SPEED = speed;
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       TRAIL PARTICLES
+       ══════════════════════════════════════════════════════════ */
+    function spawnTrail() {
+      if (phase === 'pausing' || phase === 'stopped') return;
+      const p    = document.createElement('div');
+      const size = (5 + Math.random() * 9) | 0;
+      p.style.cssText = `
+        position:absolute; border-radius:50%; pointer-events:none;
+        width:${size}px; height:${size}px;
+        background: radial-gradient(circle, rgba(255,255,255,0.55), rgba(255,255,255,0.0));
+        left:${x + CONFIG.BALL_SIZE/2 - size/2 + (Math.random()-0.5)*28}px;
+        top:${y  + CONFIG.BALL_SIZE/2 - size/2 + (Math.random()-0.5)*18}px;
+        animation: trail-fade 0.7s ease-out forwards;
+        z-index:10;
+      `;
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 750);
+    }
+    function startTrail() { stopTrail(); trailTimer = setInterval(spawnTrail, CONFIG.TRAIL_MS); }
+    function stopTrail()  { if (trailTimer) { clearInterval(trailTimer); trailTimer = null; } }
+
+    /* ══════════════════════════════════════════════════════════
+       BANNER OPEN / CLOSE
+       ══════════════════════════════════════════════════════════ */
+    function openBanner() {
+      if (bannerOpen) return;
+      bannerOpen = true;
+      syncBannerPos();
+      // Small delay so CSS transition kicks in
+      requestAnimationFrame(() => {
+        banner.style.width = '408px';
+      });
+      spawnSparkles();
+    }
+
+    function closeBanner() {
+      bannerOpen = false;
+      banner.style.width = '0';
+    }
+
+    function spawnSparkles() {
+      const bLeft = CONFIG.STOP_X + CONFIG.BALL_SIZE;
+      const bTop  = CONFIG.BOTTOM_Y + (CONFIG.BALL_SIZE / 2) - (82 / 2);
+      for (let i = 0; i < 10; i++) {
+        setTimeout(() => {
+          const s = document.createElement('div');
+          s.className = 'sparkle';
+          const sz = (4 + Math.random() * 8) | 0;
+          s.style.cssText = `
+            width:${sz}px; height:${sz}px;
+            left:${bLeft + Math.random() * 200}px;
+            top:${bTop  + (Math.random() - 0.5) * 60}px;
+          `;
+          document.body.appendChild(s);
+          setTimeout(() => s.remove(), 650);
+        }, i * 55);
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       COUNTDOWN RING  (fills up over STOP_MS)
+       ══════════════════════════════════════════════════════════ */
+    function startCountdownRing() {
+      ringEl.style.opacity = '1';
+      // Reset
+      ringCircle.style.transition = 'none';
+      ringCircle.style.strokeDashoffset = '283';
+      // Force reflow then start fill
+      void ringCircle.getBoundingClientRect();
+      ringCircle.style.transition = `stroke-dashoffset ${CONFIG.STOP_MS}ms linear`;
+      ringCircle.style.strokeDashoffset = '0';
+    }
+    function hideCountdownRing() {
+      ringCircle.style.transition = 'none';
+      ringCircle.style.strokeDashoffset = '283';
+      ringEl.style.opacity = '0';
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       ANIMATION LOOP
+       ══════════════════════════════════════════════════════════ */
+    function tick(ts) {
+      if (!lastTime) lastTime = ts;
+      const dt = Math.min((ts - lastTime) / 1000, 0.08);
+      lastTime = ts;
+
+      /* ── FALLING ── */
+      if (phase === 'falling') {
+        const ny = y + CONFIG.FALL_SPEED * dt;
+        updateShadow(x, ny);
+
+        if (ny >= CONFIG.BOTTOM_Y) {
+          setPos(x, CONFIG.BOTTOM_Y);
+          updateShadow(x, CONFIG.BOTTOM_Y, 0.04);
+          setSpinState('slow');
+          phase = 'sliding';
+        } else {
+          setPos(x, ny);
+        }
+      }
+
+      /* ── SLIDING LEFT ── */
+      else if (phase === 'sliding') {
+        const nx = x - CONFIG.SLIDE_SPEED * dt;
+        updateShadow(nx, y, 0.05);
+
+        // Trigger banner when ball crosses REVEAL_X threshold
+        if (!bannerOpen && nx <= CONFIG.REVEAL_X) {
+          openBanner();
+        }
+
+        // Ball reaches its stop position
+        if (nx <= CONFIG.STOP_X) {
+          setPos(CONFIG.STOP_X, y);
+          updateShadow(CONFIG.STOP_X, y, 0.12);
+          phase = 'stopped';
+          stopTrail();
+          startCountdownRing();
+          setSpinState('stop');
+
+          // After STOP_MS, exit to the left
+          stopTimer = setTimeout(() => {
+            phase = 'exit';
+            setSpinState('fast');
+            startTrail();
+          }, CONFIG.STOP_MS);
+        } else {
+          setPos(nx, y);
+        }
+      }
+
+      /* ── EXIT (slide off left after stop) ── */
+      else if (phase === 'exit') {
+        const nx = x - CONFIG.EXIT_SPEED * dt;
+        const exitBoost = Math.max(-0.4, 0.08 - (1.35 * dt));
+        updateShadow(nx, y, exitBoost);
+
+        if (nx + CONFIG.BALL_SIZE <= 0) {
+          // Ball gone — close banner & reset
+          closeBanner();
+          hideCountdownRing();
+          stopTrail();
+          phase = 'pausing';
+          shadow.style.opacity = '0';
+          showTicker();
+          if (CONFIG.MODE === 'test') {
+            setTimeout(resetBall, CONFIG.PAUSE_MS);
+          }
+        } else {
+          setPos(nx, y);
+        }
+      }
+
+      requestAnimationFrame(tick);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       TRIGGER DYNAMIC OR MANUAL BALL
+       ══════════════════════════════════════════════════════════ */
+    function setBannerAvatar(profilePicUrl) {
+      const safeUrl = typeof profilePicUrl === 'string' ? profilePicUrl.trim() : '';
+      if (!safeUrl) {
+        bannerAvatar.style.display = 'none';
+        return;
+      }
+      const hasQuery = safeUrl.includes('?');
+      bannerAvatarImg.src = `${safeUrl}${hasQuery ? '&' : '?'}cb=${Date.now()}`;
+      bannerAvatar.style.display = 'block';
+    }
+
+    function triggerBall(number, name, profilePicUrl, eventId = '') {
+      if (!shouldAcceptTrigger(number, name, eventId)) {
+        return false;
+      }
+      if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+      closeBanner();
+      hideCountdownRing();
+      hideTicker();
+      stopTrail();
+      applyRandomLinkedSpeedIfNeeded();
+
+      numEl.textContent = number;
+      bannerName.textContent = name;
+      setBannerAvatar(profilePicUrl);
+      applyColor(number);
+
+      setSpinState('fast');
+
+      // Randomise start X slightly (right side)
+      const startX = CONFIG.W - CONFIG.BALL_SIZE - (20 + (Math.random() * 30 | 0));
+      setPos(startX, CONFIG.START_Y);
+      shadow.style.left    = (startX + 10) + 'px';
+      shadow.style.opacity = '0';
+      shadow.style.transform = 'scale(0.55,0.55)';
+      bannerOpen = false;
+      phase = 'falling';
+      startTrail();
+      return true;
+    }
+
+    function resetBall() {
+      const n = randomNumber();
+      triggerBall(n, CONFIG.WINNER_NAME);
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       WEBSOCKET & API INTEGRATIONS (DYNAMIC MODE)
+       ══════════════════════════════════════════════════════════ */
+    let ws = null;
+    function connectWebSocket() {
+      if (ws) {
+        try { ws.onclose = null; ws.close(); } catch(e){}
+        ws = null;
+      }
+      if (!CONFIG.WEBSOCKET_URL) return;
+      try {
+        ws = new WebSocket(CONFIG.WEBSOCKET_URL);
+        ws.onopen = () => {
+          console.log("Widget WebSocket conectado a", CONFIG.WEBSOCKET_URL);
+          try {
+            ws.send(JSON.stringify({
+              type: 'WIDGET_HELLO',
+              source: 'widget',
+              requestConfig: true
+            }));
+          } catch (e) {}
+        };
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            if (data?.type === 'CONFIG_SNAPSHOT' && data?.config) {
+              handleIncomingMessage({ type: 'UPDATE_CONFIG', config: data.config });
+              return;
+            }
+            if (data?.type === 'CHANGE_MODE') {
+              handleIncomingMessage({ type: 'CHANGE_MODE', mode: data.mode });
+              return;
+            }
+            if (data?.type === 'UPDATE_CONFIG' && data?.config) {
+              handleIncomingMessage({ type: 'UPDATE_CONFIG', config: data.config });
+              return;
+            }
+            if (data && data.number && data.name) {
+              const accepted = triggerBall(data.number, data.name, data.profilePicUrl, data.eventId || '');
+              if (accepted) {
+                console.log('TRIGGER_BALL recibido:', {
+                  number: data.number,
+                  name: data.name,
+                  profilePicUrl: data.profilePicUrl || ''
+                });
+              }
+            }
+          } catch(e){}
+        };
+        ws.onclose = () => {
+          console.log("Widget WebSocket desconectado. Reconectando...");
+          setTimeout(connectWebSocket, 5000);
+        };
+        ws.onerror = (e) => {
+          console.error("Widget WebSocket error:", e);
+        };
+      } catch(e){
+        console.error("Error al configurar WebSocket del Widget:", e);
+      }
+    }
+
+    let pollInterval = null;
+    let lastFetchedTime = 0;
+    
+    function startPolling() {
+      stopPolling();
+      if (CONFIG.MODE !== 'dynamic' || !CONFIG.API_URL) return;
+      
+      pollInterval = setInterval(async () => {
+        // Solo dispara si está pausado para evitar colisiones
+        if (phase !== 'pausing') return;
+        
+        try {
+          const res = await fetch(CONFIG.API_URL);
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data && data.number && data.name) {
+            const signature = data.id || data.timestamp || `${data.number}_${data.name}`;
+            if (signature !== lastFetchedTime) {
+              lastFetchedTime = signature;
+              triggerBall(data.number, data.name);
+            }
+          }
+        } catch(e) {
+          console.error("Error al consultar API:", e);
+        }
+      }, 3000);
+    }
+    
+    function stopPolling() {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       MESSAGING RECEIVER (BroadcastChannel & LocalStorage fallback)
+       ══════════════════════════════════════════════════════════ */
+    function handleIncomingMessage(msg) {
+      if (!msg) return;
+      
+      if (msg.type === 'TRIGGER_BALL') {
+        resolveInitialSync();
+        triggerBall(msg.number, msg.name, msg.profilePicUrl, msg.eventId || '');
+      } else if (msg.type === 'CHANGE_MODE') {
+        const oldMode = CONFIG.MODE;
+        CONFIG.MODE = msg.mode;
+        resolveInitialSync();
+        if (CONFIG.MODE === 'test' && phase === 'pausing') {
+          resetBall();
+        }
+        if (CONFIG.MODE !== oldMode) {
+          connectWebSocket();
+          startPolling();
+        }
+      } else if (msg.type === 'UPDATE_CONFIG') {
+        const oldWs = CONFIG.WEBSOCKET_URL;
+        const oldApi = CONFIG.API_URL;
+        const oldMode = CONFIG.MODE;
+        
+        Object.assign(CONFIG, msg.config);
+        applyDimensions();
+        applyNumberStyles();
+        renderTicker();
+        syncTickerVisibility();
+        resolveInitialSync();
+        
+        if (CONFIG.MODE === 'test' && phase === 'pausing') {
+          resetBall();
+        }
+        if (CONFIG.WEBSOCKET_URL !== oldWs || CONFIG.MODE !== oldMode) {
+          connectWebSocket();
+        }
+        if (CONFIG.API_URL !== oldApi || CONFIG.MODE !== oldMode) {
+          startPolling();
+        }
+      }
+    }
+
+    /* ══════════════════════════════════════════════════════════
+       INIT
+       ══════════════════════════════════════════════════════════ */
+    (function init() {
+      loadSavedConfig();
+      applyDimensions();
+      applyNumberStyles();
+      renderTicker();
+
+      // Conectar canal BroadcastChannel
+      try {
+        const channel = new BroadcastChannel('lottery_ball_channel');
+        channel.onmessage = (event) => {
+          handleIncomingMessage(event.data);
+        };
+      } catch(e) {
+        console.error("BroadcastChannel no soportado:", e);
+      }
+
+      // Escuchar eventos storage (fallback para OBS Browser Source)
+      window.addEventListener('storage', (event) => {
+        if (event.key === 'lottery_ball_msg' && event.newValue) {
+          try {
+            const data = JSON.parse(event.newValue);
+            if (data && data.msg) {
+              handleIncomingMessage(data.msg);
+            }
+          } catch(e) {}
+        }
+      });
+
+      // Levantar WebSocket y Polling si se guardaron en modo dinámico
+      connectWebSocket();
+      startPolling();
+      parkBall();
+      initialSyncTimer = setTimeout(() => {
+        resolveInitialSync();
+      }, CONFIG.WEBSOCKET_URL ? 2500 : 100);
+
+      syncTickerVisibility();
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>

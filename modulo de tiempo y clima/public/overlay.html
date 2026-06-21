@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Weather & Time Overlay</title>
+    <style>
+        :root {
+            --theme-color: #8b5cf6;
+            --font-family: 'Roboto', sans-serif;
+            --theme-color-dark: color-mix(in srgb, var(--theme-color) 65%, #000);
+            --theme-color-light: color-mix(in srgb, var(--theme-color) 75%, #fff);
+            --theme-color-bright: color-mix(in srgb, var(--theme-color) 60%, #ff4444);
+            --theme-color-glow: color-mix(in srgb, var(--theme-color) 35%, transparent);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Crucial for OBS Browser Source */
+            background-color: transparent; /* Transparent for overlaying */
+            font-family: var(--font-family), sans-serif;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Widget base container */
+        .widget-container {
+            position: absolute;
+            overflow: hidden;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            background-color: rgba(10, 10, 10, 0.88);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 10;
+        }
+
+        /* Glowing glass reflection sweep */
+        .widget-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -150%;
+            width: 300%;
+            height: 100%;
+            background: linear-gradient(
+                to right,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.08) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            transform: skewX(-25deg);
+            pointer-events: none;
+            z-index: 5;
+            animation: gloss-sweep 8s ease-in-out infinite;
+        }
+
+        @keyframes gloss-sweep {
+            0% { left: -150%; }
+            10%, 100% { left: 150%; }
+        }
+
+        /* Positions for Card layout */
+        .pos-top-left { top: 20px; left: 20px; bottom: auto; right: auto; }
+        .pos-top-right { top: 20px; right: 20px; bottom: auto; left: auto; }
+        .pos-bottom-left { bottom: 20px; left: 20px; top: auto; right: auto; }
+        .pos-bottom-right { bottom: 20px; right: 20px; top: auto; left: auto; }
+
+        /* Card Layout Style */
+        .layout-card {
+            width: 260px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 20px var(--theme-color-glow);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .layout-card .top-bar {
+            background: linear-gradient(135deg, var(--theme-color) 0%, var(--theme-color-dark) 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 10px 14px;
+            font-size: 15px;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            perspective: 400px;
+        }
+
+        .layout-card .bottom-bar {
+            background: linear-gradient(135deg, rgba(18, 18, 18, 0.9) 0%, rgba(8, 8, 8, 0.95) 100%);
+            color: #ffffff;
+            text-align: center;
+            padding: 14px;
+            font-size: 24px;
+            font-weight: 700;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+            min-height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            perspective: 400px;
+        }
+
+        .layout-card .live-bar {
+            background-color: #050505;
+            color: #ff3b30;
+            text-align: center;
+            padding: 6px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        /* Ticker Layout Style */
+        .layout-ticker {
+            width: 100%;
+            height: 48px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 0 15px var(--theme-color-glow);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+            background: linear-gradient(90deg, rgba(8, 8, 12, 0.95) 0%, rgba(18, 18, 24, 0.9) 50%, rgba(8, 8, 12, 0.95) 100%);
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: flex-start;
+        }
+
+        /* Ticker Positions */
+        .layout-ticker.pos-top-left, .layout-ticker.pos-top-right {
+            top: 0; left: 0; right: 0; bottom: auto;
+        }
+        .layout-ticker.pos-bottom-left, .layout-ticker.pos-bottom-right {
+            bottom: 0; left: 0; right: 0; top: auto;
+        }
+
+        .layout-ticker .live-bar {
+            background: linear-gradient(135deg, var(--theme-color) 0%, var(--theme-color-dark) 100%);
+            color: #ffffff;
+            height: 100%;
+            padding: 0 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-right: 1.5px solid rgba(255, 255, 255, 0.2);
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+            order: 1;
+        }
+
+        .layout-ticker .top-bar {
+            background: transparent;
+            color: var(--theme-color-bright);
+            padding: 0 20px;
+            font-size: 16px;
+            font-weight: 700;
+            border-bottom: none;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            border-right: 1px solid rgba(255, 255, 255, 0.12);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            order: 2;
+            perspective: 400px;
+        }
+
+        .layout-ticker .bottom-bar {
+            background: transparent;
+            color: #ffffff;
+            padding: 0 20px;
+            font-size: 18px;
+            font-weight: 600;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+            display: flex;
+            align-items: center;
+            height: 100%;
+            border-bottom: none;
+            order: 3;
+            perspective: 400px;
+        }
+
+        /* Transition Animations */
+        .anim-text {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            opacity: 1;
+            transform: translateY(0) translateX(0) scale(1);
+        }
+
+        /* Slide-up transition */
+        .transition-slide-up.leave { opacity: 0; transform: translateY(-25px) scale(0.95); filter: blur(2px); }
+        .transition-slide-up.enter { opacity: 0; transform: translateY(25px) scale(0.95); filter: blur(2px); }
+
+        /* Slide-left transition */
+        .transition-slide-left.leave { opacity: 0; transform: translateX(-40px); filter: blur(2px); }
+        .transition-slide-left.enter { opacity: 0; transform: translateX(40px); filter: blur(2px); }
+
+        /* Slide-right transition */
+        .transition-slide-right.leave { opacity: 0; transform: translateX(40px); filter: blur(2px); }
+        .transition-slide-right.enter { opacity: 0; transform: translateX(-40px); filter: blur(2px); }
+
+        /* Fade transition */
+        .transition-fade.leave { opacity: 0; filter: blur(3px); }
+        .transition-fade.enter { opacity: 0; filter: blur(3px); }
+
+        /* Zoom transition */
+        .transition-zoom.leave { opacity: 0; transform: scale(0.8); filter: blur(2px); }
+        .transition-zoom.enter { opacity: 0; transform: scale(1.15); filter: blur(2px); }
+
+        /* Flip 3D transition */
+        .transition-flip.leave { opacity: 0; transform: rotateX(90deg) scale(0.9); transform-origin: center; filter: blur(1px); }
+        .transition-flip.enter { opacity: 0; transform: rotateX(-90deg) scale(0.9); transform-origin: center; filter: blur(1px); }
+
+        /* Flag Image Styling */
+        .flag-img {
+            height: 18px;
+            width: auto;
+            border-radius: 3px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            transition: transform 0.3s ease;
+        }
+        .flag-img:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Floating Weather Icon animation */
+        .temp-icon {
+            font-size: 22px;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+            line-height: 1;
+            margin-right: 4px;
+            animation: weather-float 3s ease-in-out infinite;
+            display: inline-block;
+        }
+
+        @keyframes weather-float {
+            0% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-4px) rotate(3deg); }
+            100% { transform: translateY(0) rotate(0deg); }
+        }
+        
+        /* Live Red Dot Pulsing */
+        .live-dot {
+            display: inline-block;
+            width: 7px;
+            height: 7px;
+            background-color: #ff3b30;
+            border-radius: 50%;
+            animation: pulse-red 1.8s infinite;
+        }
+
+        .layout-ticker .live-dot {
+            background-color: #ffffff;
+            animation: pulse-white 1.8s infinite;
+        }
+
+        @keyframes pulse-red {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.8); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+
+        @keyframes pulse-white {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.8); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 255, 255, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+        }
+
+        /* ================= STYLE PRESETS ================= */
+
+        /* 1. Classic (Deep Red / Premium Gold Highlights) */
+        .widget-container.preset-classic {
+            border: 1px solid rgba(255, 255, 255, 0.15) !important;
+            background-color: rgba(10, 5, 5, 0.9) !important;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.5), 0 0 20px var(--theme-color-glow) !important;
+        }
+        .widget-container.preset-classic .top-bar {
+            color: #ffffff !important;
+            border-bottom: 1.5px solid rgba(255, 255, 255, 0.15) !important;
+        }
+        .widget-container.preset-classic .live-bar {
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* 2. Glassmorphism Preset */
+        .widget-container.preset-glass {
+            background-color: rgba(15, 23, 42, 0.35) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(255, 255, 255, 0.18) !important;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 25px rgba(255, 255, 255, 0.05) !important;
+        }
+        .widget-container.preset-glass .top-bar {
+            background: rgba(255, 255, 255, 0.06) !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+            color: #ffffff !important;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+        }
+        .widget-container.preset-glass .bottom-bar {
+            background: transparent !important;
+            color: #ffffff !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+        }
+        .widget-container.preset-glass .live-bar {
+            background-color: rgba(15, 23, 42, 0.6) !important;
+            color: #ff5252 !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+        }
+        .widget-container.preset-glass.layout-ticker {
+            background: linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 50%, rgba(255, 255, 255, 0.06) 100%) !important;
+        }
+        .widget-container.preset-glass.layout-ticker .live-bar {
+            background: rgba(255, 255, 255, 0.12) !important;
+            color: #ffffff !important;
+            border-right: 1px solid rgba(255, 255, 255, 0.18) !important;
+        }
+
+        /* 3. Cyberpunk Preset */
+        .widget-container.preset-cyber {
+            background-color: #020208 !important;
+            border: 2px solid #00f0ff !important;
+            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), inset 0 0 10px rgba(0, 240, 255, 0.2) !important;
+            border-radius: 4px !important;
+        }
+        .widget-container.preset-cyber .top-bar {
+            background: #09091e !important;
+            color: #00f0ff !important;
+            font-family: 'Share Tech Mono', monospace, sans-serif !important;
+            text-shadow: 0 0 8px #00f0ff !important;
+            border-bottom: 2px solid #00f0ff !important;
+            letter-spacing: 1.5px !important;
+        }
+        .widget-container.preset-cyber .bottom-bar {
+            background: #020208 !important;
+            color: #ff007f !important;
+            font-family: 'Share Tech Mono', monospace, sans-serif !important;
+            text-shadow: 0 0 8px #ff007f !important;
+        }
+        .widget-container.preset-cyber .live-bar {
+            background: #ff007f !important;
+            color: #ffffff !important;
+            font-family: 'Share Tech Mono', monospace, sans-serif !important;
+            font-weight: 700 !important;
+            letter-spacing: 2px !important;
+            border-top: none !important;
+            text-shadow: 0 0 5px #ffffff !important;
+        }
+        .widget-container.preset-cyber .live-dot {
+            background-color: #ffffff !important;
+            animation: pulse-white 1.2s infinite !important;
+        }
+        .widget-container.preset-cyber.layout-ticker {
+            background: #020208 !important;
+            border-left: none !important;
+            border-right: none !important;
+        }
+        .widget-container.preset-cyber.layout-ticker .live-bar {
+            border-right: 2px solid #00f0ff !important;
+        }
+
+        /* 4. Elegant Dark Preset (Luxury Slate & Gold) */
+        .widget-container.preset-dark {
+            background-color: #0a0a0c !important;
+            border: 1px solid #2d2d35 !important;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.85) !important;
+        }
+        .widget-container.preset-dark .top-bar {
+            background: linear-gradient(180deg, #18181d 0%, #0a0a0c 100%) !important;
+            color: #dfb23f !important; /* Elegant Luxury Gold */
+            border-bottom: 1px solid #2d2d35 !important;
+            font-weight: 600 !important;
+            letter-spacing: 1.8px !important;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8) !important;
+        }
+        .widget-container.preset-dark .bottom-bar {
+            background: #0a0a0c !important;
+            color: #f3f4f6 !important;
+        }
+        .widget-container.preset-dark .live-bar {
+            background: #121216 !important;
+            color: #dfb23f !important;
+            border-top: 1px solid #2d2d35 !important;
+        }
+        .widget-container.preset-dark.layout-ticker {
+            background: #0a0a0c !important;
+        }
+        .widget-container.preset-dark.layout-ticker .live-bar {
+            border-right: 1px solid #2d2d35 !important;
+        }
+
+        /* 5. Retro CRT (Phosphor Green Terminal) */
+        .widget-container.preset-retro {
+            background-color: #060a07 !important;
+            border: 3px solid #44ff44 !important;
+            box-shadow: 0 0 20px rgba(68, 255, 68, 0.3), inset 0 0 10px rgba(68, 255, 68, 0.2) !important;
+            border-radius: 8px !important;
+            animation: crt-flicker 0.15s infinite;
+        }
+        /* Scanlines scan */
+        .widget-container.preset-retro::before {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.32) 50%);
+            background-size: 100% 4px;
+            z-index: 99;
+            pointer-events: none;
+            opacity: 0.85;
+        }
+        .widget-container.preset-retro .top-bar {
+            background: #030604 !important;
+            color: #44ff44 !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            border-bottom: 3px solid #44ff44 !important;
+            text-shadow: 0 0 6px #44ff44 !important;
+            letter-spacing: 2px !important;
+        }
+        .widget-container.preset-retro .bottom-bar {
+            background: #060a07 !important;
+            color: #44ff44 !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            text-shadow: 0 0 8px #44ff44 !important;
+        }
+        .widget-container.preset-retro .live-bar {
+            background: #030604 !important;
+            color: #44ff44 !important;
+            font-family: 'Share Tech Mono', monospace !important;
+            border-top: 3px solid #44ff44 !important;
+            text-shadow: 0 0 5px #44ff44 !important;
+        }
+        .widget-container.preset-retro .live-dot {
+            background-color: #44ff44 !important;
+            animation: pulse-retro-green 1.2s infinite !important;
+        }
+        .widget-container.preset-retro.layout-ticker {
+            background: #060a07 !important;
+            border-left: none !important;
+            border-right: none !important;
+        }
+        .widget-container.preset-retro.layout-ticker .live-bar {
+            border-right: 3px solid #44ff44 !important;
+        }
+
+        @keyframes crt-flicker {
+            0% { opacity: 0.99; }
+            50% { opacity: 0.975; }
+            100% { opacity: 0.99; }
+        }
+
+        @keyframes pulse-retro-green {
+            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(68, 255, 68, 0.8); }
+            70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(68, 255, 68, 0); }
+            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(68, 255, 68, 0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="widget-container" id="widget-container" style="opacity: 0;">
+        <div class="top-bar">
+            <div id="custom-text" class="anim-text">Cargando...</div>
+        </div>
+        <div class="bottom-bar">
+            <div id="content-wrapper" class="anim-text">
+                <img id="icon-element" class="flag-img" src="" alt="flag" style="display: none;">
+                <span id="temp-emoji" class="temp-icon" style="display: none;">🌡️</span>
+                <span id="main-display">00:00</span>
+            </div>
+        </div>
+        <div class="live-bar" id="live-bar">
+            <span class="live-dot"></span> <span id="live-text">EN VIVO</span>
+        </div>
+    </div>
+
+    <!-- Socket.IO Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        // Fallback for socket load failure (offline or port closed)
+        if (typeof io === 'undefined') {
+            console.error("Socket.io could not be loaded. Please ensure the server is running on the correct port.");
+            document.getElementById('custom-text').innerText = "SIN CONEXIÓN";
+            document.getElementById('widget-container').style.opacity = '1';
+        }
+
+        const socket = typeof io !== 'undefined' ? io({ query: { type: 'overlay' } }) : null;
+        
+        let currentConfig = {
+            locations: [],
+            timeFormat: '12h',
+            cycleDuration: 10,
+            transitionType: 'slide-up',
+            themeColor: '#8b0000',
+            fontFamily: 'Roboto',
+            cyclePaused: false,
+            activeViewIndex: 0,
+            showLiveBar: true,
+            liveBarText: 'EN VIVO',
+            layoutStyle: 'card',
+            position: 'top-left'
+        };
+
+        // Open-Meteo Weather Codes map to beautiful Emojis and descriptions
+        // isDay: true = day variant, false = night variant
+        const weatherCodesMap = {
+            0:  { label: 'Despejado',                    emoji: '☀️',  emojiNight: '🌙' },
+            1:  { label: 'Mainly Clear',                 emoji: '☀️',  emojiNight: '🌙' },
+            2:  { label: 'Parcialmente Nublado',         emoji: '⛅',  emojiNight: '🌛' },
+            3:  { label: 'Nublado',                      emoji: '☁️',  emojiNight: '☁️' },
+            45: { label: 'Niebla',                       emoji: '🌫️', emojiNight: '🌫️' },
+            48: { label: 'Niebla de Rime',               emoji: '🌫️', emojiNight: '🌫️' },
+            51: { label: 'Llovizna Ligera',              emoji: '🌦️', emojiNight: '🌧️' },
+            53: { label: 'Llovizna',                     emoji: '🌦️', emojiNight: '🌧️' },
+            55: { label: 'Llovizna Densa',               emoji: '🌧️', emojiNight: '🌧️' },
+            56: { label: 'Llovizna Helada Ligera',       emoji: '🌧️', emojiNight: '🌧️' },
+            57: { label: 'Llovizna Helada Densa',        emoji: '🌧️', emojiNight: '🌧️' },
+            61: { label: 'Lluvia Ligera',                emoji: '🌦️', emojiNight: '🌧️' },
+            63: { label: 'Lluvia Moderada',              emoji: '🌧️', emojiNight: '🌧️' },
+            65: { label: 'Lluvia Fuerte',                emoji: '🌧️', emojiNight: '🌧️' },
+            66: { label: 'Lluvia Helada Ligera',         emoji: '🌧️', emojiNight: '🌧️' },
+            67: { label: 'Lluvia Helada Densa',          emoji: '🌧️', emojiNight: '🌧️' },
+            71: { label: 'Nevada Ligera',                emoji: '❄️',  emojiNight: '❄️' },
+            73: { label: 'Nevada Moderada',              emoji: '❄️',  emojiNight: '❄️' },
+            75: { label: 'Nevada Fuerte',                emoji: '❄️',  emojiNight: '❄️' },
+            77: { label: 'Granizo de Nieve',             emoji: '❄️',  emojiNight: '❄️' },
+            80: { label: 'Chubascos Ligeros',            emoji: '🌦️', emojiNight: '🌧️' },
+            81: { label: 'Chubascos Moderados',          emoji: '🌧️', emojiNight: '🌧️' },
+            82: { label: 'Chubascos Fuertes',            emoji: '🌧️', emojiNight: '🌧️' },
+            85: { label: 'Chubascos Nieve Ligeros',      emoji: '❄️',  emojiNight: '❄️' },
+            86: { label: 'Chubascos Nieve Fuertes',      emoji: '❄️',  emojiNight: '❄️' },
+            95: { label: 'Tormenta Eléctrica',           emoji: '⛈️', emojiNight: '⛈️' },
+            96: { label: 'Tormenta con Granizo',         emoji: '⛈️', emojiNight: '⛈️' },
+            99: { label: 'Tormenta Fuerte con Granizo',  emoji: '⛈️', emojiNight: '⛈️' }
+        };
+
+        const tzToCountry = {
+            'America/Argentina/Buenos_Aires': 'ar',
+            'America/Argentina/Cordoba': 'ar',
+            'America/Argentina/Salta': 'ar',
+            'Australia/Brisbane': 'au',
+            'Australia/Sydney': 'au',
+            'Australia/Melbourne': 'au',
+            'America/Bogota': 'co',
+            'America/Lima': 'pe',
+            'America/Guayaquil': 'ec',
+            'America/Caracas': 've',
+            'America/Santiago': 'cl',
+            'America/Asuncion': 'py',
+            'America/Montevideo': 'uy',
+            'America/La_Paz': 'bo',
+            'America/Mexico_City': 'mx',
+            'America/Monterrey': 'mx',
+            'America/Tijuana': 'mx',
+            'America/New_York': 'us',
+            'America/Chicago': 'us',
+            'America/Denver': 'us',
+            'America/Los_Angeles': 'us',
+            'Europe/Madrid': 'es',
+            'Europe/London': 'gb',
+            'Europe/Paris': 'fr',
+            'Asia/Tokyo': 'jp',
+            'UTC': ''
+        };
+
+        let viewQueue = [];
+        let currentViewIndex = 0;
+        let flipInterval = null;
+
+        const widgetContainer = document.getElementById('widget-container');
+        const textDiv = document.getElementById('custom-text');
+        const contentWrapper = document.getElementById('content-wrapper');
+        const mainDisplay = document.getElementById('main-display');
+        const iconElement = document.getElementById('icon-element');
+        const tempEmoji = document.getElementById('temp-emoji');
+
+        // Dynamically load Google Font to avoid layout shift and ensure premium typography
+        function loadFont(fontFamily) {
+            if (!fontFamily) return;
+            const fontId = 'google-font-' + fontFamily.replace(/\s+/g, '-').toLowerCase();
+            if (!document.getElementById(fontId)) {
+                const link = document.createElement('link');
+                link.id = fontId;
+                link.rel = 'stylesheet';
+                link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontFamily)}:wght@400;500;600;700&display=swap`;
+                document.head.appendChild(link);
+            }
+            document.documentElement.style.setProperty('--font-family', `'${fontFamily}', sans-serif`);
+        }
+
+        // Rebuild rotation queue alternating between Time and Temperature views
+        function rebuildViewQueue() {
+            viewQueue = [];
+            if (!currentConfig.locations) return;
+            
+            currentConfig.locations.forEach(loc => {
+                if (!loc.visible) return;
+                
+                // Add Time view
+                viewQueue.push({ type: 'time', location: loc });
+                
+                // Add Temp view if weather settings allow it
+                if (loc.city && loc.city.trim() !== '') {
+                    viewQueue.push({ type: 'temp', location: loc });
+                }
+            });
+            
+            if (currentViewIndex >= viewQueue.length) {
+                currentViewIndex = 0;
+            }
+            
+            if (viewQueue.length === 0) {
+                widgetContainer.style.opacity = '0';
+            } else {
+                widgetContainer.style.opacity = '1';
+            }
+        }
+
+        function getFormattedTime(timezone) {
+            const now = new Date();
+            const options = {
+                timeZone: timezone,
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: currentConfig.timeFormat === '12h'
+            };
+            try {
+                return new Intl.DateTimeFormat('en-US', options).format(now);
+            } catch (e) {
+                console.error("Invalid timezone:", timezone, e.message);
+                return new Intl.DateTimeFormat('en-US', { ...options, timeZone: 'UTC' }).format(now);
+            }
+        }
+
+        function updateUI() {
+            if (viewQueue.length === 0) return;
+            
+            const view = viewQueue[currentViewIndex];
+            if (!view) return;
+            
+            let textToShow = view.location.text;
+            let contentToShow = '';
+            let isWeather = false;
+            let countryCode = '';
+            let weatherCode = null;
+
+            if (view.type === 'time') {
+                contentToShow = getFormattedTime(view.location.timezone);
+                countryCode = view.location.flag || tzToCountry[view.location.timezone] || '';
+            } else if (view.type === 'temp') {
+                contentToShow = view.location.temp || '--°C';
+                weatherCode = view.location.weatherCode;
+                isWeather = true;
+            }
+
+            // Determine if it's daytime for this location (from Open-Meteo is_day field)
+            // isDay: 1 = day, 0 = night, null = unknown (fallback to local hour check)
+            const isDayLocal = (() => {
+                if (view.location.isDay !== null && view.location.isDay !== undefined) {
+                    return view.location.isDay === 1;
+                }
+                // Fallback: check local hour in the location's timezone
+                try {
+                    const hourStr = new Intl.DateTimeFormat('en-US', {
+                        timeZone: view.location.timezone || 'UTC',
+                        hour: 'numeric',
+                        hour12: false
+                    }).format(new Date());
+                    const h = parseInt(hourStr, 10);
+                    return h >= 6 && h < 20;
+                } catch(e) { return true; }
+            })();
+
+            const transitionClass = `transition-${currentConfig.transitionType || 'slide-up'}`;
+            
+            // Set transition classes
+            textDiv.className = `anim-text ${transitionClass}`;
+            contentWrapper.className = `anim-text ${transitionClass}`;
+
+            // Trigger slide out exit
+            textDiv.classList.add('leave');
+            contentWrapper.classList.add('leave');
+
+            setTimeout(() => {
+                textDiv.innerText = textToShow;
+                mainDisplay.innerText = contentToShow;
+                
+                if (isWeather) {
+                    iconElement.style.display = 'none';
+                    tempEmoji.style.display = 'inline-block';
+                    
+                    // Choose weather emoji based on Open-Meteo Weather Code + day/night
+                    let emoji = isDayLocal ? '🌡️' : '🌙';
+                    if (weatherCode !== undefined && weatherCode !== null && weatherCodesMap[weatherCode]) {
+                        const codeEntry = weatherCodesMap[weatherCode];
+                        emoji = isDayLocal ? codeEntry.emoji : (codeEntry.emojiNight || codeEntry.emoji);
+                        // top-bar just shows location name — no weather label needed
+                    } else {
+                        // Fallback: temperature-based icon
+                        let tempVal = parseFloat(contentToShow);
+                        if (!isNaN(tempVal)) {
+                            if (!isDayLocal) emoji = '🌙';
+                            else if (tempVal >= 26) emoji = '☀️';
+                            else if (tempVal >= 16) emoji = '⛅';
+                            else if (tempVal >= 6) emoji = '☁️';
+                            else emoji = '❄️';
+                        }
+                    }
+                    tempEmoji.innerText = emoji;
+                } else {
+                    tempEmoji.style.display = 'none';
+                    if (countryCode && countryCode !== 'none') {
+                        iconElement.src = `https://flagcdn.com/w40/${countryCode.toLowerCase()}.png`;
+                        iconElement.style.display = 'block';
+                    } else {
+                        iconElement.style.display = 'none';
+                    }
+                }
+
+                // Swap out classes for slide in entry
+                textDiv.classList.remove('leave');
+                contentWrapper.classList.remove('leave');
+                textDiv.classList.add('enter');
+                contentWrapper.classList.add('enter');
+                
+                // Force layout reflow
+                textDiv.offsetHeight;
+
+                textDiv.classList.remove('enter');
+                contentWrapper.classList.remove('enter');
+
+                // Notify dashboard of actual live index changes
+                if (socket) {
+                    socket.emit('viewChanged', currentViewIndex);
+                }
+            }, 500);
+        }
+
+        function nextView() {
+            if (currentConfig.cyclePaused || viewQueue.length === 0) return;
+            currentViewIndex = (currentViewIndex + 1) % viewQueue.length;
+            updateUI();
+        }
+
+        function jumpToView(index) {
+            if (index < 0 || index >= viewQueue.length) return;
+            currentViewIndex = index;
+            updateUI();
+            if (!currentConfig.cyclePaused) {
+                setupLoop();
+            }
+        }
+
+        function updateClockTick() {
+            if (viewQueue.length === 0) return;
+            // Prevent modifying layout during transition
+            if (!contentWrapper.classList.contains('leave') && !contentWrapper.classList.contains('enter')) {
+                const view = viewQueue[currentViewIndex];
+                if (view && view.type === 'time') {
+                    mainDisplay.innerText = getFormattedTime(view.location.timezone);
+                }
+            }
+        }
+
+        function updateLiveBar() {
+            const liveBar = document.getElementById('live-bar');
+            const liveText = document.getElementById('live-text');
+            if (currentConfig.showLiveBar) {
+                liveBar.style.display = 'flex';
+                liveText.innerText = currentConfig.liveBarText || 'EN VIVO';
+            } else {
+                liveBar.style.display = 'none';
+            }
+        }
+
+        function setupLoop() {
+            clearInterval(flipInterval);
+            if (viewQueue.length === 0 || currentConfig.cyclePaused) return;
+            
+            let duration = (currentConfig.cycleDuration || 10) * 1000;
+            flipInterval = setInterval(nextView, duration);
+        }
+
+        if (socket) {
+            socket.on('configUpdate', (config) => {
+                currentConfig = config;
+                
+                // Set CSS variables
+                document.documentElement.style.setProperty('--theme-color', config.themeColor || '#8b0000');
+                loadFont(config.fontFamily || 'Roboto');
+                
+                // Set Layout Style, Screen position, and Theme preset style class
+                widgetContainer.className = `widget-container layout-${config.layoutStyle || 'card'} pos-${config.position || 'top-left'} preset-${config.themePreset || 'classic'}`;
+                
+                rebuildViewQueue();
+                updateLiveBar();
+                
+                if (config.activeViewIndex !== undefined && config.activeViewIndex !== currentViewIndex) {
+                    jumpToView(config.activeViewIndex);
+                } else {
+                    updateUI();
+                }
+
+                if (config.cyclePaused) {
+                    clearInterval(flipInterval);
+                    flipInterval = null;
+                } else {
+                    setupLoop();
+                }
+            });
+
+            socket.on('viewChanged', (index) => {
+                if (index !== currentViewIndex && index >= 0 && index < viewQueue.length) {
+                    jumpToView(index);
+                }
+            });
+        }
+
+        // Ticks clock every second for precise time keeping
+        setInterval(updateClockTick, 1000);
+    </script>
+</body>
+</html>

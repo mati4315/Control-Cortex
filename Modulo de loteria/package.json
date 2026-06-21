@@ -1,0 +1,16 @@
+{
+  "name": "loteria-ws-sync-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servidor WebSocket para sincronizar dashboard y widget de loteria",
+  "main": "server-ws.js",
+  "scripts": {
+    "start:ws": "node server-ws.js"
+  },
+  "dependencies": {
+    "basic-ftp": "^6.0.1",
+    "dotenv": "^17.4.2",
+    "firebase-admin": "^12.7.0",
+    "ws": "^8.18.0"
+  }
+}

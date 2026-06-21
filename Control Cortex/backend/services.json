@@ -1,0 +1,62 @@
+[
+    {
+        "id":  "luces",
+        "name":  "Luces de Fiesta",
+        "description":  "Controlador y overlay de luces interactivas para OBS",
+        "directory":  "../../luces",
+        "script":  "server.js",
+        "env":  {
+                    "PORT":  "3758"
+                },
+        "dashboardUrl":  "http://localhost:3758/dashboard.html",
+        "status":  "stopped"
+    },
+    {
+        "id":  "modulo-de-tiempo-y-clima",
+        "name":  "Clima y Tiempo",
+        "description":  "Overlay de reloj y clima en vivo para OBS",
+        "directory":  "../../modulo de tiempo y clima",
+        "script":  "server.js",
+        "env":  {
+                    "PORT":  "3757"
+                },
+        "dashboardUrl":  "http://localhost:3757/dashboard.html",
+        "status":  "stopped"
+    },
+    {
+        "id":  "bienvendos-y-banner",
+        "name":  "Bienvendos y Banner",
+        "description":  "Overlay de bienvenida y banner para OBS con panel de administraciÃ³n",
+        "directory":  "../../Bienvendos y Banner",
+        "script":  "server.js",
+        "env":  {
+                    "PORT":  "9344"
+                },
+        "dashboardUrl":  "http://localhost:9344/admin",
+        "status":  "stopped"
+    },
+    {
+        "id":  "modulo-de-loteria",
+        "name":  "Modulo de loteria",
+        "description":  "Servidor WebSocket de sincronizacion y watcher para loteria",
+        "directory":  "../../Modulo de loteria",
+        "script":  "server-ws.js",
+        "env":  {
+                    "PORT":  "688"
+                },
+        "dashboardUrl":  "",
+        "status":  "stopped"
+    },
+    {
+        "id":  "modulo-de-sorteo-scraping",
+        "name":  "Modulo de sorteo scraping",
+        "description":  "API y dashboard para scraping y seguimiento de sorteos IAFAS",
+        "directory":  "../../Modulo de sorteo scraping",
+        "script":  "server.js",
+        "env":  {
+                    "PORT":  "8872"
+                },
+        "dashboardUrl":  "http://localhost:8872/dashboard.html",
+        "status":  "stopped"
+    }
+]

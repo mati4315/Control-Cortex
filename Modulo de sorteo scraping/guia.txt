@@ -1,0 +1,154 @@
+// npm install axios cheerio express node-cron
+
+const axios = require("axios");
+const cheerio = require("cheerio");
+const express = require("express");
+const cron = require("node-cron");
+
+const app = express();
+
+const PORT = 3000;
+
+/*
+  CONFIG
+*/
+
+const SORTEOS = {
+  previa: "10:15",
+  primero: "12:00",
+  matutina: "15:00",
+  vespertina: "18:00",
+  nocturna: "21:00",
+  turista: "22:15",
+};
+
+/*
+  UTILIDADES
+*/
+
+function parseHora(hora) {
+  const [h, m] = hora.split(":").map(Number);
+  return { h, m };
+}
+
+function yaPasoHorario(nombreSorteo) {
+  const horario = SORTEOS[nombreSorteo];
+
+  if (!horario) return false;
+
+  const ahora = new Date();
+
+  const { h, m } = parseHora(horario);
+
+  const fechaSorteo = new Date();
+
+  fechaSorteo.setHours(h);
+  fechaSorteo.setMinutes(m);
+  fechaSorteo.setSeconds(0);
+
+  return ahora >= fechaSorteo;
+}
+
+function formatDate(date = new Date()) {
+  return date.toISOString().split("T")[0];
+}
+
+/*
+  SCRAPER IAFAS
+  IMPORTANTE:
+  Este selector puede cambiar si IAFAS modifica la web.
+*/
+
+async function obtenerResultado(fecha, sorteo) {
+  // Si todavía no pasó el horario → null
+  if (fecha === formatDate() && !yaPasoHorario(sorteo)) {
+    return null;
+  }
+
+  try {
+    /*
+      URL REAL:
+      Revisala con F12 porque IAFAS cambia seguido.
+      Esta es un ejemplo basado en extractos.
+    */
+
+    const url =
+      "https://servicios.iafas.gov.ar/iafasextractos/";
+
+    const { data } = await axios.get(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+      },
+    });
+
+    const $ = cheerio.load(data);
+
+    /*
+      EJEMPLO DE BUSQUEDA
+      Tenés que adaptar el selector exacto.
+    */
+
+    let resultado = null;
+
+    $("table tr").each((_, el) => {
+      const texto = $(el).text().toLowerCase();
+
+      if (
+        texto.includes(fecha) &&
+        texto.includes(sorteo.toLowerCase())
+      ) {
+        resultado = $(el).text().trim();
+      }
+    });
+
+    return resultado || null;
+  } catch (err) {
+    console.error("ERROR SCRAPER:", err.message);
+    return null;
+  }
+}
+
+/*
+  API
+*/
+
+app.get("/api/entre-rios/:fecha/:sorteo", async (req, res) => {
+  const { fecha, sorteo } = req.params;
+
+  const resultado = await obtenerResultado(fecha, sorteo);
+
+  res.json({
+    fecha,
+    sorteo,
+    resultado,
+  });
+});
+
+/*
+  CACHE OPCIONAL
+*/
+
+const cache = {};
+
+cron.schedule("*/5 * * * *", async () => {
+  console.log("Actualizando cache...");
+
+  const hoy = formatDate();
+
+  for (const sorteo of Object.keys(SORTEOS)) {
+    const data = await obtenerResultado(hoy, sorteo);
+
+    cache[sorteo] = data;
+  }
+});
+
+app.get("/api/hoy", (req, res) => {
+  res.json(cache);
+});
+
+app.listen(PORT, () => {
+  console.log(`Servidor en puerto ${PORT}`);
+});
+
+
+

@@ -1,0 +1,32 @@
+{
+  "name": "modulo-sorteo-scraping-iafas",
+  "version": "1.0.0",
+  "private": true,
+  "description": "API y dashboard para scraping de sorteos IAFAS con cache persistente, ventanas inteligentes y panel live.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "hash:password": "node scripts/hash-password.js",
+    "check": "node --check server.js && node --check routes/api.js && node --check routes/admin.js && node --check services/database.js && node --check services/config.js && node --check services/auth.js && node --check services/scraper.js && node --check services/sync.js && node --check services/scheduler.js && node --check services/websocket.js && node --check services/constants.js && node --check services/time.js"
+  },
+  "dependencies": {
+    "axios": "^1.9.0",
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.8.1",
+    "cors": "^2.8.5",
+    "dayjs": "^1.11.13",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "mysql2": "^3.22.4",
+    "node-cron": "^4.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

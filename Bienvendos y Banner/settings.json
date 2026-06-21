@@ -1,0 +1,61 @@
+{
+  "badgeText": "🔴 EN VIVO PRONTO",
+  "headerText": "STREAM COMENZANDO",
+  "titleText": "Empezamos Pronto",
+  "subtitleText": "Preparate los mates, ya casi empezamos...",
+  "countdownTime": 180,
+  "primaryColor": "#617dea",
+  "secondaryColor": "#bd00ff",
+  "glowColor": "#040208",
+  "backgroundColor": "#080710",
+  "fontFamily": "Montserrat",
+  "socials": [
+    {
+      "id": "instagram-0",
+      "platform": "instagram",
+      "handle": "/cdelu.ar",
+      "visible": true
+    },
+    {
+      "id": "facebook-1",
+      "platform": "facebook",
+      "handle": "/cdeluArg",
+      "visible": true
+    },
+    {
+      "id": "facebook-2",
+      "platform": "facebook",
+      "handle": "/cdeluweb",
+      "visible": true
+    },
+    {
+      "id": "tiktok-3",
+      "platform": "tiktok",
+      "handle": "@cdelu.ar",
+      "visible": true
+    },
+    {
+      "id": "custom-4",
+      "platform": "custom",
+      "handle": "www.cdelu.ar",
+      "visible": true
+    }
+  ],
+  "backgroundType": "particles",
+  "backgroundUrl": "",
+  "logoUrl": "/uploads/logo-1782024926355-644558969.png",
+  "logoVisible": true,
+  "musicEnabled": false,
+  "musicUrl": "",
+  "musicVolume": 0.5,
+  "particlesColor": "#00f0ff",
+  "particlesCount": 105,
+  "particlesSpeed": 4.4,
+  "particlesGlow": true,
+  "animationPreset": "neon-glow",
+  "obsAutoTransition": true,
+  "obsHost": "127.0.0.1",
+  "obsPort": 4455,
+  "obsPassword": "ZfqswfXVmQFf8uDd",
+  "obsScene": "Escena"
+}
