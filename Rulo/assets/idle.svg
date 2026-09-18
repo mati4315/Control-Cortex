@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Rulo idle">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e4e9f1"/>
+    </linearGradient>
+  </defs>
+  <!-- cuerpo -->
+  <rect x="70" y="78" width="372" height="356" rx="158" fill="url(#body)" stroke="#14181f" stroke-width="9"/>
+  <ellipse cx="182" cy="150" rx="64" ry="44" fill="#ffffff" opacity=".55"/>
+  <!-- cara -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <ellipse cx="196" cy="232" rx="20" ry="25" fill="#14181f"/>
+    <circle cx="189" cy="222" r="6" fill="#ffffff" opacity=".85"/>
+    <ellipse cx="316" cy="232" rx="20" ry="25" fill="#14181f"/>
+    <circle cx="309" cy="222" r="6" fill="#ffffff" opacity=".85"/>
+    <path d="M232 318 q24 20 48 0" fill="none" stroke="#14181f" stroke-width="10"/>
+  </g>
+
+</svg>

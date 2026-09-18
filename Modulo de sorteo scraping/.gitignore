@@ -3,3 +3,23 @@ node_modules/
 database.json
 npm-debug.log*
 costo del modulo/
+.env.*
+env/
+secrets/
+*.local
+*.log
+config/*.json
+settings.json
+README-Spotify-install*
+*.exe
+*.dll
+*.pak
+*.bin
+*.asar
+*.iso
+*.zip
+*.7z
+*.tar
+*.gz
+Instalador_TriggerStudio/
+Instalador_TriggerStudio/TriggerStudio.exe

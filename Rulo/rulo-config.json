@@ -1,0 +1,13 @@
+{
+  "botName": "Rulo",
+  "accent": "#9fd50b",
+  "avatarLetter": "A",
+  "visibleMs": 7000,
+  "maxWidth": 760,
+  "fontSize": 1.35,
+  "panelOpacity": 0.94,
+  "showRequester": true,
+  "showMascot": true,
+  "overlayTheme": "dark",
+  "animation": "slide"
+}

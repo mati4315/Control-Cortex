@@ -5,6 +5,7 @@
   const defaults = {
     loopInterval: 4200,
     pauseOnHover: false,
+    randomMode: false,
     items: [
       { id: 'instagram', platform: 'instagram', label: 'Instagram', handle: '/cdelu.ar', visible: true },
       { id: 'facebook-1', platform: 'facebook', label: 'Facebook', handle: '/cdeluArg', visible: true },
@@ -18,6 +19,7 @@
     instagram: { label: 'Instagram', color: '#ff4fd8' },
     facebook: { label: 'Facebook', color: '#4267ff' },
     tiktok: { label: 'TikTok', color: '#00f2ea' },
+    telegram: { label: 'Telegram', color: '#2aabee' },
     web: { label: 'Web', color: '#21d4fd' }
   };
 
@@ -53,6 +55,7 @@
     return {
       loopInterval: Number.isFinite(Number(input.loopInterval)) ? Math.max(1500, Number(input.loopInterval)) : defaults.loopInterval,
       pauseOnHover: !!input.pauseOnHover,
+      randomMode: !!input.randomMode,
       items: Array.isArray(input.items) ? input.items.map(normalizeItem) : clone(defaults.items)
     };
   }
@@ -113,6 +116,10 @@
       tiktok: `
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path d="M14.5 3.8c.7 1.8 2.2 3.1 4.1 3.3v3.1c-1.5 0-2.9-.4-4.1-1.1v5.8c0 3.2-2.6 5.8-5.8 5.8S3 18.1 3 14.9s2.6-5.8 5.8-5.8c.4 0 .8 0 1.2.1v3.3c-.3-.1-.7-.2-1-.2-1.5 0-2.8 1.2-2.8 2.8 0 1.5 1.3 2.8 2.8 2.8 1.6 0 2.9-1.2 2.9-2.8V3.8h2.6Z" fill="${accent}"></path>
+        </svg>`,
+      telegram: `
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path d="M2 21L23 12L2 3V10L17 12L2 14V21Z" fill="${accent}"></path>
         </svg>`,
       web: `
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">

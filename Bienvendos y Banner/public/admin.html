@@ -33,6 +33,7 @@
         <button class="nav-btn" data-tab="media"><i class="fa-solid fa-photo-film"></i> Multimedia</button>
         <button class="nav-btn" data-tab="socials"><i class="fa-solid fa-share-nodes"></i> Redes Sociales</button>
         <button class="nav-btn obs-nav-btn" data-tab="obs"><i class="fa-brands fa-connectdevelop"></i> OBS Control</button>
+        <button class="nav-btn banner-nav-btn" data-tab="banner"><i class="fa-solid fa-rectangle-ad"></i> Banner Social</button>
       </nav>
       
       <div class="overlay-link-container">
@@ -488,6 +489,67 @@
             </div>
           </div>
 
+        </div>
+      </section>
+
+      <!-- TAB: BANNER SOCIAL -->
+      <section class="tab-content" id="tab-banner">
+        <div class="section-header">
+          <h1>Banner Social (Lower Third)</h1>
+          <p>Administra las redes sociales del banner rotatorio que se muestra en la parte inferior del stream.</p>
+        </div>
+
+        <div class="banner-layout">
+          <!-- Editor Card (main) -->
+          <div class="card banner-editor-card">
+            <div class="card-header">
+              <h3>Editor del Banner</h3>
+              <div class="banner-settings-inline">
+                <label class="banner-inline-field">
+                  <span>Intervalo (ms)</span>
+                  <input type="number" id="banner-loop-interval" min="1500" step="100" value="4200">
+                </label>
+                <label class="checkbox-container" style="white-space: nowrap;">
+                  <input type="checkbox" id="check-banner-random">
+                  <span class="checkmark"></span>
+                  Modo Aleatorio
+                </label>
+              </div>
+            </div>
+
+            <div class="section banner-editor-section">
+              <div class="section-title-row">
+                <h3>Redes Sociales del Banner</h3>
+                <button type="button" class="btn btn-secondary btn-sm" id="btn-add-banner-item">
+                  <i class="fa-solid fa-plus"></i> Añadir Red
+                </button>
+              </div>
+              <div class="banner-editor-list" id="banner-editor-list"></div>
+            </div>
+
+            <div class="banner-actions-row">
+              <button type="button" class="btn btn-primary" id="btn-save-banner">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Banner
+              </button>
+              <button type="button" class="btn btn-shuffle" id="btn-shuffle-banner">
+                <i class="fa-solid fa-shuffle"></i> Orden Aleatorio
+              </button>
+              <button type="button" class="btn btn-secondary" id="btn-reset-banner">
+                <i class="fa-solid fa-rotate-left"></i> Restaurar Base
+              </button>
+            </div>
+          </div>
+
+          <!-- Preview Card (side) -->
+          <div class="card banner-preview-card">
+            <div class="card-header">
+              <h3>Vista Previa</h3>
+              <a href="/banner" target="_blank" class="btn btn-secondary btn-sm"><i class="fa-solid fa-up-right-from-square"></i> Overlay</a>
+            </div>
+            <div class="banner-preview-frame" id="banner-preview-frame">
+              <iframe src="/banner" id="banner-preview-iframe" frameborder="0" style="width:100%;height:100%;pointer-events:none;"></iframe>
+            </div>
+          </div>
         </div>
       </section>
 

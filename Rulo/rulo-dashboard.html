@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Dashboard</title>
+  <style>
+    :root { --accent:#9fd50b; --bg:#101318; --panel:#191e26; --line:#303845; --text:#f4f6f8; --muted:#aab4c0; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:15px "Segoe UI",Arial,sans-serif; }
+    main { width:min(920px,100%); margin:0 auto; padding:30px 22px 48px; }
+    header { display:flex; align-items:flex-end; justify-content:space-between; gap:20px; margin-bottom:24px; border-bottom:1px solid var(--line); padding-bottom:18px; }
+    h1 { margin:0; font-size:1.8rem; } h1 span { color:var(--accent); }
+    header p { margin:5px 0 0; color:var(--muted); }
+    nav { display:flex; gap:8px; }
+    header a { color:#111; background:var(--accent); border-radius:5px; padding:9px 12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+    header a.link-secondary { color:var(--text); background:#303845; }
+    .status { color:var(--muted); font-size:.85rem; text-align:right; }
+    form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .field { padding:15px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+    .wide { grid-column:1/-1; }
+    label { display:block; margin-bottom:7px; font-weight:700; }
+    small { display:block; margin-top:5px; color:var(--muted); }
+    input,select { width:100%; border:1px solid #465160; border-radius:5px; background:#0e1116; color:var(--text); padding:10px; font:inherit; }
+    input[type=color] { height:42px; padding:3px; cursor:pointer; }
+    input[type=checkbox] { width:auto; accent-color:var(--accent); transform:scale(1.2); margin-right:8px; }
+    .check { display:flex; align-items:center; margin:0; }
+    .actions { display:flex; gap:10px; margin-top:18px; }
+    button { border:0; border-radius:5px; padding:11px 18px; color:#111; background:var(--accent); font-weight:800; cursor:pointer; }
+    button.secondary { color:var(--text); background:#303845; }
+    #notice { min-height:1.4em; color:var(--accent); }
+    .preview { margin-top:30px; padding:18px; border:1px solid var(--line); border-radius:8px; background:linear-gradient(135deg,#151a21,#0e1116); }
+    .preview h2 { margin:0 0 14px; font-size:1rem; }
+    .preview-controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+    .preview-controls select { width:auto; }
+    .preview-controls small { margin:0; }
+    .preview iframe { width:100%; height:145px; border:1px dashed #465160; background:transparent; }
+    .url-box { margin:0 0 22px; padding:14px; border:1px solid var(--accent); border-radius:8px; background:#151a21; }
+    .url-label { display:block; margin-bottom:8px; color:var(--accent); font-weight:800; }
+    .url-line { display:flex; gap:8px; align-items:center; }
+    .url-line input { flex:1; min-width:0; }
+    .url-line button { white-space:nowrap; }
+    .url-extra { margin-top:10px; }
+    @media(max-width:640px){ form{grid-template-columns:1fr;} .wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1><span>Rulo</span> Dashboard</h1><p>Configuración del overlay de respuestas del bot <strong id="brandName">Rulo</strong>.</p></div>
+      <nav><a id="historyLink" href="#">Abrir historial</a> <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Spotify</a> <a id="mascotLink" class="link-secondary" href="#">Mascota</a></nav>
+      <div class="status" id="status">Cargando configuración...</div>
+    </header>
+    <section class="url-box">
+      <span class="url-label">URL para OBS Browser Source</span>
+      <div class="url-line"><input id="overlayUrl" readonly><button id="copyUrl" type="button">Copiar URL</button><button id="openUrl" class="secondary" type="button">Abrir</button></div>
+      <small>Usá esta dirección como fuente Navegador en OBS. Se actualiza con el Session ID indicado.</small>
+      <div class="url-line url-extra"><input id="dockUrl" readonly><button id="copyDock" type="button">Copiar dock</button><button id="openDock" class="secondary" type="button">Abrir</button></div>
+      <small>Dock propio: comentarios a la izquierda y respuestas de <span class="brandName">Rulo</span> a la derecha.</small>
+    </section>
+    <form id="configForm">
+      <div class="field"><label for="botName">Nombre visible</label><input id="botName" maxlength="80"><small>Fuente única de verdad: el nombre del overlay y del historial sale de acá. Las respuestas del módulo de Spotify ya no lo pisan.</small></div>
+      <div class="field"><label for="avatarLetter">Avatar o inicial</label><input id="avatarLetter" maxlength="2"><small>Se usa cuando la mascota está desactivada o cuando falta el asset del estado actual.</small></div>
+      <div class="field"><label for="accent">Color principal</label><input id="accent" type="color"><small>Borde, avatar y nombre del bot.</small></div>
+      <div class="field"><label for="animation">Animación</label><select id="animation"><option value="slide">Deslizamiento</option><option value="pop">Aparición elástica</option><option value="soft">Suave</option></select></div>
+      <div class="field"><label for="visibleMs">Tiempo visible (ms)</label><input id="visibleMs" type="number" min="2000" max="60000" step="500"><small>Entre 2 y 60 segundos.</small></div>
+      <div class="field"><label for="maxWidth">Ancho máximo (px)</label><input id="maxWidth" type="number" min="320" max="1200" step="10"></div>
+      <div class="field"><label for="fontSize">Tamaño del mensaje (rem)</label><input id="fontSize" type="number" min="0.7" max="2.5" step="0.05"></div>
+      <div class="field"><label for="panelOpacity">Opacidad del panel</label><input id="panelOpacity" type="number" min="0.2" max="1" step="0.05"></div>
+      <div class="field wide"><label class="check"><input id="showRequester" type="checkbox"> Mostrar “Pedido de ...” debajo de la respuesta</label></div>
+      <div class="field wide"><label class="check"><input id="showMascot" type="checkbox"> Mostrar mascota en lugar de la inicial</label><small>Busca <code>/rulo-assets/&lt;estado&gt;.svg</code>. Si el archivo no existe, vuelve a la inicial sin romper el overlay.</small></div>
+      <div class="field"><label for="overlayTheme">Tema del overlay</label><select id="overlayTheme"><option value="dark">Oscuro</option><option value="light">Claro</option></select><small>Lo usa el overlay en OBS. El historial tiene su propio boton sol/luna.</small></div>
+    </form>
+    <div class="actions"><button id="save" type="button">Guardar cambios</button><button id="test" class="secondary" type="button">Probar overlay</button><span id="notice"></span></div>
+    <section class="preview">
+      <h2>Vista previa en vivo</h2>
+      <div class="preview-controls">
+        <label for="previewMood">Estado del bot</label>
+        <select id="previewMood">
+          <option value="idle">idle (en reposo)</option>
+          <option value="thinking">thinking (pensando)</option>
+          <option value="success" selected>success (respuesta correcta)</option>
+          <option value="warning">warning (aviso / cooldown)</option>
+          <option value="error">error (falló el pedido)</option>
+          <option value="speaking">speaking (respuesta repetida)</option>
+        </select>
+        <small>El estado se usa para elegir color, animación y expresión de la mascota.</small>
+      </div>
+      <iframe id="preview" title="Vista previa de Rulo"></iframe>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const ids = ['botName','avatarLetter','accent','visibleMs','maxWidth','fontSize','panelOpacity','showRequester','showMascot','overlayTheme','animation'];
+      const form = id => document.getElementById(id);
+      const notice = form('notice');
+      const status = form('status');
+      const preview = form('preview');
+      let config;
+      const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
+      const overlayUrl = location.origin + '/rulo-bot-overlay.html?session=' + encodeURIComponent(session);
+      const dockUrl = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+      form('historyLink').href = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+      form('overlayUrl').value = overlayUrl;
+      form('dockUrl').value = dockUrl;
+      form('copyUrl').onclick = () => navigator.clipboard.writeText(overlayUrl).then(() => showNotice('URL copiada')).catch(() => showNotice('No se pudo copiar', true));
+      form('openUrl').onclick = () => window.open(overlayUrl, '_blank', 'noopener');
+      form('copyDock').onclick = () => navigator.clipboard.writeText(dockUrl).then(() => showNotice('URL del dock copiada')).catch(() => showNotice('No se pudo copiar', true));
+      form('openDock').onclick = () => window.open(dockUrl, '_blank', 'noopener');
+      function fill(data) { config = data; ids.forEach(id => { if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = data[id]; }); }
+      function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Number(value.visibleMs); value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
+      function showNotice(text, error) { notice.textContent=text; notice.style.color=error?'#ff7d7d':'var(--accent)'; setTimeout(() => notice.textContent='',3000); }
+      function updatePreview() { preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + encodeURIComponent(form('previewMood').value || 'success') + '&theme=' + encodeURIComponent(form('overlayTheme').value || 'dark') + '&v=' + Date.now(); }
+      form('mascotLink').href = location.origin + '/rulo-mascota.html?session=' + encodeURIComponent(session);
+      function applyBrandName(name) {
+        const label = name || 'Rulo';
+        document.querySelectorAll('.brandName, #brandName').forEach(node => { node.textContent = label; });
+        document.title = label + ' | Dashboard';
+      }
+      fetch('/api/rulo-config').then(r => r.json()).then(data => { fill(data.config); applyBrandName(data.config && data.config.botName); status.textContent='Configuración cargada'; updatePreview(); }).catch(() => status.textContent='No se pudo cargar');
+      form('save').onclick = () => fetch('/api/rulo-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(read())}).then(r=>r.json()).then(data => { if (!data.success) throw new Error(); fill(data.config); applyBrandName(data.config.botName); updatePreview(); showNotice('Guardado'); }).catch(() => showNotice('No se pudo guardar',true));
+      form('test').onclick = () => fetch('/api/rulo-bot-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Esta es una respuesta de prueba de ' + (read().botName || 'Rulo') + '.',requester:'Matias',mood:form('previewMood').value || 'success',timestamp:Date.now()})}).then(() => { updatePreview(); showNotice('Respuesta de prueba enviada'); }).catch(() => showNotice('No se pudo probar',true));
+      form('previewMood').onchange = updatePreview;
+      form('overlayTheme').onchange = updatePreview;
+    }());
+  </script>
+</body>
+</html>

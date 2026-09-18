@@ -58,5 +58,17 @@
                 },
         "dashboardUrl":  "http://localhost:8872/dashboard.html",
         "status":  "stopped"
+    },
+    {
+        "id":  "comentarios",
+        "name":  "Ruleta de Comentarios",
+        "description":  "Ruleta de participantes para OBS con captura automatica desde SocialStream Ninja",
+        "directory":  "../../comentarios",
+        "script":  "server.js",
+        "env":  {
+                    "PORT":  "9742"
+                },
+        "dashboardUrl":  "http://localhost:9742/dashboard.html",
+        "status":  "stopped"
     }
 ]

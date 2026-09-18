@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Chat y respuestas</title>
+  <style>
+    :root { --accent:#9fd50b; --font-scale:1; --bg:#101318; --header:#1b222c; --panel:#191e26; --panel-alt:#232c3a; --line:#303845; --text:#f4f6f8; --muted:#aab4c0; --warn:#f5b13d; --bad:#ef5f5f; --accent-ink:#9fd50b; --btn:#12161d; --input-bg:#0e1116; --input-border:#465160; --danger-bg:#3a2224; --hover:#20251f; --hover-response:#202a22; }
+    /* Tema claro: se activa con el boton sol/luna (clase en <html>). */
+    html.theme-light { color-scheme:light; --bg:#f1f4f8; --header:#e3e8ef; --panel:#ffffff; --panel-alt:#e9eef6; --line:#c6ced9; --text:#161b22; --muted:#5a6675; --accent-ink:#4f7000; --btn:#eef1f6; --input-bg:#ffffff; --input-border:#b7c1cf; --danger-bg:#fbe9e9; --hover:#e6f0d8; --hover-response:#e4efe2; }
+    * { box-sizing:border-box; }
+    /* El control de lupa mueve --font-scale: todo lo que esta en rem y el texto base escalan juntos. */
+    html { font-size:calc(16px * var(--font-scale)); color-scheme:dark; }
+    body { margin:0; height:100vh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); font-size:calc(14px * var(--font-scale)); font-family:"Segoe UI",Arial,sans-serif; overflow:hidden; }
+    header, #toolbar { flex:0 0 auto; }
+    header { min-height:54px; display:grid; grid-template-columns:auto auto minmax(0,1fr) auto auto; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid var(--line); background:var(--header); }
+    h1 { margin:0; font-size:1.05rem; } h1 span { color:var(--accent-ink); }
+    header a { color:#111; background:var(--accent); border-radius:5px; padding:7px 10px; font-weight:800; text-decoration:none; }
+    .chips { display:flex; gap:8px; align-items:center; flex-wrap:wrap; justify-self:end; }
+    /* Control de tamaño de letra: centro del header. */
+    .font-controls { display:flex; align-items:center; gap:6px; justify-self:center; }
+    .icon-btn { display:inline-flex; align-items:center; justify-content:center; width:34px; height:34px; padding:0; color:var(--text); background:var(--btn); border:1px solid var(--line); }
+    .icon-btn:hover { color:var(--accent-ink); border-color:var(--accent-ink); }
+    .icon-btn:disabled { opacity:.35; cursor:default; color:var(--muted); border-color:var(--line); }
+    .icon-btn svg { width:20px; height:20px; }
+    /* El boton muestra el sol en tema oscuro y la luna en tema claro. */
+    #themeToggle .icon-moon { display:none; }
+    html.theme-light #themeToggle .icon-sun { display:none; }
+    html.theme-light #themeToggle .icon-moon { display:inline; }
+    /* Flechas del boton que muestra/oculta el encabezado. */
+    #headerToggle .icon-expand { display:none; }
+    header.minimized #headerToggle .icon-collapse { display:none; }
+    header.minimized #headerToggle .icon-expand { display:inline; }
+    .ghost-btn { color:var(--text); background:var(--btn); border:1px solid var(--line); padding:8px 11px; }
+    .ghost-btn:hover { border-color:var(--accent); }
+    #fontLevel { margin-left:7px; color:var(--muted); font-size:.72rem; font-weight:700; }
+    .more-btn.has-filters::after { content:''; display:inline-block; width:7px; height:7px; margin-left:7px; border-radius:50%; background:#0b0d11; vertical-align:middle; }
+    /* Punto rojo cuando el ultimo "destacar comentario" fallo por falta de peers. */
+    .more-btn.has-warning { background:#ef5f5f; color:#fff; }
+    .more-btn.has-warning::after { content:''; display:inline-block; width:7px; height:7px; margin-left:7px; border-radius:50%; background:#fff; vertical-align:middle; }
+    .chip { padding:4px 9px; border:1px solid var(--line); border-radius:999px; font-size:.74rem; color:var(--muted); background:var(--btn); white-space:nowrap; }
+    .chip.ok { color:var(--accent-ink); border-color:rgba(159,213,11,.5); }
+    .chip.warn { color:var(--warn); border-color:rgba(245,177,61,.5); }
+    .chip.bad { color:var(--bad); border-color:rgba(239,95,95,.5); }
+    /* El boton "Mas Opciones" queda solo a la derecha del header. */
+    #moreOptions { justify-self:end; }
+    /* Al bajar en el chat se ocultan el titulo y el boton: queda solo la barra de letra. */
+    header.minimized h1,
+    header.minimized #moreOptions { display:none; }
+    header.minimized .font-controls { padding-top:0; border-top:0; }
+    .toolbar-status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .dash-link { color:#111; background:var(--accent); border-radius:5px; padding:6px 9px; font-weight:800; font-size:.8rem; text-decoration:none; }
+    /* Opciones: panel inferior, oculto hasta pulsar "Mas Opciones". */
+    #toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:9px 16px; border-top:1px solid var(--line); background:var(--btn); }
+    #toolbar.collapsed { display:none; }
+    /* Si la ventana es baja, el panel scrollea por dentro en vez de comerse el chat. */
+    #toolbar { max-height:45vh; overflow:auto; }
+    #toolbar:not(.collapsed) { animation:toolbar-in 160ms ease-out; }
+    @keyframes toolbar-in { from { transform:translateY(10px); opacity:0; } to { transform:none; opacity:1; } }
+    #toolbar input[type=search], #toolbar select { border:1px solid var(--input-border); border-radius:5px; background:var(--input-bg); color:var(--text); padding:7px 9px; font:inherit; }
+    #toolbar input[type=search] { flex:1; min-width:160px; }
+    .check { display:flex; align-items:center; gap:6px; color:var(--muted); }
+    .check input { accent-color:var(--accent); }
+    button { border:0; border-radius:5px; padding:8px 12px; color:#111; background:var(--accent); font-weight:800; cursor:pointer; }
+    button.danger { color:var(--text); background:var(--danger-bg); border:1px solid rgba(239,95,95,.5); }
+    button.danger.armed { color:#111; background:var(--bad); }
+    #counter { margin-left:auto; color:var(--muted); font-size:.78rem; }
+    #list { flex:1 1 auto; min-height:0; overflow:auto; padding:10px; }
+    /* Barra de aviso del destacado: abajo de todo, en el flujo (no tapa el chat). */
+    #p2pToast { flex:0 0 auto; padding:8px 14px; border-top:1px solid var(--line); background:var(--panel); color:var(--text); font-size:.84rem; font-weight:700; text-align:center; }
+    #p2pToast[data-kind="ok"] { color:var(--accent-ink); border-top-color:rgba(159,213,11,.65); }
+    #p2pToast[data-kind="bad"] { color:var(--bad); border-top-color:rgba(239,95,95,.65); }
+    #p2pToast[hidden] { display:none; }
+    .row { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; margin-bottom:8px; }
+    /* display:grid pisa el [hidden] del navegador: sin esto los filtros marcan la fila pero no la ocultan. */
+    .row[hidden] { display:none; }
+    .cell { min-width:0; padding:10px 12px; border:1px solid var(--line); border-radius:6px; background:var(--panel); }
+    .comment { cursor:pointer; }
+    .comment:hover { border-color:#7d9f35; background:var(--hover); }
+    .comment:active { transform:scale(.995); }
+    .profile { width:34px; height:34px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:8px; background:var(--line); }
+    .response { cursor:pointer; border-color:rgba(159,213,11,.5); }
+    .response:hover { background:var(--hover-response); }
+    /* Sin respuesta todavia: no se muestra nada. El lugar se reserva para que el comentario no se mueva. */
+    .cell.response.is-empty { visibility:hidden; pointer-events:none; }
+    /* Filas alternadas: la segunda mas clara, la tercera repite la primera, y asi. */
+    .row.zebra-b .cell { background:var(--panel-alt); }
+    .cell.zebra-cell { background:var(--panel-alt); }
+    .label { margin-bottom:5px; color:var(--muted); font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+    .badge { padding:1px 6px; border:1px solid var(--line); border-radius:999px; font-size:.62rem; color:var(--muted); letter-spacing:0; text-transform:none; }
+    .stamp { margin-left:auto; color:var(--muted); font-size:.66rem; letter-spacing:0; text-transform:none; }
+    .name { color:var(--accent-ink); font-weight:800; }
+    .text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.3; }
+    .empty { color:var(--muted); font-style:italic; }
+    @media(max-width:620px){
+      .row { grid-template-columns:1fr; gap:6px; margin-bottom:6px; }
+      /* Apilado: la celda vacia no ocupa lugar ni deja hueco. */
+      .cell.response.is-empty { display:none; }
+      .cell { padding:7px 9px; border-radius:5px; }
+      .text { font-size:.86rem; line-height:1.25; }
+      .label { margin-bottom:3px; font-size:.6rem; gap:5px; }
+      .profile { width:26px; height:26px; margin-right:6px; }
+      .badge, .stamp { font-size:.58rem; }
+      /* Linea 1: titulo + "Mas Opciones". Linea 2: flecha del header, lupa, tema. */
+      header { grid-template-columns:auto minmax(0,1fr) auto; grid-template-areas:"title title more" "toggle fonts theme"; gap:8px; min-height:auto; padding:6px 10px; }
+      h1 { grid-area:title; }
+      #moreOptions { grid-area:more; justify-self:end; }
+      #headerToggle { grid-area:toggle; }
+      .font-controls { grid-area:fonts; width:100%; justify-content:center; padding-top:8px; border-top:1px solid var(--line); }
+      #themeToggle { grid-area:theme; }
+      .icon-btn { width:calc(30px * var(--font-scale)); height:calc(30px * var(--font-scale)); }
+      h1 { font-size:.92rem; }
+      .chip { font-size:.68rem; padding:3px 7px; }
+      .dash-link { padding:5px 8px; font-size:.76rem; }
+      #toolbar { padding:6px 10px; gap:6px; }
+      #toolbar input[type=search], #toolbar select { padding:5px 7px; font-size:.84rem; }
+      #toolbar button { padding:6px 9px; font-size:.82rem; }
+      .check { font-size:.82rem; }
+      #counter { font-size:.72rem; }
+      #list { padding:6px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <button id="headerToggle" class="icon-btn" type="button" title="Ocultar el encabezado" aria-label="Mostrar u ocultar el encabezado" aria-pressed="false">
+      <svg class="icon-collapse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 14.5 12 8.5l6 6"></path>
+      </svg>
+      <svg class="icon-expand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M6 9.5 12 15.5l6-6"></path>
+      </svg>
+    </button>
+    <h1><span id="titleName">Rulo</span> | Chat y respuestas</h1>
+    <div class="font-controls" role="group" aria-label="Tamano de letra">
+      <button id="fontDown" class="icon-btn" type="button" title="Achicar la letra" aria-label="Achicar la letra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5"></circle>
+          <line x1="15.4" y1="15.4" x2="20.5" y2="20.5"></line>
+          <line x1="7.6" y1="10.5" x2="13.4" y2="10.5"></line>
+        </svg>
+      </button>
+      <button id="fontReset" class="ghost-btn" type="button" title="Volver al tamano original">Restablecer<span id="fontLevel">100%</span></button>
+      <button id="fontUp" class="icon-btn" type="button" title="Agrandar la letra" aria-label="Agrandar la letra">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <circle cx="10.5" cy="10.5" r="6.5"></circle>
+          <line x1="15.4" y1="15.4" x2="20.5" y2="20.5"></line>
+          <line x1="7.6" y1="10.5" x2="13.4" y2="10.5"></line>
+          <line x1="10.5" y1="7.6" x2="10.5" y2="13.4"></line>
+        </svg>
+      </button>
+    </div>
+    <button id="moreOptions" class="more-btn" type="button" aria-expanded="false" aria-controls="toolbar">Mas Opciones</button>
+    <button id="themeToggle" class="icon-btn" type="button" title="Cambiar a tema claro" aria-label="Cambiar de tema">
+        <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2"></circle>
+          <line x1="12" y1="2.6" x2="12" y2="5.3"></line>
+          <line x1="12" y1="18.7" x2="12" y2="21.4"></line>
+          <line x1="2.6" y1="12" x2="5.3" y2="12"></line>
+          <line x1="18.7" y1="12" x2="21.4" y2="12"></line>
+          <line x1="5.4" y1="5.4" x2="7.3" y2="7.3"></line>
+          <line x1="16.7" y1="16.7" x2="18.6" y2="18.6"></line>
+          <line x1="5.4" y1="18.6" x2="7.3" y2="16.7"></line>
+          <line x1="16.7" y1="7.3" x2="18.6" y2="5.4"></line>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 14.6A8.6 8.6 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6Z"></path>
+        </svg>
+    </button>
+  </header>
+  <main id="list"></main>
+  <section id="toolbar" class="collapsed" aria-label="Mas opciones">
+    <div class="toolbar-status">
+      <span class="chip" id="wsState">Conectando...</span>
+      <span class="chip" id="p2pState">Peers P2P: 0</span>
+      <a id="dashboardLink" class="dash-link" href="#">Dashboard</a>
+    </div>
+    <input id="filterText" type="search" placeholder="Buscar en comentarios, usuarios o respuestas">
+    <select id="filterSource"><option value="">Todas las plataformas</option></select>
+    <label class="check"><input id="filterPending" type="checkbox"> Solo sin respuesta</label>
+    <button id="clearHistory" class="danger" type="button">Limpiar historial</button>
+    <span id="counter"></span>
+  </section>
+  <div id="p2pToast" role="status" aria-live="polite" hidden></div>
+  <script>
+    (function () {
+      const list = document.getElementById('list');
+      const wsState = document.getElementById('wsState');
+      const p2pState = document.getElementById('p2pState');
+      const counter = document.getElementById('counter');
+      const filterText = document.getElementById('filterText');
+      const filterSource = document.getElementById('filterSource');
+      const filterPending = document.getElementById('filterPending');
+      const clearButton = document.getElementById('clearHistory');
+      const titleName = document.getElementById('titleName');
+      const items = new Map();
+      let socket, retry = 500;
+      let botName = 'Rulo';
+      let clearArmed = false;
+      let clearTimer = null;
+      const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
+      document.getElementById('dashboardLink').href = location.origin + '/rulo-dashboard.html?session=' + encodeURIComponent(session);
+
+      // --- Puente P2P hacia featured.html (mismo Session ID) ---
+      const p2pFrame = document.createElement('iframe');
+      const p2pPeers = {};
+      p2pFrame.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-100px;top:-100px;';
+      p2pFrame.src = 'https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&push&notmobile&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room=' + encodeURIComponent(session);
+      document.body.appendChild(p2pFrame);
+      window.addEventListener('message', function (event) {
+        if (event.source !== p2pFrame.contentWindow || !event.data) return;
+        const data = event.data;
+        if ((data.action === 'push-connection-info' || data.action === 'view-connection-info') && data.UUID && data.value) p2pPeers[data.UUID] = data.value.label;
+        if ((data.action === 'push-connection' || data.action === 'view-connection') && data.UUID && !data.value) delete p2pPeers[data.UUID];
+        updateP2pState();
+      });
+      const toast = document.getElementById('p2pToast');
+      let toastTimer = null;
+      function showToast(text, kind) {
+        toast.textContent = text;
+        toast.dataset.kind = kind;
+        toast.hidden = false;
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { toast.hidden = true; }, 3500);
+      }
+
+      function peerCount() { return Object.keys(p2pPeers).length; }
+      // El aviso de "sin peers" queda fijo (antes se borraba a los 2,6s y era facil no verlo).
+      let p2pWarning = false;
+      function updateP2pState() {
+        const total = peerCount();
+        const moreBtn = document.getElementById('moreOptions');
+        if (total > 0) p2pWarning = false;
+        if (moreBtn) moreBtn.classList.toggle('has-warning', p2pWarning);
+        if (p2pWarning) {
+          p2pState.textContent = 'Sin peers: abri featured.html (Session ' + session + ')';
+          p2pState.className = 'chip bad';
+          p2pState.title = 'No hay peers P2P (' + total + ' conectados): el comentario no se puede destacar todavia.';
+          return;
+        }
+        p2pState.textContent = 'Peers P2P: ' + total;
+        p2pState.className = 'chip ' + (total > 0 ? 'ok' : 'warn');
+        p2pState.title = total > 0
+          ? 'Comentarios destacados via ' + Object.values(p2pPeers).join(', ')
+          : 'Sin peers: abri featured.html con el Session ID ' + session + ' para destacar comentarios.';
+      }
+      updateP2pState();
+
+      function setState(text, kind) {
+        wsState.textContent = text;
+        wsState.className = 'chip' + (kind ? ' ' + kind : '');
+      }
+
+      function featureComment(item) {
+        const featured = { id:item.messageId || item.id, mid:item.messageId || item.id, chatname:item.requester, chatmessage:item.comment, chatimg:item.chatimg || '', type:item.source || 'chat', textonly:true };
+        let sent = 0;
+        Object.keys(p2pPeers).forEach(function (uuid) {
+          if (p2pPeers[uuid] === 'dock') return;
+          try {
+            p2pFrame.contentWindow.postMessage({ sendData:{ overlayNinja:featured }, type:'pcs', UUID:uuid }, '*');
+            sent += 1;
+          } catch (_) {}
+        });
+        if (sent > 0) {
+          p2pWarning = false;
+          updateP2pState();
+          showToast('Comentario destacado en ' + sent + ' peer' + (sent === 1 ? '' : 's'), 'ok');
+          setState('Comentario destacado en ' + sent + ' peer' + (sent === 1 ? '' : 's'), 'ok');
+          setTimeout(function () { setState('Conectado', 'ok'); }, 2600);
+        } else {
+          p2pWarning = true;
+          updateP2pState();
+          showToast('No hay peers: abri featured.html con el Session ID ' + session, 'bad');
+        }
+      }
+
+      function matchesFilters(item) {
+        if (filterPending.checked && item.response) return false;
+        const source = filterSource.value;
+        if (source && (item.source || '') !== source) return false;
+        const needle = filterText.value.trim().toLowerCase();
+        if (!needle) return true;
+        return [item.requester, item.comment, item.response].some(function (value) {
+          return String(value || '').toLowerCase().indexOf(needle) !== -1;
+        });
+      }
+
+      function applyFilters() {
+        let visible = 0;
+        items.forEach(function (item) {
+          const row = document.getElementById('rulo-row-' + item.id);
+          if (!row) return;
+          const show = matchesFilters(item);
+          row.hidden = !show;
+          if (show) visible += 1;
+        });
+        applyZebra();
+        counter.textContent = visible + ' de ' + items.size + ' comentarios';
+        updateMoreButtonState();
+      }
+
+      function refreshSourceOptions() {
+        const current = filterSource.value;
+        const sources = {};
+        items.forEach(function (item) { const s = item.source || ''; if (s) sources[s] = true; });
+        const known = Array.prototype.slice.call(filterSource.options).slice(1).map(function (option) { return option.value; });
+        Object.keys(sources).forEach(function (source) {
+          if (known.indexOf(source) !== -1) return;
+          const option = document.createElement('option');
+          option.value = source;
+          option.textContent = source;
+          filterSource.appendChild(option);
+        });
+        filterSource.value = current;
+      }
+
+      function stamp(ms) {
+        const value = Number(ms);
+        if (!value) return '';
+        const date = new Date(value);
+        return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      }
+
+      function escapeText(value) { return String(value || ''); }
+
+      function draw(item) {
+        if (!item || !item.id) return;
+        items.set(item.id, item);
+        const old = document.getElementById('rulo-row-' + item.id);
+        const row = old || document.createElement('div');
+        row.id = 'rulo-row-' + item.id;
+        row.className = 'row';
+        row.innerHTML = '<div class="cell comment" title="Hacer clic para destacar este comentario en featured.html"><div class="label"><img class="profile" alt=""><span class="name"></span><span class="commented">comentó</span><span class="badge source"></span><span class="stamp"></span></div><div class="text comment-text"></div></div><div class="cell response" title="Hacer clic para repetir esta respuesta en el overlay de Rulo"><div class="label"><span class="resp-label"></span><span class="stamp resp-stamp"></span></div><div class="text response-text"></div></div>';
+        row.querySelector('.name').textContent = escapeText(item.requester);
+        row.querySelector('.comment-text').textContent = escapeText(item.comment);
+        row.querySelector('.resp-label').textContent = botName + ' responde';
+        const sourceBadge = row.querySelector('.source');
+        if (item.source) { sourceBadge.textContent = escapeText(item.source); } else sourceBadge.remove();
+        row.querySelector('.stamp').textContent = stamp(item.timestamp);
+        row.querySelector('.resp-stamp').textContent = item.response ? stamp(item.timestamp) : '';
+        const profile = row.querySelector('.profile');
+        if (item.chatimg) { profile.src = item.chatimg; profile.style.display = 'inline-block'; } else profile.style.display = 'none';
+        row.querySelector('.comment').onclick = function () { featureComment(item); };
+        const responseCell = row.querySelector('.response');
+        const response = row.querySelector('.response-text');
+        const hasResponse = !!item.response;
+        // Codigo propio (no el DOM cacheado): si la respuesta llega despues, la celda se muestra.
+        responseCell.classList.toggle('is-empty', !hasResponse);
+        response.textContent = hasResponse ? item.response : '';
+        row.querySelector('.response').onclick = function () {
+          if (!item.response) return;
+          fetch('/api/rulo-repeat-response', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ response:item.response, requester:item.requester }) })
+            .then(function () { setState('Respuesta repetida en el overlay', 'ok'); setTimeout(function () { setState('Conectado', 'ok'); }, 2000); })
+            .catch(function () { setState('No se pudo repetir la respuesta', 'bad'); });
+        };
+        if (!old) list.prepend(row);
+        while (list.children.length > 50) list.lastElementChild.remove();
+        refreshSourceOptions();
+        applyFilters();
+      }
+
+      function clearLocal() {
+        items.clear();
+        list.innerHTML = '';
+        refreshSourceOptions();
+        applyFilters();
+      }
+
+      // --- Tamano de letra: lupa + / Restablecer / lupa - ---
+      const FONT_KEY = 'ruloHistorialFontScale';
+      const FONT_MIN = 0.8, FONT_MAX = 1.8, FONT_STEP = 0.1;
+      const fontUp = document.getElementById('fontUp');
+      const fontDown = document.getElementById('fontDown');
+      const fontReset = document.getElementById('fontReset');
+      const fontLevel = document.getElementById('fontLevel');
+      const toolbar = document.getElementById('toolbar');
+      const moreButton = document.getElementById('moreOptions');
+      let fontScale = 1;
+      try {
+        const savedScale = parseFloat(localStorage.getItem(FONT_KEY));
+        if (isFinite(savedScale)) fontScale = Math.min(FONT_MAX, Math.max(FONT_MIN, savedScale));
+      } catch (_) {}
+
+      function applyFontScale(next) {
+        fontScale = Math.min(FONT_MAX, Math.max(FONT_MIN, Math.round(next * 10) / 10));
+        document.documentElement.style.setProperty('--font-scale', String(fontScale));
+        fontLevel.textContent = Math.round(fontScale * 100) + '%';
+        fontReset.title = 'Volver al tamano original (ahora ' + Math.round(fontScale * 100) + '%)';
+        fontUp.disabled = fontScale >= FONT_MAX;
+        fontDown.disabled = fontScale <= FONT_MIN;
+        try { localStorage.setItem(FONT_KEY, String(fontScale)); } catch (_) {}
+      }
+      fontUp.onclick = function () { applyFontScale(fontScale + FONT_STEP); };
+      fontDown.onclick = function () { applyFontScale(fontScale - FONT_STEP); };
+      fontReset.onclick = function () { applyFontScale(1); };
+
+      // --- Panel de opciones (abajo) con el boton "Mas Opciones" ---
+      const OPTIONS_KEY = 'ruloHistorialOptionsOpen';
+      function activeFilterCount() {
+        let count = 0;
+        if (filterText.value.trim()) count += 1;
+        if (filterSource.value) count += 1;
+        if (filterPending.checked) count += 1;
+        return count;
+      }
+      function updateMoreButtonState() {
+        const count = activeFilterCount();
+        moreButton.classList.toggle('has-filters', count > 0);
+        moreButton.title = count > 0
+          ? count + (count === 1 ? ' filtro activo' : ' filtros activos') + ' adentro'
+          : 'Buscar, filtrar y limpiar el historial';
+      }
+      function setOptionsOpen(open) {
+        toolbar.classList.toggle('collapsed', !open);
+        moreButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+        moreButton.textContent = open ? 'Ocultar Opciones' : 'Mas Opciones';
+        try { localStorage.setItem(OPTIONS_KEY, open ? '1' : '0'); } catch (_) {}
+        updateMoreButtonState();
+      }
+      moreButton.onclick = function () { setOptionsOpen(toolbar.classList.contains('collapsed')); };
+      document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && !toolbar.classList.contains('collapsed')) setOptionsOpen(false);
+      });
+      let optionsOpen = false;
+      try { optionsOpen = localStorage.getItem(OPTIONS_KEY) === '1'; } catch (_) {}
+      applyFontScale(fontScale);
+      setOptionsOpen(optionsOpen);
+
+      // Zebra segun layout: en dos columnas alterna por FILA (comentario+respuesta juntos);
+      // apilado (<=620px) alterna por CELDA para que nunca queden dos del mismo color pegados.
+      function isStackedLayout() {
+        try { return !!(window.matchMedia && window.matchMedia('(max-width: 620px)').matches); }
+        catch (_) { return false; }
+      }
+      function applyZebra() {
+        const stacked = isStackedLayout();
+        let rowIndex = 0;
+        let cellIndex = 0;
+        Array.prototype.slice.call(list.children).forEach(function (row) {
+          const cells = Array.prototype.slice.call(row.querySelectorAll('.cell'));
+          if (row.hidden) {
+            row.classList.remove('zebra-b');
+            cells.forEach(function (cell) { cell.classList.remove('zebra-cell'); });
+            return;
+          }
+          if (stacked) {
+            row.classList.remove('zebra-b');
+            cells.forEach(function (cell) {
+              if (cell.classList.contains('is-empty')) { cell.classList.remove('zebra-cell'); return; }
+              cell.classList.toggle('zebra-cell', cellIndex % 2 === 1);
+              cellIndex += 1;
+            });
+          } else {
+            cells.forEach(function (cell) { cell.classList.remove('zebra-cell'); });
+            row.classList.toggle('zebra-b', rowIndex % 2 === 1);
+            rowIndex += 1;
+          }
+        });
+      }
+      try {
+        if (window.matchMedia) {
+          window.matchMedia('(max-width: 620px)').addEventListener('change', applyZebra);
+        }
+      } catch (_) {}
+
+      // Al bajar se ocultan el titulo y el boton; al subir vuelven (la barra de letra y el tema
+      // quedan siempre visibles). Arriba de todo se muestra siempre.
+      const header = document.querySelector('header');
+      const headerToggle = document.getElementById('headerToggle');
+      let scrollTicking = false;
+      function setHeaderMinimized(minimized) {
+        header.classList.toggle('minimized', minimized);
+        headerToggle.title = minimized ? 'Mostrar el encabezado' : 'Ocultar el encabezado';
+        headerToggle.setAttribute('aria-pressed', minimized ? 'true' : 'false');
+      }
+      let lastScrollTop = 0;
+      function updateHeaderOnScroll() {
+        const top = list.scrollTop;
+        if (top <= 4) {
+          setHeaderMinimized(false);
+        } else if (top > lastScrollTop + 8) {
+          setHeaderMinimized(true);   // bajando
+        } else if (top < lastScrollTop - 8) {
+          setHeaderMinimized(false);  // subiendo
+        }
+        lastScrollTop = top;
+        scrollTicking = false;
+      }
+      // Flecha de la punta izquierda: muestra u oculta el encabezado a mano
+      // (el proximo scroll vuelve al comportamiento automatico).
+      headerToggle.onclick = function () {
+        setHeaderMinimized(!header.classList.contains('minimized'));
+      };
+      setHeaderMinimized(false);
+      list.addEventListener('scroll', function () {
+        if (scrollTicking) return;
+        scrollTicking = true;
+        if (typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(updateHeaderOnScroll);
+        } else {
+          setTimeout(updateHeaderOnScroll, 16);
+        }
+      }, { passive: true });
+
+      // Tema claro/oscuro: boton sol-luna al final de la barra de letra.
+      const THEME_KEY = 'ruloHistorialTheme';
+      const themeToggle = document.getElementById('themeToggle');
+      function applyTheme(theme) {
+        const light = theme === 'light';
+        document.documentElement.classList.toggle('theme-light', light);
+        themeToggle.title = light ? 'Cambiar a tema oscuro' : 'Cambiar a tema claro';
+        themeToggle.setAttribute('aria-pressed', light ? 'true' : 'false');
+        try { localStorage.setItem(THEME_KEY, light ? 'light' : 'dark'); } catch (_) {}
+      }
+      themeToggle.onclick = function () {
+        applyTheme(document.documentElement.classList.contains('theme-light') ? 'dark' : 'light');
+      };
+      let savedTheme = 'dark';
+      try { savedTheme = localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'; } catch (_) {}
+      applyTheme(savedTheme);
+
+      filterText.addEventListener('input', applyFilters);
+      filterSource.addEventListener('change', applyFilters);
+      filterPending.addEventListener('change', applyFilters);
+
+      clearButton.onclick = function () {
+        if (!clearArmed) {
+          clearArmed = true;
+          clearButton.classList.add('armed');
+          clearButton.textContent = '¿Confirmar limpieza?';
+          clearTimer = setTimeout(function () {
+            clearArmed = false;
+            clearButton.classList.remove('armed');
+            clearButton.textContent = 'Limpiar historial';
+          }, 4000);
+          return;
+        }
+        clearTimeout(clearTimer);
+        clearArmed = false;
+        clearButton.classList.remove('armed');
+        clearButton.textContent = 'Limpiar historial';
+        fetch('/api/rulo-chat-clear', { method:'POST' })
+          .then(function () { clearLocal(); setState('Historial vaciado', 'ok'); setTimeout(function () { setState('Conectado', 'ok'); }, 2000); })
+          .catch(function () { setState('No se pudo vaciar el historial', 'bad'); });
+      };
+
+      function applyConfig(config) {
+        if (!config || !config.botName) return;
+        botName = config.botName;
+        titleName.textContent = botName;
+        document.title = botName + ' | Chat y respuestas';
+        items.forEach(function (item) {
+          const row = document.getElementById('rulo-row-' + item.id);
+          if (!row) return;
+          const label = row.querySelector('.resp-label');
+          if (label) label.textContent = botName + ' responde';
+        });
+      }
+
+      fetch('/api/rulo-config').then(function (r) { return r.json(); }).then(function (data) { applyConfig(data.config); }).catch(function () {});
+
+      function connect() {
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(protocol + '//' + location.host);
+        socket.onopen = function () { retry=500; setState('Conectado', 'ok'); };
+        socket.onmessage = function (event) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'rulo_chat_item') draw(data.item);
+            else if (data.type === 'rulo_config_updated') applyConfig(data.config);
+            else if (data.type === 'rulo_chat_cleared') clearLocal();
+          } catch (_) {}
+        };
+        socket.onerror = function () { socket.close(); };
+        socket.onclose = function () { setState('Reconectando...', 'warn'); setTimeout(connect,retry); retry=Math.min(5000,retry*2); };
+      }
+
+      fetch('/api/rulo-chat-messages').then(function (r) { return r.json(); }).then(function (data) { (data.items||[]).forEach(draw); }).catch(function () {});
+      connect();
+    }());
+  </script>
+</body>
+</html>

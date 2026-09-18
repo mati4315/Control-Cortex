@@ -1,0 +1,13 @@
+{
+  "devices": [
+    {
+      "name": "Web Player (Chrome)",
+      "type": "Computer",
+      "isActive": false,
+      "isRestricted": false,
+      "volumePercent": 32
+    }
+  ],
+  "activeName": "",
+  "updatedAt": 1789730371342
+}

@@ -60,6 +60,9 @@ socket.on('initSettings', (initSettings) => {
   settings = initSettings;
   populateFormFields();
   
+  // Initialize banner config
+  initBannerFromSettings(initSettings);
+  
   // Timer Sync on startup
   defaultDuration = settings.countdownTime || 300;
   secondsRemaining = defaultDuration;
@@ -69,8 +72,17 @@ socket.on('initSettings', (initSettings) => {
 socket.on('settingsUpdated', (updatedSettings) => {
   settings = updatedSettings;
   
-  // Update fields silently (not colors while typing to prevent cursor jump, but media previews yes)
+  // Update fields silently
   refreshMediaPreviews();
+  
+  // Update banner if included
+  if (updatedSettings.banner) {
+    applyBannerConfig(updatedSettings.banner);
+    document.getElementById('banner-loop-interval').value = bannerConfig.loopInterval;
+    var randomCheck = document.getElementById('check-banner-random');
+    if (randomCheck) randomCheck.checked = bannerConfig.randomMode;
+    renderBannerEditor();
+  }
   
   // If timer is not running and default time changed, reset display
   if (!isTimerRunning && defaultDuration !== settings.countdownTime) {
@@ -793,3 +805,296 @@ function showObsResult(isSuccess, message) {
     obsResultMsg.className = 'obs-result-msg';
   }, 6000);
 }
+
+// =============================================
+// BANNER SOCIAL TAB LOGIC
+// =============================================
+
+const BANNER_STORAGE_KEY = 'cdelu-social-loop-v1';
+
+const bannerDefaults = {
+  loopInterval: 4200,
+  pauseOnHover: false,
+  randomMode: false,
+  items: [
+    { id: 'instagram', platform: 'instagram', label: 'Instagram', handle: '/cdelu.ar', visible: true },
+    { id: 'facebook-1', platform: 'facebook', label: 'Facebook', handle: '/cdeluArg', visible: true },
+    { id: 'facebook-2', platform: 'facebook', label: 'Facebook', handle: '/cdeluweb', visible: true },
+    { id: 'tiktok', platform: 'tiktok', label: 'TikTok', handle: '@cdelu.ar', visible: true },
+    { id: 'web', platform: 'web', label: 'Web', handle: 'www.cdelu.ar', visible: true }
+  ]
+};
+
+const bannerPlatformMeta = {
+  instagram: { label: 'Instagram', color: '#ff4fd8' },
+  facebook: { label: 'Facebook', color: '#4267ff' },
+  tiktok: { label: 'TikTok', color: '#00f2ea' },
+  telegram: { label: 'Telegram', color: '#2aabee' },
+  web: { label: 'Web', color: '#21d4fd' }
+};
+
+let bannerConfig = JSON.parse(JSON.stringify(bannerDefaults));
+
+function bannerUid(prefix) {
+  return prefix + '-' + Date.now() + '-' + Math.round(Math.random() * 1e6);
+}
+
+function persistBannerToLocalStorage(config) {
+  try {
+    localStorage.setItem(BANNER_STORAGE_KEY, JSON.stringify(config));
+  } catch (e) {
+    console.warn('Failed to save banner to localStorage:', e);
+  }
+}
+
+function loadBannerFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(BANNER_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.loopInterval === 'number' && Array.isArray(parsed.items)) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
+function applyBannerConfig(config) {
+  if (!config || typeof config !== 'object') return;
+  bannerConfig = {
+    loopInterval: Number.isFinite(Number(config.loopInterval)) ? Math.max(1500, Number(config.loopInterval)) : bannerDefaults.loopInterval,
+    pauseOnHover: !!config.pauseOnHover,
+    randomMode: !!config.randomMode,
+    items: Array.isArray(config.items) && config.items.length > 0
+      ? config.items.map(function(item, idx) {
+          return {
+            id: item && item.id ? String(item.id) : bannerUid('item'),
+            platform: item && item.platform && bannerPlatformMeta[item.platform] ? item.platform : 'web',
+            label: item && item.label ? String(item.label) : 'Web',
+            handle: item && typeof item.handle === 'string' ? item.handle : '',
+            visible: item ? item.visible !== false : true
+          };
+        })
+      : bannerDefaults.items.map(function(item) { return JSON.parse(JSON.stringify(item)); })
+  };
+  persistBannerToLocalStorage(bannerConfig);
+}
+
+// Called when settings are loaded from server
+function initBannerFromSettings(settingsObj) {
+  if (settingsObj && settingsObj.banner) {
+    applyBannerConfig(settingsObj.banner);
+  } else {
+    var stored = loadBannerFromLocalStorage();
+    applyBannerConfig(stored || bannerDefaults);
+  }
+  renderBannerEditor();
+  document.getElementById('banner-loop-interval').value = bannerConfig.loopInterval;
+  var randomCheck = document.getElementById('check-banner-random');
+  if (randomCheck) randomCheck.checked = bannerConfig.randomMode;
+}
+
+function renderBannerEditor() {
+  var list = document.getElementById('banner-editor-list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  bannerConfig.items.forEach(function(item) {
+    list.appendChild(createBannerEditorRow(item));
+  });
+}
+
+function createBannerEditorRow(item) {
+  var row = document.createElement('div');
+  row.className = 'banner-editor-row';
+  row.dataset.id = item.id;
+
+  var platform = document.createElement('select');
+  Object.keys(bannerPlatformMeta).forEach(function(key) {
+    var opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = bannerPlatformMeta[key].label;
+    if (item.platform === key) opt.selected = true;
+    platform.appendChild(opt);
+  });
+
+  var label = document.createElement('input');
+  label.type = 'text';
+  label.value = item.label;
+  label.placeholder = 'Etiqueta';
+
+  var handle = document.createElement('input');
+  handle.type = 'text';
+  handle.value = item.handle;
+  handle.placeholder = item.platform === 'web' ? 'www.cdelu.ar' : '/cdelu.ar';
+
+  var visibleWrap = document.createElement('label');
+  visibleWrap.className = 'mini-toggle';
+  visibleWrap.innerHTML = '<input type="checkbox"><span>Visible</span>';
+  var visible = visibleWrap.querySelector('input');
+  visible.checked = item.visible;
+
+  var remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'btn-remove-row';
+  remove.title = 'Eliminar';
+  remove.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+
+  row.appendChild(platform);
+  row.appendChild(label);
+  row.appendChild(handle);
+  row.appendChild(visibleWrap);
+  row.appendChild(remove);
+
+  platform.addEventListener('change', function() {
+    if (platform.value === 'web') {
+      handle.placeholder = 'www.cdelu.ar';
+    } else if (platform.value === 'telegram') {
+      handle.placeholder = '@tucanal';
+    } else {
+      handle.placeholder = '/' + platform.value;
+    }
+  });
+
+  remove.addEventListener('click', function() {
+    row.remove();
+    syncBannerItems();
+  });
+
+  row._controls = { platform: platform, label: label, handle: handle, visible: visible };
+
+  platform.addEventListener('change', syncBannerItems);
+  label.addEventListener('input', syncBannerItems);
+  handle.addEventListener('input', syncBannerItems);
+  visible.addEventListener('change', syncBannerItems);
+
+  return row;
+}
+
+function syncBannerItems() {
+  var rows = document.querySelectorAll('#banner-editor-list .banner-editor-row');
+  var items = [];
+  rows.forEach(function(row) {
+    var ctrl = row._controls;
+    if (!ctrl) return;
+    items.push({
+      id: row.dataset.id || bannerUid('item'),
+      platform: ctrl.platform.value,
+      label: ctrl.label.value.trim() || bannerPlatformMeta[ctrl.platform.value].label,
+      handle: ctrl.handle.value.trim(),
+      visible: ctrl.visible.checked
+    });
+  });
+  bannerConfig.items = items.length > 0 ? items : bannerDefaults.items.map(function(i) { return JSON.parse(JSON.stringify(i)); });
+}
+
+function saveBannerToServer() {
+  syncBannerItems();
+  bannerConfig.loopInterval = Math.max(1500, parseInt(document.getElementById('banner-loop-interval').value, 10) || 4200);
+  document.getElementById('banner-loop-interval').value = bannerConfig.loopInterval;
+  persistBannerToLocalStorage(bannerConfig);
+  socket.emit('updateBanner', bannerConfig);
+  alertNotification('Banner guardado y aplicado!');
+}
+
+function resetBannerToDefaults() {
+  if (!confirm('Estas seguro de que quieres restaurar el banner a su configuracion base?')) return;
+  bannerConfig = JSON.parse(JSON.stringify(bannerDefaults));
+  persistBannerToLocalStorage(bannerConfig);
+  document.getElementById('banner-loop-interval').value = bannerConfig.loopInterval;
+  renderBannerEditor();
+  socket.emit('updateBanner', bannerConfig);
+  alertNotification('Banner restaurado a valores base!');
+}
+
+// Live loop interval update
+var bannerLoopInput = document.getElementById('banner-loop-interval');
+if (bannerLoopInput) {
+  bannerLoopInput.addEventListener('input', function() {
+    var val = Math.max(1500, parseInt(bannerLoopInput.value, 10) || 4200);
+    bannerConfig.loopInterval = val;
+    persistBannerToLocalStorage(bannerConfig);
+    socket.emit('updateBanner', bannerConfig);
+  });
+}
+
+// Random mode checkbox
+var bannerRandomCheck = document.getElementById('check-banner-random');
+if (bannerRandomCheck) {
+  bannerRandomCheck.addEventListener('change', function() {
+    bannerConfig.randomMode = bannerRandomCheck.checked;
+    persistBannerToLocalStorage(bannerConfig);
+    socket.emit('updateBanner', bannerConfig);
+  });
+}
+
+// Add banner item button
+var btnAddBannerItem = document.getElementById('btn-add-banner-item');
+if (btnAddBannerItem) {
+  btnAddBannerItem.addEventListener('click', function() {
+    var newItem = { id: bannerUid('social'), platform: 'instagram', label: 'Instagram', handle: '', visible: true };
+    bannerConfig.items.push(newItem);
+    var list = document.getElementById('banner-editor-list');
+    if (list) {
+      list.appendChild(createBannerEditorRow(newItem));
+    }
+    persistBannerToLocalStorage(bannerConfig);
+    socket.emit('updateBanner', bannerConfig);
+  });
+}
+
+// Shuffle banner items randomly
+function shuffleBannerItems() {
+  syncBannerItems();
+  var items = bannerConfig.items;
+  if (items.length <= 1) return;
+  // Fisher-Yates shuffle
+  for (var i = items.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var temp = items[i];
+    items[i] = items[j];
+    items[j] = temp;
+  }
+  bannerConfig.items = items;
+  persistBannerToLocalStorage(bannerConfig);
+  renderBannerEditor();
+  socket.emit('updateBanner', bannerConfig);
+}
+
+// Save banner button
+var btnSaveBanner = document.getElementById('btn-save-banner');
+if (btnSaveBanner) {
+  btnSaveBanner.addEventListener('click', saveBannerToServer);
+}
+
+// Shuffle banner button
+var btnShuffleBanner = document.getElementById('btn-shuffle-banner');
+if (btnShuffleBanner) {
+  btnShuffleBanner.addEventListener('click', function() {
+    shuffleBannerItems();
+    alertNotification('Orden aleatorio aplicado!');
+  });
+}
+
+// Reset banner button
+var btnResetBanner = document.getElementById('btn-reset-banner');
+if (btnResetBanner) {
+  btnResetBanner.addEventListener('click', resetBannerToDefaults);
+}
+
+// Listen for banner updates from server
+socket.on('bannerUpdated', function(updatedBanner) {
+  if (updatedBanner && typeof updatedBanner === 'object') {
+    applyBannerConfig(updatedBanner);
+    document.getElementById('banner-loop-interval').value = bannerConfig.loopInterval;
+    var randomCheck = document.getElementById('check-banner-random');
+    if (randomCheck) randomCheck.checked = bannerConfig.randomMode;
+    renderBannerEditor();
+    // Refresh preview iframe
+    var iframe = document.getElementById('banner-preview-iframe');
+    if (iframe) {
+      iframe.src = iframe.src;
+    }
+  }
+});

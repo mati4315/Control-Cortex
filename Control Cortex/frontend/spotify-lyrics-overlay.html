@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="/ssn/shared/overlay-control-transport.js"></script>
+<script type="text/javascript" src="/ssn/js/local-server-url.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Spotify Now Playing + Lyrics</title>
+<link rel="icon" href="/ssn/favicon.ico">
+<style>
+@font-face {
+  font-family:'Sora'; font-style:normal; font-weight:400; font-display:swap;
+  src:url(/ssn/thirdparty/xMQbuFFYT72XzQUpDg.woff2) format('woff2');
+}
+@font-face {
+  font-family:'Sora'; font-style:normal; font-weight:700; font-display:swap;
+  src:url(/ssn/thirdparty/xMQbuFFYT72XzQspDre2.woff2) format('woff2');
+}
+
+:root {
+  --accent:   #ffdd00;
+  --accent2:  #ff4747;
+  --bg:       #1a1a2e;
+  --bg2:      #16213e;
+  --border:   #000;
+  --text:     #fff;
+  --muted:    #ffe066;
+  --font:     'Sora','Comic Sans MS','Segoe UI',sans-serif;
+  --radius:   14px;
+  --bw:       3px;
+  --shadow:   4px 4px 0px #000;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0; padding: 0;
+  font-family: var(--font);
+  background: transparent;
+  color: var(--text);
+  overflow: hidden;
+}
+
+/* ── Overlay card ───────────────────────────────────────── */
+#overlay {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  max-width: 720px;
+  border-radius: var(--radius);
+  border: var(--bw) solid var(--border);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  background: var(--bg);
+  transition: opacity 200ms, transform 200ms;
+  position: relative;
+}
+
+.hidden-state {
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+
+/* Left: album art */
+.art {
+  width: 90px;
+  min-width: 90px;
+  flex-shrink: 0;
+  border-right: var(--bw) solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.art img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Right: info column */
+.meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 10px 12px 8px;
+  gap: 4px;
+  background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 100%);
+}
+
+/* Top row: title + badge */
+.top-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.title {
+  font-size: 1rem;
+  font-weight: 800;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: -0.01em;
+  flex: 1;
+  min-width: 0;
+}
+
+.status {
+  background: var(--accent);
+  color: #000;
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1.5px solid #000;
+  box-shadow: 2px 2px 0 #000;
+  flex-shrink: 0;
+}
+
+.artist {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 1px 1px 0 #000;
+}
+
+/* Progress bar */
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bar {
+  flex: 1;
+  background: rgba(255,255,255,0.12);
+  height: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.5);
+  overflow: hidden;
+  position: relative;
+}
+.bar::after {
+  content: "";
+  position: absolute; inset: 0;
+  background: var(--accent);
+  width: var(--progress, 0%);
+  transition: width 150ms linear;
+  border-radius: 999px;
+}
+.time {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.7);
+  min-width: 34px;
+  font-weight: 600;
+}
+
+/* ── Lyrics line (inside overlay, single line) ─────────── */
+#lyric-line {
+  font-size: 1.08rem;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  text-shadow: 2px 2px 0 #000, 0 0 20px rgba(255,221,0,0.70);
+  letter-spacing: 0.02em;
+  padding: 4px 4px 2px;
+  min-height: 1.5em;
+  transition: opacity 300ms ease;
+  border-top: 1px dashed rgba(255,221,0,0.30);
+  margin-top: 3px;
+}
+#lyric-line.empty { opacity: 0.3; color: var(--muted); font-style: italic; font-weight: 400; }
+#lyric-line.fade-out { opacity: 0; }
+#lyric-line.fade-in  { opacity: 1; }
+
+/* accent color strip on left edge */
+#overlay::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  z-index: 10;
+}
+
+.sr-only {
+  position:absolute;width:1px;height:1px;padding:0;
+  margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
+</style>
+</head>
+<body>
+
+<div id="overlay" class="hidden-state">
+  <div class="art" id="artWrap">
+    <img id="art" alt="Album art">
+  </div>
+  <div class="meta">
+    <div class="top-row">
+      <div class="title"  id="title">Waiting for Spotify…</div>
+      <div class="status" id="status">IDLE</div>
+    </div>
+    <div class="artist" id="artist">—</div>
+    <div class="progress" id="progressRow">
+      <div class="time" id="currentTime">0:00</div>
+      <div class="bar"  id="bar"></div>
+      <div class="time" id="totalTime">0:00</div>
+    </div>
+    <div id="lyric-line" class="empty">♪</div>
+  </div>
+</div>
+
+<span class="sr-only" id="ariaStatus" aria-live="polite"></span>
+
+<script>
+(function(){
+  var urlParams    = new URLSearchParams(location.search);
+  var sessionId    = urlParams.get('session') || urlParams.get('room') || '';
+  var password     = urlParams.get('password') || '';
+  var label        = urlParams.get('label')    || 'spotify';
+  var hidePaused   = urlParams.has('hidepaused');
+  var hideInactive = urlParams.has('hideoffline') || urlParams.has('hideinactive');
+  var hideWhenNoSong = hideInactive || urlParams.has('hidenosong');
+  var hideArt      = urlParams.has('hideart');
+  var hideProgress = urlParams.has('hideprogress');
+  var hideStatus   = urlParams.has('hidestatus');
+  var showLyrics   = urlParams.has('lyrics');
+  var accent       = urlParams.get('accent');
+  var outChannel   = parseInt(urlParams.get('out') || '8') || 8;
+  var inChannel    = parseInt(urlParams.get('in')  || '9') || 9;
+  var fallbackArt  = '/ssn/sources/images/unknown.png';
+  var useLegacyVdo = urlParams.has('vdo');
+
+  // DOM
+  var overlayEl    = document.getElementById('overlay');
+  var titleEl      = document.getElementById('title');
+  var artistEl     = document.getElementById('artist');
+  var statusEl     = document.getElementById('status');
+  var artEl        = document.getElementById('art');
+  var artWrap      = document.getElementById('artWrap');
+  var progressRow  = document.getElementById('progressRow');
+  var currentTimeEl= document.getElementById('currentTime');
+  var totalTimeEl  = document.getElementById('totalTime');
+  var barEl        = document.getElementById('bar');
+  var lyricLineEl  = document.getElementById('lyric-line');
+  var ariaStatus   = document.getElementById('ariaStatus');
+
+  if (accent)       document.body.style.setProperty('--accent', accent);
+  if (hideArt)      artWrap.style.display = 'none';
+  if (hideProgress) progressRow.style.display = 'none';
+  if (hideStatus)   statusEl.style.display = 'none';
+  if (!showLyrics)  lyricLineEl.style.display = 'none';
+
+  // State
+  var state = {
+    track:null, status:'idle', isPlaying:false,
+    progressMs:0, durationMs:0, receivedAt:Date.now(),
+    sourceReceivedAt:0, anchorAt:Date.now()
+  };
+
+  // Lyrics state
+  var lyr = {
+    lines:[], currentIdx:-1, trackId:null, requestToken:0,
+    loading:false, instrumental:false
+  };
+
+  function trackKey(track) {
+    if (!track) return '';
+    return String(track.uri || track.id || '') + '|' +
+      String(track.artist || '') + '|' + String(track.name || '');
+  }
+
+  function formatMs(ms) {
+    var total = Math.max(0, Math.floor((ms||0)/1000));
+    return Math.floor(total/60) + ':' + String(total%60).padStart(2,'0');
+  }
+
+  function getElapsed() {
+    var e = state.progressMs || 0;
+    if (state.status==='playing'||state.isPlaying)
+      e += Math.max(0, Date.now() - (state.anchorAt||Date.now()));
+    return Math.max(0, Math.min(state.durationMs||0, e));
+  }
+
+  function updateProgressBar() {
+    if (!state.durationMs) {
+      barEl.style.setProperty('--progress','0%');
+      currentTimeEl.textContent='0:00'; totalTimeEl.textContent='0:00';
+      return;
+    }
+    var e = getElapsed();
+    barEl.style.setProperty('--progress',(e/state.durationMs*100)+'%');
+    currentTimeEl.textContent=formatMs(e);
+    totalTimeEl.textContent=formatMs(state.durationMs);
+  }
+
+  // LRC parser
+  function parseLRC(text) {
+    if (!text) return [];
+    var result=[], re=/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/g, m;
+    while((m=re.exec(text))!==null){
+      var ms=(parseInt(m[1])*60+parseInt(m[2]))*1000+parseInt(m[3].padEnd(3,'0'));
+      var line=m[4].trim();
+      if(line) result.push({timeMs:ms,text:line});
+    }
+    return result.sort(function(a,b){return a.timeMs-b.timeMs;});
+  }
+
+  function setLyricDisplay(text, empty) {
+    lyricLineEl.classList.add('fade-out');
+    setTimeout(function(){
+      lyricLineEl.textContent = text || '♪';
+      lyricLineEl.classList.toggle('empty', !!empty);
+      lyricLineEl.classList.remove('fade-out');
+    }, 200);
+  }
+
+  // Fetch from LRCLib
+  async function fetchLyrics(track) {
+    if(!track||!track.name||!track.artist) return;
+    var trackId = trackKey(track);
+    if(lyr.trackId===trackId) return;
+    var requestToken = ++lyr.requestToken;
+    lyr.trackId=trackId; lyr.lines=[]; lyr.currentIdx=-1;
+    lyr.loading=true; lyr.instrumental=false;
+    setLyricDisplay('Buscando letras…', true);
+    try {
+      var params=new URLSearchParams({artist_name:track.artist,track_name:track.name});
+      if(track.album) params.set('album_name',track.album);
+      if(track.duration) params.set('duration',Math.round(track.duration/1000));
+      var res=await fetch('https://lrclib.net/api/get?'+params,{
+        headers:{'Lrclib-Client':'Social Stream Ninja Lyrics Overlay'}
+      });
+      if(requestToken!==lyr.requestToken) return;
+      if(res.status===404){setLyricDisplay('Sin letras',true);return;}
+      if(!res.ok) throw new Error('HTTP '+res.status);
+      var data=await res.json();
+      if(requestToken!==lyr.requestToken) return;
+      if(data.instrumental){lyr.instrumental=true;setLyricDisplay('🎸 Instrumental',true);return;}
+      var synced=parseLRC(data.syncedLyrics);
+      if(synced.length>0){
+        lyr.lines=synced;
+      } else if(data.plainLyrics){
+        lyr.lines=data.plainLyrics.split('\n').filter(function(l){return l.trim();})
+          .map(function(t,i){return{timeMs:i*3500,text:t};});
+      } else {
+        setLyricDisplay('Sin letras',true);
+      }
+    } catch(e){
+      if(requestToken!==lyr.requestToken) return;
+      console.warn('[Lyrics]',e);
+      setLyricDisplay('',true);
+    } finally {
+      if(requestToken===lyr.requestToken) lyr.loading=false;
+    }
+  }
+
+  function updateLyricsLine() {
+    if(!showLyrics||lyr.lines.length===0) return;
+    var elapsed=getElapsed(), idx=0;
+    for(var i=0;i<lyr.lines.length;i++){
+      if(lyr.lines[i].timeMs<=elapsed) idx=i; else break;
+    }
+    if(idx===lyr.currentIdx) return;
+    lyr.currentIdx=idx;
+    setLyricDisplay(lyr.lines[idx].text, false);
+  }
+
+  // Render now-playing
+  function render() {
+    var track=state.track, status=state.status;
+    var shouldHide = (!track&&hideWhenNoSong)||
+                     (status==='paused'&&hidePaused)||
+                     (status==='stopped'&&hideInactive);
+    if(shouldHide){ overlayEl.classList.add('hidden-state'); return; }
+    overlayEl.classList.remove('hidden-state');
+    if(track){
+      var requester = String(track.requester||'').trim();
+      titleEl.textContent  = (track.name||'Unknown track') +
+        (requester ? '   .....Pedido de ' + requester : '');
+      artistEl.textContent = track.artist||'';
+      artEl.src = track.imageUrl||fallbackArt;
+      if(showLyrics) fetchLyrics(track);
+    } else {
+      titleEl.textContent  = status==='stopped'?'Esperando Canción...':'Waiting for Spotify…';
+      artistEl.textContent = '';
+      artEl.src = fallbackArt;
+    }
+    // Nombre/marca del programa elegido por el usuario; no reemplazar por estado de Spotify.
+    statusEl.textContent = 'Anormalia 22';
+    updateProgressBar();
+    ariaStatus.textContent=(track?track.name:'No track')+' '+status;
+  }
+
+  // Transport
+  var SERVER_EXCLUSIVE_TRANSPORT_VERSION='3.52.0';
+  var TRANSPORT_CAPABILITIES={
+    serverFeed:false,serverTargeted:false,upstreamCommands:false,
+    customChannel:true,legacyBridgeRequired:true,
+    legacyBridgeReason:"Spotify overlay updates are still sent with sendSpotifyOverlay."
+  };
+  function versionAtLeast(v,min){
+    var a=String(v||'').split('.'),b=String(min||'').split('.');
+    var len=Math.max(a.length,b.length);
+    for(var i=0;i<len;i++){var av=parseInt(a[i],10)||0,bv=parseInt(b[i],10)||0;if(av>bv)return true;if(av<bv)return false;}
+    return true;
+  }
+  function hasExclusive(caps){
+    var p=caps&&typeof caps.exclusiveServerParams==="object"?caps.exclusiveServerParams:{server2:true};
+    return(p.server===true&&urlParams.has("server"))||(p.server2!==false&&urlParams.has("server2"))||(p.server3===true&&urlParams.has("server2")&&urlParams.has("server3"));
+  }
+  function useServerOnly(){
+    var caps=(typeof TRANSPORT_CAPABILITIES==="object"&&TRANSPORT_CAPABILITIES)||{};
+    return hasExclusive(caps)&&versionAtLeast(urlParams.get('v'),SERVER_EXCLUSIVE_TRANSPORT_VERSION)&&caps.serverFeed===true&&caps.legacyBridgeRequired!==true&&caps.upstreamCommands!==true&&caps.customChannel!==true;
+  }
+
+  var spotifyStateTracker=SSNOverlayControl.createStateTracker();
+  if(label==='spotify') SSNOverlayControl.connect(urlParams,sessionId,"spotify",processPayload);
+
+  function processPayload(raw){
+    if(!SSNOverlayControl.accept(raw,"spotify")) return;
+    if(raw&&raw.ssnState){var t=spotifyStateTracker(raw.ssnState);if(!t.accept||!t.changed)return;}
+    var payload=(raw&&raw.spotify)||raw;
+    if(!payload||typeof payload!=='object') return;
+    var incomingTrackKey=trackKey(payload.track||null);
+    var currentTrackKey=trackKey(state.track);
+    var incomingSourceTime=Number(payload.receivedAt)||0;
+    if(state.status==='switching' && currentTrackKey && incomingTrackKey &&
+       incomingTrackKey!==currentTrackKey && Date.now()-(state.switchingAt||0)<5000) return;
+    // El relay y el transporte de SSN pueden entregar el mismo estado en
+    // distinto orden. No permitimos que una copia vieja haga retroceder el reloj.
+    if(incomingTrackKey && incomingTrackKey===currentTrackKey &&
+       incomingSourceTime>0 && state.sourceReceivedAt>0 &&
+       incomingSourceTime<state.sourceReceivedAt) return;
+    var prevTrackKey=trackKey(state.track);
+    var localArrival=Date.now();
+    var parsedProgressMs=Number(payload.progressMs||payload.progress||0);
+    var rawProgressMs=Number.isFinite(parsedProgressMs)?parsedProgressMs:0;
+    var payloadIsPlaying=!!payload.isPlaying || payload.status==='playing' || payload.status==='switching';
+    // El progreso fue medido en Spotify antes de llegar por red. Compensamos
+    // ese trayecto para que la barra y las letras partan del mismo instante.
+    var transitMs=incomingSourceTime && payloadIsPlaying
+      ? Math.max(0, Math.min(5000, localArrival-incomingSourceTime)) : 0;
+    state={
+      track:     payload.track||null,
+      status:    payload.status||(payload.isPlaying?'playing':(payload.track?'paused':'idle')),
+      isPlaying: payloadIsPlaying,
+      progressMs:Math.max(0, rawProgressMs+transitMs),
+      durationMs:payload.durationMs||payload.duration||(payload.track&&payload.track.duration)||0,
+      receivedAt:payload.receivedAt||localArrival,
+      sourceReceivedAt:incomingSourceTime,
+      anchorAt:localArrival,
+      switchingAt:payload.status==='switching' ? localArrival : 0
+    };
+    // Spotify puede repetir el mismo titulo con otra URI; reiniciar por URI evita
+    // que queden letras o progreso visual del tema anterior.
+    if(showLyrics&&trackKey(state.track)!==prevTrackKey){
+      lyr.trackId=null;
+      lyr.requestToken++;
+      lyr.lines=[];
+      lyr.currentIdx=-1;
+    }
+    render();
+  }
+
+  function setupCortexSpotifyRelay(){
+    var socket=null, attempts=1;
+    var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = protocol + '//' + location.host;
+    function connect(){
+      if(socket){socket.onclose=null;socket.close();}
+      socket=new WebSocket(url);
+      socket.onopen=function(){attempts=1;};
+      socket.onerror=function(){socket.close();};
+      socket.onclose=function(){setTimeout(connect, Math.min(5000, 500*attempts)); attempts++;};
+      socket.onmessage=function(event){
+        if(!event.data) return;
+        try{
+          var data=JSON.parse(event.data);
+          if(data && data.type==='spotify_overlay' && data.spotify) processPayload(data.spotify);
+        }catch(e){}
+      };
+    }
+    connect();
+  }
+
+  setupCortexSpotifyRelay();
+
+  if(useLegacyVdo && !useServerOnly()){
+    var iframe=document.createElement('iframe');
+    var passwordPart = password && password !== 'false' ? '&password=' + encodeURIComponent(password) : '';
+    iframe.src='https://vdo.socialstream.ninja/?ln&salt=vdo.ninja'+passwordPart+'&solo&view='+encodeURIComponent(sessionId)+'&novideo&noaudio&label='+encodeURIComponent(label)+'&cleanoutput&room='+encodeURIComponent(sessionId);
+    iframe.style.cssText="width:0;height:0;border:0;position:absolute;left:-200px;top:-200px;";
+    document.body.appendChild(iframe);
+    window.addEventListener("message",function(e){
+      if(e.source!==iframe.contentWindow)return;
+      if(e.data&&e.data.dataReceived&&e.data.dataReceived.overlayNinja) processPayload(e.data.dataReceived.overlayNinja);
+    });
+  }
+
+  function setupSocket(url,out,inc){
+    var socket=null,attempts=1;
+    function connect(){
+      if(socket){socket.onclose=null;socket.close();}
+      socket=new WebSocket(url);
+      socket.onopen=function(){attempts=1;socket.send(JSON.stringify({join:sessionId,out:out,in:inc}));};
+      socket.onerror=function(){socket.close();};
+      socket.onclose=function(){setTimeout(connect,100*attempts);attempts++;};
+      socket.addEventListener("message",function(e){
+        if(!e.data)return;
+        try{var d=JSON.parse(e.data);processPayload(d);if(d.get)socket.send(JSON.stringify({callback:{get:d.get,result:true}}));}catch(ex){}
+      });
+    }
+    connect();
+  }
+  if(urlParams.has("server")||urlParams.has("localserver"))
+    setupSocket(urlParams.get("server")||(urlParams.has("localserver")?SocialStreamLocalServer.getWebSocketUrl():"wss://io.socialstream.ninja/api"),outChannel,inChannel);
+  if(urlParams.has("server2")||urlParams.has("server3"))
+    setupSocket(urlParams.get("server2")||SocialStreamLocalServer.getRelayUrl(urlParams,"server3","wss://io.socialstream.ninja/extension"),outChannel,inChannel);
+
+  render();
+  setInterval(function(){ updateProgressBar(); if(showLyrics) updateLyricsLine(); }, 250);
+})();
+</script>
+</body>
+</html>

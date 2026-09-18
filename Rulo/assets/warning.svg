@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Rulo warning">
+  <defs>
+    <linearGradient id="body" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e4e9f1"/>
+    </linearGradient>
+  </defs>
+  <!-- cuerpo -->
+  <rect x="70" y="78" width="372" height="356" rx="158" fill="url(#body)" stroke="#14181f" stroke-width="9"/>
+  <ellipse cx="182" cy="150" rx="64" ry="44" fill="#ffffff" opacity=".55"/>
+  <path d="M418 52 l48 84 h-96 z" fill="#f5b13d" stroke="#14181f" stroke-width="7"/>
+  <rect x="412" y="80" width="12" height="30" rx="6" fill="#14181f"/>
+  <circle cx="418" cy="122" r="8" fill="#14181f"/>
+  <!-- cara -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <rect x="175" y="226" width="42" height="13" rx="6" fill="#14181f"/>
+    <rect x="295" y="226" width="42" height="13" rx="6" fill="#14181f"/>
+    <rect x="222" y="318" width="68" height="12" rx="6" fill="#14181f"/>
+  </g>
+
+</svg>

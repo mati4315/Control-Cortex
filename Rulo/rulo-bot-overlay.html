@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Respuestas del bot</title>
+  <style>
+    :root {
+      --accent: #9fd50b;
+      --mood: var(--accent);
+      --panel: rgba(14, 17, 22, .94);
+      --text: #f5f7fa;
+      --muted: #aeb7c3;
+      --avatar-ink: #111;
+      --max-width: 760px;
+      --message-size: 1.35rem;
+    }
+    /* Tema claro: se activa con ?theme=light o con overlayTheme='light' en la config del dashboard. */
+    html.theme-light {
+      --panel: rgba(255, 255, 255, .94);
+      --text: #161b22;
+      --muted: #5a6675;
+    }
+    html.theme-light #reply { box-shadow: 0 8px 20px rgba(0,0,0,.16), 0 0 14px rgba(0,0,0,.08); }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: transparent; }
+    body {
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 18px;
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      overflow: hidden;
+    }
+    #reply {
+      width: min(var(--max-width), 100%);
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 14px;
+      align-items: center;
+      padding: 14px 18px 15px 14px;
+      border: 2px solid var(--mood);
+      border-radius: 12px;
+      background: var(--panel);
+      box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 0 18px rgba(159,213,11,.14);
+      opacity: 0;
+      transform: translateY(-12px) scale(.98);
+      transition: opacity 220ms ease, transform 220ms ease, border-color 200ms ease;
+    }
+    #reply.visible { opacity: 1; transform: translateY(0) scale(1); }
+    #reply.leaving { opacity: 0; transform: translateY(-8px) scale(.98); }
+    #reply[data-animation="pop"] { transform: scale(.82); }
+    #reply[data-animation="pop"].visible { transform: scale(1); }
+    #reply[data-animation="soft"] { transform: translateY(-4px); }
+    #reply[data-animation="soft"].visible { transform: translateY(0); }
+    /* Estados (mood) que emite el backend en rulo_bot_message. */
+    #reply[data-mood="idle"]     { --mood: var(--accent); }
+    #reply[data-mood="thinking"] { --mood: #6ea8fe; }
+    #reply[data-mood="success"]  { --mood: var(--accent); }
+    #reply[data-mood="warning"]  { --mood: #f5b13d; }
+    #reply[data-mood="error"]    { --mood: #ef5f5f; }
+    #reply[data-mood="speaking"] { --mood: var(--accent); }
+    .avatar {
+      width: 58px; height: 58px;
+      display: grid; place-items: center;
+      border-radius: 50%;
+      color: var(--avatar-ink);
+      background: var(--mood);
+      font-size: 1.55rem;
+      font-weight: 800;
+      overflow: hidden;
+      box-shadow: 0 0 0 3px rgba(159,213,11,.18);
+      transition: background 200ms ease;
+    }
+    .avatar img.mascot { width: 92%; height: 92%; object-fit: contain; display: block; }
+    #reply[data-mood="thinking"] .avatar { animation: rulo-pulse 1.4s ease-in-out infinite; }
+    #reply[data-mood="speaking"] .avatar { animation: rulo-talk .7s ease-in-out infinite; }
+    #reply[data-mood="error"] .avatar { animation: rulo-shake .5s ease-in-out 2; }
+    @keyframes rulo-pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(.92); } }
+    @keyframes rulo-talk { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    @keyframes rulo-shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-3px); } 75% { transform: translateX(3px); } }
+    @media (prefers-reduced-motion: reduce) {
+      .avatar, #reply { animation: none !important; transition: none !important; }
+    }
+    .bot { margin: 0 0 3px; color: var(--mood); font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .message { margin: 0; font-size: clamp(1rem, 2.2vw, var(--message-size)); line-height: 1.28; font-weight: 650; overflow-wrap: anywhere; }
+    .time { margin-top: 5px; color: var(--muted); font-size: .72rem; }
+    @media (max-width: 420px) {
+      body { padding: 10px; }
+      #reply { grid-template-columns: 44px 1fr; gap: 10px; padding: 11px; }
+      .avatar { width: 44px; height: 44px; font-size: 1.15rem; }
+    }
+  </style>
+</head>
+<body>
+  <section id="reply" aria-live="polite" aria-atomic="true" data-mood="idle">
+    <div class="avatar"><span class="avatar-letter" id="avatarLetter">A</span><img class="mascot" id="mascot" alt="" hidden></div>
+    <div>
+      <p class="bot" id="botName">Rulo</p>
+      <p class="message" id="message"></p>
+      <div class="time" id="time"></div>
+    </div>
+  </section>
+  <script>
+    (function () {
+      const panel = document.getElementById('reply');
+      const botName = document.getElementById('botName');
+      const message = document.getElementById('message');
+      const time = document.getElementById('time');
+      const avatarLetter = document.getElementById('avatarLetter');
+      const mascot = document.getElementById('mascot');
+      const params = new URLSearchParams(location.search);
+      const isPreview = params.get('preview') === '1';
+      const MASCOT_BASE = '/rulo-assets/';
+      const failedMascots = new Set();
+      let hideTimer = null;
+      let socket = null;
+      let retry = 500;
+      // El nombre visible lo manda la configuracion de Rulo (fuente unica de verdad).
+      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, overlayTheme: 'dark', animation: 'slide' };
+
+      // Contraste del avatar: con un acento oscuro la inicial va clara, y al reves.
+      function inkFor(hex) {
+        const value = String(hex || '').replace('#', '');
+        if (!/^[0-9a-f]{6}$/i.test(value)) return '#111';
+        const r = parseInt(value.slice(0, 2), 16) / 255;
+        const g = parseInt(value.slice(2, 4), 16) / 255;
+        const b = parseInt(value.slice(4, 6), 16) / 255;
+        return (0.2126 * r + 0.7152 * g + 0.0722 * b) > 0.45 ? '#111' : '#f5f7fa';
+      }
+
+      function applyTheme(theme) {
+        const light = String(theme || 'dark').toLowerCase() === 'light';
+        document.documentElement.classList.toggle('theme-light', light);
+        return light;
+      }
+
+      function applyConfig(next) {
+        if (!next) return;
+        config = Object.assign(config, next);
+        const light = applyTheme(params.get('theme') || config.overlayTheme);
+        document.documentElement.style.setProperty('--accent', config.accent);
+        document.documentElement.style.setProperty('--avatar-ink', inkFor(config.accent));
+        document.documentElement.style.setProperty('--max-width', config.maxWidth + 'px');
+        document.documentElement.style.setProperty('--message-size', config.fontSize + 'rem');
+        document.documentElement.style.setProperty('--panel', 'rgba(' + (light ? '255, 255, 255' : '14, 17, 22') + ', ' + config.panelOpacity + ')');
+        panel.dataset.animation = config.animation || 'slide';
+        avatarLetter.textContent = config.avatarLetter || 'A';
+        botName.textContent = config.botName || 'Rulo';
+        applyMascot(config.showMascot === true, panel.dataset.mood || 'idle');
+      }
+
+      function applyMascot(enabled, mood) {
+        if (!enabled) {
+          mascot.hidden = true;
+          mascot.removeAttribute('src');
+          avatarLetter.hidden = false;
+          return;
+        }
+        const state = String(mood || 'idle').toLowerCase();
+        const source = MASCOT_BASE + state + '.svg';
+        if (failedMascots.has(source)) return;
+        mascot.onload = function () { mascot.hidden = false; avatarLetter.hidden = true; };
+        mascot.onerror = function () {
+          failedMascots.add(source);
+          mascot.hidden = true;
+          avatarLetter.hidden = false;
+          // Sin asset todavia: se conserva la inicial como respaldo.
+          console.debug('[Rulo] Falta el asset de mascota para el estado', state);
+        };
+        mascot.src = source;
+      }
+
+      function show(data) {
+        if (!data || !data.message) return;
+        const mood = String(data.mood || 'success').toLowerCase();
+        panel.dataset.mood = mood;
+        botName.textContent = config.botName || 'Rulo';
+        message.textContent = data.message;
+        time.textContent = config.showRequester && data.requester ? 'Pedido de ' + data.requester : '';
+        applyMascot(config.showMascot === true, mood);
+        panel.classList.remove('leaving');
+        panel.classList.add('visible');
+        clearTimeout(hideTimer);
+        if (isPreview) return;
+        hideTimer = setTimeout(function () {
+          panel.classList.remove('visible');
+          panel.classList.add('leaving');
+        }, Math.max(2000, Number(config.visibleMs) || 12000));
+      }
+
+      function connect() {
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        socket = new WebSocket(protocol + '//' + location.host);
+        socket.onopen = function () { retry = 500; };
+        socket.onmessage = function (event) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data && data.type === 'rulo_bot_message') show(data.rulo);
+            if (data && data.type === 'rulo_config_updated') applyConfig(data.config);
+          } catch (_) {}
+        };
+        socket.onerror = function () { socket.close(); };
+        socket.onclose = function () {
+          setTimeout(connect, retry);
+          retry = Math.min(5000, retry * 2);
+        };
+      }
+
+      fetch('/api/rulo-config').then(function (response) { return response.json(); }).then(function (data) {
+        applyConfig(data.config);
+        if (isPreview) {
+          show({
+            message: params.get('message') || 'Vista previa del overlay de Rulo.',
+            mood: params.get('mood') || 'idle',
+            requester: params.get('requester') || 'Vista previa'
+          });
+        }
+      }).catch(function () {});
+      connect();
+    }());
+  </script>
+</body>
+</html>

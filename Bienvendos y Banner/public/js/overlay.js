@@ -331,6 +331,7 @@ function renderSocials() {
   socialsList.innerHTML = '';
   if (!settings.socials) return;
 
+  const pills = [];
   settings.socials.forEach(social => {
     const handle = String(social.handle || '').trim();
     if (!social.visible || !handle) return;
@@ -351,8 +352,28 @@ function renderSocials() {
       <span class="social-handle">${escapeHtml(handle)}</span>
     `;
 
+    pills.push(pill);
+  });
+
+  pills.forEach((pill, i) => {
+    const left = randomBetween(5, 80);
+    const duration = randomBetween(8, 30);
+    const delay = randomBetween(-duration, 0);
+    const scale = randomBetween(0.85, 1.15);
+    const opacity = randomBetween(0.25, 0.55);
+
+    pill.style.left = left + '%';
+    pill.style.setProperty('--float-duration', duration + 's');
+    pill.style.setProperty('--float-delay', delay + 's');
+    pill.style.setProperty('--float-scale', scale);
+    pill.style.setProperty('--float-opacity', opacity);
+
     socialsList.appendChild(pill);
   });
+}
+
+function randomBetween(min, max) {
+  return +((Math.random() * (max - min)) + min).toFixed(2);
 }
 
 function escapeHtml(text) {
@@ -453,12 +474,6 @@ function runEntranceAnimations() {
   tl.fromTo('.subtitle-container', 
     { opacity: 0, scale: 0.9 }, 
     { opacity: 1, scale: 1, duration: 0.8, ease: 'power2.out' },
-    '-=0.5'
-  );
-
-  tl.fromTo('.social-pill', 
-    { x: -30, opacity: 0 }, 
-    { x: 0, opacity: 1, duration: 0.6, stagger: 0.15, ease: 'power2.out' },
     '-=0.5'
   );
 }

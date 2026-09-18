@@ -122,6 +122,52 @@ function setupEventListeners() {
       }
     });
   }
+
+  // OBS Refresh Sources Buttons
+  const btnRefreshObs = document.getElementById('btn-refresh-obs');
+  if (btnRefreshObs) {
+    btnRefreshObs.addEventListener('click', refreshObsBrowserSources);
+  }
+  const btnRefreshObsAction = document.getElementById('btn-refresh-obs-action');
+  if (btnRefreshObsAction) {
+    btnRefreshObsAction.addEventListener('click', refreshObsBrowserSources);
+  }
+}
+
+// Function to send signal to OBS to refresh all browser sources without cache
+async function refreshObsBrowserSources() {
+  const btnHeader = document.getElementById('btn-refresh-obs');
+  const btnAction = document.getElementById('btn-refresh-obs-action');
+  
+  const buttons = [btnHeader, btnAction].filter(Boolean);
+  buttons.forEach(btn => {
+    btn.disabled = true;
+    const icon = btn.querySelector('i');
+    if (icon) icon.className = 'fa-solid fa-arrows-rotate fa-spin';
+  });
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/obs/refresh-sources`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    const data = await res.json();
+    
+    if (res.ok && data.success) {
+      showToast(`¡OBS Actualizado! Se recargaron ${data.count} fuentes web (Banner, Clima, etc.)`, 'success');
+    } else {
+      throw new Error(data.details || data.error || 'No se pudo conectar con OBS');
+    }
+  } catch (err) {
+    console.error('Error refreshing OBS sources:', err);
+    showToast(`Error al refrescar OBS: ${err.message}`, 'danger');
+  } finally {
+    buttons.forEach(btn => {
+      btn.disabled = false;
+      const icon = btn.querySelector('i');
+      if (icon) icon.className = 'fa-solid fa-arrows-rotate';
+    });
+  }
 }
 
 // Remove env row binding
@@ -191,12 +237,8 @@ async function fetchServices() {
 // Render Services Cards inside Grid
 function renderServicesGrid() {
   if (services.length === 0) {
-    servicesContainer.innerHTML = `
-      <div class="console-placeholder">
-        <i class="fa-solid fa-folder-open placeholder-icon" style="font-size: 2.5rem;"></i>
-        <p>No hay microservicios registrados todavía.</p>
-      </div>
-    `;
+    servicesContainer.innerHTML = '';
+    renderSpotifyCard();
     return;
   }
 
@@ -296,7 +338,318 @@ function renderServicesGrid() {
     card.addEventListener('click', () => selectServiceForLogs(service.id));
     servicesContainer.appendChild(card);
   });
+
+  // Inject Spotify card at the end of the grid
+  renderSpotifyCard();
 }
+
+// ─── Spotify Card ─────────────────────────────────────────────────────────────
+const SPOTIFY_STORAGE_KEY = 'cortex_spotify_config';
+// URL base de Cortex: se resuelve desde /api/cortex-base-url (IP LAN detectada por el backend).
+// El valor inicial es solo respaldo si el endpoint no responde.
+let CORTEX_BASE_URL     = 'http://192.168.4.100:4000';
+let SPOTIFY_BASE_URL    = CORTEX_BASE_URL + '/ssn/spotify-overlay.html';
+let SPOTIFY_LYRICS_URL  = CORTEX_BASE_URL + '/spotify-lyrics-overlay.html';
+let RULO_OVERLAY_URL    = CORTEX_BASE_URL + '/rulo-bot-overlay.html';
+let RULO_CHAT_DOCK_URL  = CORTEX_BASE_URL + '/rulo-chat-historial.html';
+let RULO_DASHBOARD_URL  = CORTEX_BASE_URL + '/rulo-dashboard.html';
+
+function applyCortexBaseUrl(baseUrl) {
+  const clean = String(baseUrl || '').trim().replace(/\/+$/, '');
+  if (!/^https?:\/\/[^\s]+$/i.test(clean)) return false;
+  CORTEX_BASE_URL    = clean;
+  SPOTIFY_BASE_URL   = CORTEX_BASE_URL + '/ssn/spotify-overlay.html';
+  SPOTIFY_LYRICS_URL = CORTEX_BASE_URL + '/spotify-lyrics-overlay.html';
+  RULO_OVERLAY_URL   = CORTEX_BASE_URL + '/rulo-bot-overlay.html';
+  RULO_CHAT_DOCK_URL = CORTEX_BASE_URL + '/rulo-chat-historial.html';
+  RULO_DASHBOARD_URL = CORTEX_BASE_URL + '/rulo-dashboard.html';
+  return true;
+}
+
+fetch('/api/cortex-base-url')
+  .then(r => r.json())
+  .then(data => {
+    if (!data || !applyCortexBaseUrl(data.baseUrl)) return;
+    if (document.getElementById('card-spotify')) renderSpotifyCard();
+  })
+  .catch(() => {});
+
+function loadSpotifyConfig() {
+  try { return JSON.parse(localStorage.getItem(SPOTIFY_STORAGE_KEY)) || {}; }
+  catch { return {}; }
+}
+
+function saveSpotifyConfig(cfg) {
+  localStorage.setItem(SPOTIFY_STORAGE_KEY, JSON.stringify(cfg));
+}
+
+function buildSpotifyOverlayUrl(cfg) {
+  const session = (cfg.sessionId || '').trim();
+  if (!session) return '';
+
+  const base = cfg.showlyrics ? SPOTIFY_LYRICS_URL : SPOTIFY_BASE_URL;
+  const flags = [];
+  if (cfg.hidepaused)   flags.push('hidepaused');
+  if (cfg.hideinactive) flags.push('hideinactive');
+  if (cfg.hideart)      flags.push('hideart');
+  if (cfg.hidealbum)    flags.push('hidealbum');
+  if (cfg.hideprogress) flags.push('hideprogress');
+  if (cfg.hidedevice)   flags.push('hidedevice');
+  if (cfg.hidestatus)   flags.push('hidestatus');
+  if (cfg.compact)      flags.push('compact');
+  if (cfg.showqueue)    flags.push('showqueue');
+  if (cfg.showlyrics)   flags.push('lyrics');
+  if (cfg.showlyrics)   flags.push('cortexrelay');
+
+  let qs = `session=${encodeURIComponent(session)}`;
+  qs += `&ln=${encodeURIComponent(cfg.lang || 'es')}`;
+  flags.forEach(f => { qs += `&${f}`; });
+  if (cfg.style && cfg.style !== 'spotify') qs += `&style=${encodeURIComponent(cfg.style)}`;
+  if (cfg.accent && cfg.accent !== '#1db954') qs += `&accent=${encodeURIComponent(cfg.accent)}`;
+
+  return `${base}?${qs}`;
+}
+
+function buildRuloOverlayUrl(cfg) {
+  const session = (cfg.sessionId || '').trim();
+  return session ? `${RULO_OVERLAY_URL}?session=${encodeURIComponent(session)}` : '';
+}
+
+function renderSpotifyCard() {
+  document.getElementById('card-spotify')?.remove();
+  const cfg = loadSpotifyConfig();
+  const overlayUrl = buildSpotifyOverlayUrl(cfg);
+  const ruloUrl = buildRuloOverlayUrl(cfg);
+
+  const card = document.createElement('div');
+  card.className = 'service-card spotify-card';
+  card.id = 'card-spotify';
+
+  card.innerHTML = `
+    <div class="card-top">
+      <div class="card-title-info">
+        <h3><i class="fa-brands fa-spotify" style="color:#1db954;margin-right:6px;"></i>Spotify Now Playing</h3>
+        <span class="card-desc">Overlay de canción actual para OBS via SocialStream Ninja</span>
+      </div>
+      <span class="card-status status-badge-spotify">
+        <i class="fa-solid fa-circle" style="font-size:0.5rem;margin-right:4px;"></i> hosteado
+      </span>
+    </div>
+
+    <div class="spotify-config">
+      <div class="spotify-fields">
+        <div class="spotify-field-group">
+          <label>Session ID <small>(de SocialStream Ninja)</small></label>
+          <input type="text" id="sp-session"
+            placeholder="ej: XJ9hQ2JDHH"
+            value="${escapeHTML(cfg.sessionId || '')}"
+            onclick="event.stopPropagation()" />
+        </div>
+        <div class="spotify-field-group">
+          <label>Idioma</label>
+          <select id="sp-lang" onclick="event.stopPropagation()">
+            <option value="es" ${(!cfg.lang||cfg.lang==='es')?'selected':''}>Español (es)</option>
+            <option value="en" ${cfg.lang==='en'?'selected':''}>English (en)</option>
+            <option value="pt" ${cfg.lang==='pt'?'selected':''}>Português (pt)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="spotify-device-target">
+        <div class="spotify-field-group">
+          <label>Dispositivo que debe reproducir <small>(vacío = automático)</small></label>
+          <input type="text" id="sp-device-target"
+            placeholder="Ej: PC OBS o NOTEBOOK-MATI"
+            value="${escapeHTML(cfg.deviceTargetName || '')}"
+            onclick="event.stopPropagation()" />
+        </div>
+        <div class="sp-device-help">
+          <i class="fa-solid fa-circle-info"></i>
+          Escribí el nombre exacto o una parte del nombre que aparece en <strong>!spotifydevices</strong>. Se usa para evitar que el pedido cambie la PC equivocada.
+        </div>
+      </div>
+
+      <div class="spotify-options-grid">
+        <label class="sp-opt"><input type="checkbox" id="sp-hidepaused"   ${cfg.hidepaused   ? 'checked':''} onclick="event.stopPropagation()"> Ocultar si pausado</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-hideinactive" ${cfg.hideinactive ? 'checked':''} onclick="event.stopPropagation()"> Ocultar si inactivo</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-hideart"      ${cfg.hideart      ? 'checked':''} onclick="event.stopPropagation()"> Sin carátula</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-hidealbum"    ${cfg.hidealbum    ? 'checked':''} onclick="event.stopPropagation()"> Sin álbum</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-hideprogress" ${cfg.hideprogress ? 'checked':''} onclick="event.stopPropagation()"> Sin barra progreso</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-hidedevice"   ${cfg.hidedevice   ? 'checked':''} onclick="event.stopPropagation()"> Sin dispositivo</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-hidestatus"   ${cfg.hidestatus   ? 'checked':''} onclick="event.stopPropagation()"> Sin estado</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-compact"      ${cfg.compact      ? 'checked':''} onclick="event.stopPropagation()"> Compacto</label>
+        <label class="sp-opt"><input type="checkbox" id="sp-showqueue"    ${cfg.showqueue    ? 'checked':''} onclick="event.stopPropagation()"> Mostrar cola</label>
+        <label class="sp-opt" style="color:#1db954;font-weight:600;"><input type="checkbox" id="sp-showlyrics" ${cfg.showlyrics ? 'checked':''} onclick="event.stopPropagation()"> 🎵 Letras sincronizadas</label>
+        <label class="sp-opt sp-offset-opt" style="color:#1db954;font-weight:600;"><input type="checkbox" id="sp-skiptenseconds" ${cfg.skipTenSeconds ? 'checked':''} onclick="event.stopPropagation()"> Quitar los <input type="number" id="sp-skipseconds" min="1" max="120" step="1" value="${Number(cfg.skipSeconds) > 0 ? Math.min(120, Math.round(Number(cfg.skipSeconds))) : 10}" onclick="event.stopPropagation()"> segundos</label>
+      </div>
+
+      <div class="spotify-style-row">
+        <div class="spotify-field-group" style="flex:1">
+          <label>Tema / Estilo</label>
+          <select id="sp-style" onclick="event.stopPropagation()">
+            <option value="spotify" ${(!cfg.style||cfg.style==='spotify')?'selected':''}>Spotify (default)</option>
+            <option value="minimal" ${cfg.style==='minimal'?'selected':''}>Minimal</option>
+            <option value="glass"   ${cfg.style==='glass'  ?'selected':''}>Glass</option>
+            <option value="comic"   ${cfg.style==='comic'  ?'selected':''}>Comic</option>
+            <option value="ticker"  ${cfg.style==='ticker' ?'selected':''}>Ticker (horizontal)</option>
+          </select>
+        </div>
+        <div class="spotify-field-group sp-accent-group">
+          <label>Color acento</label>
+          <input type="color" id="sp-accent"
+            value="${cfg.accent || '#1db954'}"
+            onclick="event.stopPropagation()" />
+        </div>
+      </div>
+
+      <div class="spotify-url-box" id="sp-url-row" style="${overlayUrl ? '' : 'display:none'}">
+        <span class="sp-url-label">URL para OBS Browser Source:</span>
+        <div class="sp-url-line">
+          <code id="sp-url-text">${escapeHTML(overlayUrl)}</code>
+          <button class="btn btn-secondary btn-sm" title="Copiar URL" onclick="event.stopPropagation(); copySpotifyUrl()">
+            <i class="fa-solid fa-copy"></i>
+          </button>
+          <a class="btn btn-secondary btn-sm" href="${escapeHTML(overlayUrl)}" target="_blank"
+             id="sp-open-btn" title="Abrir overlay en el navegador" onclick="event.stopPropagation()">
+            <i class="fa-solid fa-up-right-from-square"></i>
+          </a>
+        </div>
+        <div class="sp-obs-hint">
+          <i class="fa-solid fa-circle-info"></i>
+          En OBS: Agregar fuente → <strong>Navegador</strong> → pegar URL arriba. Ancho: <strong>900px</strong>, Alto: <strong>130px</strong>.
+        </div>
+      </div>
+      <div class="spotify-url-box" id="sp-url-empty" style="${overlayUrl ? 'display:none' : ''}">
+        <span style="color:#888;font-size:0.82rem;">
+          <i class="fa-solid fa-circle-info" style="margin-right:4px;color:#1db954;"></i>
+          Ingresá tu Session ID y hacé clic en <strong>Guardar</strong> para generar la URL.
+        </span>
+      </div>
+
+      <div class="spotify-url-box rulo-url-box">
+        <span class="sp-url-label"><i class="fa-solid fa-wand-magic-sparkles" style="color:#9fd50b;margin-right:4px;"></i>Rulo: respuestas de Anormalia</span>
+        <div class="sp-url-line">
+          <span class="sp-rulo-url-kind">Dashboard:</span>
+          <code id="rulo-dashboard-url">${escapeHTML(RULO_DASHBOARD_URL)}</code>
+          <button class="btn btn-secondary btn-sm" title="Copiar dashboard de Rulo" onclick="event.stopPropagation(); copyTextToClipboard('${RULO_DASHBOARD_URL}', 'Dashboard de Rulo copiado')"><i class="fa-solid fa-copy"></i></button>
+          <a class="btn btn-secondary btn-sm" href="${RULO_DASHBOARD_URL}" target="_blank" title="Abrir dashboard de Rulo" onclick="event.stopPropagation()"><i class="fa-solid fa-up-right-from-square"></i></a>
+        </div>
+        <div class="sp-url-line" id="rulo-overlay-row" style="${ruloUrl ? '' : 'display:none'}">
+          <span class="sp-rulo-url-kind">OBS:</span>
+          <code id="rulo-overlay-url">${escapeHTML(ruloUrl)}</code>
+          <button class="btn btn-secondary btn-sm" title="Copiar overlay de Rulo" onclick="event.stopPropagation(); copyRuloUrl()"><i class="fa-solid fa-copy"></i></button>
+          <a class="btn btn-secondary btn-sm" id="rulo-overlay-open" href="${escapeHTML(ruloUrl)}" target="_blank" title="Abrir overlay de Rulo" onclick="event.stopPropagation()"><i class="fa-solid fa-up-right-from-square"></i></a>
+        </div>
+        <div class="sp-url-line">
+          <span class="sp-rulo-url-kind">Historial:</span>
+          <code>${RULO_CHAT_DOCK_URL}</code>
+          <button class="btn btn-secondary btn-sm" title="Copiar dock de Rulo" onclick="event.stopPropagation(); copyTextToClipboard('${RULO_CHAT_DOCK_URL}', 'Dock de Rulo copiado')"><i class="fa-solid fa-copy"></i></button>
+          <a class="btn btn-secondary btn-sm" href="${RULO_CHAT_DOCK_URL}" target="_blank" title="Abrir dock de Rulo" onclick="event.stopPropagation()"><i class="fa-solid fa-up-right-from-square"></i></a>
+        </div>
+        <div class="sp-obs-hint"><i class="fa-solid fa-circle-info"></i> Rulo muestra solamente las respuestas del bot y tiene diseño configurable independiente.</div>
+      </div>
+    </div>
+
+    <div class="card-actions" style="margin-top:10px;">
+      <div class="action-buttons">
+        <button class="btn btn-success btn-sm" onclick="event.stopPropagation(); saveAndBuildSpotify()">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar
+        </button>
+        <a href="https://socialstream.ninja/spotify.html" target="_blank"
+           class="btn btn-secondary btn-sm"
+           title="Abrir configuración de Spotify en SSN"
+           onclick="event.stopPropagation()">
+          <i class="fa-brands fa-spotify"></i> Config SSN
+        </a>
+      </div>
+    </div>
+  `;
+
+  servicesContainer.appendChild(card);
+}
+
+function saveAndBuildSpotify() {
+  const cfg = {
+    sessionId:    (document.getElementById('sp-session')?.value      || '').trim(),
+    lang:         document.getElementById('sp-lang')?.value           || 'es',
+    hidepaused:   document.getElementById('sp-hidepaused')?.checked   || false,
+    hideinactive: document.getElementById('sp-hideinactive')?.checked || false,
+    hideart:      document.getElementById('sp-hideart')?.checked      || false,
+    hidealbum:    document.getElementById('sp-hidealbum')?.checked    || false,
+    hideprogress: document.getElementById('sp-hideprogress')?.checked || false,
+    hidedevice:   document.getElementById('sp-hidedevice')?.checked   || false,
+    hidestatus:   document.getElementById('sp-hidestatus')?.checked   || false,
+    compact:      document.getElementById('sp-compact')?.checked      || false,
+    showqueue:    document.getElementById('sp-showqueue')?.checked    || false,
+    showlyrics:   document.getElementById('sp-showlyrics')?.checked   || false,
+    style:        document.getElementById('sp-style')?.value          || 'spotify',
+    accent:       document.getElementById('sp-accent')?.value         || '#1db954',
+    deviceTargetName: (document.getElementById('sp-device-target')?.value || '').trim(),
+    skipTenSeconds: document.getElementById('sp-skiptenseconds')?.checked || false,
+    skipSeconds: Math.min(120, Math.max(1, Math.round(Number(document.getElementById('sp-skipseconds')?.value) || 10))),
+  };
+  saveSpotifyConfig(cfg);
+
+  fetch('/api/spotify-device-target', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ deviceName: cfg.deviceTargetName })
+  }).catch(() => showToast('No se pudo guardar el dispositivo de Spotify en Cortex.', 'warning'));
+
+  fetch('/api/spotify-playback-offset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: cfg.skipTenSeconds, seconds: cfg.skipSeconds })
+  }).catch(() => showToast('No se pudo guardar el salto configurable.', 'warning'));
+
+  const url      = buildSpotifyOverlayUrl(cfg);
+  const urlRow   = document.getElementById('sp-url-row');
+  const emptyRow = document.getElementById('sp-url-empty');
+  const urlText  = document.getElementById('sp-url-text');
+  const openBtn  = document.getElementById('sp-open-btn');
+  const ruloUrlRow = document.getElementById('rulo-overlay-row');
+  const ruloUrlText = document.getElementById('rulo-overlay-url');
+  const ruloOpenBtn = document.getElementById('rulo-overlay-open');
+
+  if (url) {
+    if (urlText)  urlText.textContent    = url;
+    if (openBtn)  openBtn.href           = url;
+    if (urlRow)   urlRow.style.display   = '';
+    if (emptyRow) emptyRow.style.display = 'none';
+  } else {
+    if (urlRow)   urlRow.style.display   = 'none';
+    if (emptyRow) emptyRow.style.display = '';
+  }
+  if (ruloUrl) {
+    if (ruloUrlText) ruloUrlText.textContent = ruloUrl;
+    if (ruloOpenBtn) ruloOpenBtn.href = ruloUrl;
+    if (ruloUrlRow) ruloUrlRow.style.display = '';
+  } else if (ruloUrlRow) {
+    ruloUrlRow.style.display = 'none';
+  }
+
+  showToast('Configuración de Spotify guardada ✓', 'success');
+}
+
+function copySpotifyUrl() {
+  const url = document.getElementById('sp-url-text')?.textContent || '';
+  if (!url) return;
+  navigator.clipboard.writeText(url)
+    .then(()  => showToast('URL copiada al portapapeles 📋', 'success'))
+    .catch(()  => showToast('No se pudo copiar. Copiala manualmente.', 'warning'));
+}
+
+function copyTextToClipboard(value, message) {
+  if (!value) return;
+  navigator.clipboard.writeText(value)
+    .then(() => showToast(message || 'Copiado al portapapeles', 'success'))
+    .catch(() => showToast('No se pudo copiar. Copialo manualmente.', 'warning'));
+}
+
+function copyRuloUrl() {
+  copyTextToClipboard(document.getElementById('rulo-overlay-url')?.textContent || '', 'URL de Rulo copiada');
+}
+// ─── Fin Spotify Card ─────────────────────────────────────────────────────────
 
 // Select a service and display its logs
 function selectServiceForLogs(serviceId) {

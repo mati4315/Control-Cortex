@@ -74,7 +74,7 @@
     row.dataset.id = item.id;
 
     const platform = document.createElement('select');
-    ['instagram', 'facebook', 'tiktok', 'web'].forEach((key) => {
+    ['instagram', 'facebook', 'tiktok', 'telegram', 'web'].forEach((key) => {
       const option = document.createElement('option');
       option.value = key;
       option.textContent = platformMeta[key].label;

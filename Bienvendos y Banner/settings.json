@@ -39,6 +39,24 @@
       "platform": "custom",
       "handle": "www.cdelu.ar",
       "visible": true
+    },
+    {
+      "id": "custom-5",
+      "platform": "custom",
+      "handle": "Anormalia 22",
+      "visible": true
+    },
+    {
+      "id": "custom-6",
+      "platform": "custom",
+      "handle": "Marcelo Follonier",
+      "visible": true
+    },
+    {
+      "id": "custom-7",
+      "platform": "custom",
+      "handle": "Matias Moreira",
+      "visible": true
     }
   ],
   "backgroundType": "particles",
@@ -53,9 +71,78 @@
   "particlesSpeed": 4.4,
   "particlesGlow": true,
   "animationPreset": "neon-glow",
-  "obsAutoTransition": true,
-  "obsHost": "127.0.0.1",
+  "alertsEnabled": true,
+  "alertFollower": "Matias4315",
+  "alertSubscriber": "JuanStreamer",
+  "alertDonation": "$10.00 de Pedro",
+  "alertCustom": "¡Usa el código STREAM en la tienda!",
+  "transitionState": "visible",
+  "obsHost": "192.168.4.45",
   "obsPort": 4455,
-  "obsPassword": "ZfqswfXVmQFf8uDd",
-  "obsScene": "Escena"
+  "obsPassword": "",
+  "obsScene": "Principal Ambos",
+  "obsAutoTransition": true,
+  "banner": {
+    "loopInterval": 10500,
+    "pauseOnHover": false,
+    "randomMode": true,
+    "items": [
+      {
+        "id": "instagram",
+        "platform": "instagram",
+        "label": "Instagram",
+        "handle": "/cdelu.ar",
+        "visible": true
+      },
+      {
+        "id": "social-1782735020300-412504",
+        "platform": "facebook",
+        "label": "Facebook",
+        "handle": "Marcelo Follonier",
+        "visible": true
+      },
+      {
+        "id": "facebook-2",
+        "platform": "facebook",
+        "label": "Facebook",
+        "handle": "/cdeluweb",
+        "visible": true
+      },
+      {
+        "id": "facebook-1",
+        "platform": "facebook",
+        "label": "Facebook",
+        "handle": "/cdeluArg",
+        "visible": true
+      },
+      {
+        "id": "social-1782735010556-762655",
+        "platform": "telegram",
+        "label": "Instagram",
+        "handle": "t.me/cdeluar",
+        "visible": true
+      },
+      {
+        "id": "social-1782735019572-198461",
+        "platform": "facebook",
+        "label": "Facebook",
+        "handle": "Matias Moreira",
+        "visible": true
+      },
+      {
+        "id": "web",
+        "platform": "web",
+        "label": "Web",
+        "handle": "www.cdelu.ar",
+        "visible": true
+      },
+      {
+        "id": "tiktok",
+        "platform": "tiktok",
+        "label": "TikTok",
+        "handle": "@cdelu.ar",
+        "visible": true
+      }
+    ]
+  }
 }

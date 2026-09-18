@@ -1,5 +1,12 @@
 node_modules/
 **/node_modules/
+# Credenciales locales (nunca versionar)
+.env
+.env.*
+# Estado y datos de chat generados en tiempo de ejecucion
+Rulo/rulo-chat-history.json
+# Respaldos comprimidos
+*.rar
 .git/
 .DS_Store
 desktop.ini

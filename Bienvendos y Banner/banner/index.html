@@ -22,7 +22,40 @@
     </section>
   </main>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script src="/banner/js/shared.js"></script>
   <script src="/banner/js/banner.js"></script>
+  <script>
+    (function() {
+      var socket = io();
+      var firstLoad = true;
+
+      function loadBannerFromServer(bannerData) {
+        if (!bannerData || typeof bannerData !== 'object') return;
+        // Only override if server has data and it's different from current
+        var current = window.BannerStudio.getState();
+        if (firstLoad || JSON.stringify(bannerData.items) !== JSON.stringify(current.items) || bannerData.loopInterval !== current.loopInterval || bannerData.randomMode !== current.randomMode) {
+          window.BannerStudio.setState(bannerData);
+          firstLoad = false;
+        }
+      }
+
+      socket.on('initSettings', function(settings) {
+        if (settings && settings.banner) {
+          loadBannerFromServer(settings.banner);
+        }
+      });
+
+      socket.on('bannerUpdated', function(bannerData) {
+        loadBannerFromServer(bannerData);
+      });
+
+      socket.on('settingsUpdated', function(settings) {
+        if (settings && settings.banner) {
+          loadBannerFromServer(settings.banner);
+        }
+      });
+    })();
+  </script>
 </body>
 </html>

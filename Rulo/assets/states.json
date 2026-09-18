@@ -1,0 +1,13 @@
+{
+  "_contrato": "Estados que Rulo emite en el evento WebSocket rulo_bot_message (campo mood). El archivo de cada estado es Rulo/assets/<estado>.svg y se sirve como /rulo-assets/<estado>.svg.",
+  "_medidas": "512x512 px, fondo transparente, contenido centrado con ~6% de margen para que no se corte en el circulo del avatar.",
+  "_version": "1.0",
+  "states": [
+    { "state": "idle",     "label": "En reposo",            "cuando": "Sin actividad o al terminar de mostrar una respuesta.", "color": "#9fd50b", "animacion": "respiracion lenta", "asset": "idle.svg",     "listo": true },
+    { "state": "thinking", "label": "Buscando",             "cuando": "Pedido interpretado y busqueda/arranque en Spotify.",   "color": "#6ea8fe", "animacion": "balanceo + burbuja", "asset": "thinking.svg", "listo": true },
+    { "state": "success",  "label": "Pedido aceptado",      "cuando": "Tema encontrado y reproduciendo.",                      "color": "#9fd50b", "animacion": "rebote corto",       "asset": "success.svg",  "listo": true },
+    { "state": "warning",  "label": "Aviso o cooldown",     "cuando": "Cooldown activo, pedido ambiguo o dispositivo ausente.", "color": "#f5b13d", "animacion": "vibracion suave",    "asset": "warning.svg",  "listo": true },
+    { "state": "error",    "label": "Fallo",                "cuando": "No se encontro el tema o fallo la reproduccion.",        "color": "#ef5f5f", "animacion": "vibracion corta",    "asset": "error.svg",    "listo": true },
+    { "state": "speaking", "label": "Repitiendo respuesta", "cuando": "Click en una respuesta del historial.",                   "color": "#9fd50b", "animacion": "boca animada",       "asset": "speaking.svg", "listo": true }
+  ]
+}

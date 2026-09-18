@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Prototipo de mascota</title>
+  <style>
+    :root { --accent:#9fd50b; --bg:#0d1014; --panel:#171c24; --line:#2c3440; --text:#f4f6f8; --muted:#a9b3c0; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:15px "Segoe UI",Arial,sans-serif; }
+    main { width:min(1000px,100%); margin:0 auto; padding:26px 20px 60px; }
+    h1 { margin:0 0 6px; font-size:1.7rem; } h1 span { color:var(--accent); }
+    h2 { margin:26px 0 12px; font-size:1.05rem; }
+    p.lead { margin:0 0 18px; color:var(--muted); max-width:70ch; }
+    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 0 6px; }
+    .toolbar button { border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:6px; padding:9px 13px; font-weight:700; cursor:pointer; }
+    .toolbar button.active { background:var(--accent); color:#111; border-color:var(--accent); }
+    input[type=color] { width:52px; height:40px; padding:2px; border:1px solid var(--line); border-radius:6px; background:var(--panel); cursor:pointer; }
+    .stage { display:grid; grid-template-columns:300px 1fr; gap:22px; align-items:start; }
+    @media(max-width:760px){ .stage { grid-template-columns:1fr; } }
+    .pet-card { border:1px solid var(--line); border-radius:12px; background:linear-gradient(160deg,#151a21,#0d1014); padding:22px; display:grid; place-items:center; gap:14px; }
+    .pet { position:relative; width:190px; height:190px; --tint:var(--accent); }
+    .body { position:absolute; inset:0; border-radius:46% 46% 44% 44%; background:radial-gradient(circle at 34% 26%, #ffffff22, transparent 46%), linear-gradient(160deg, var(--tint), #0e1116 140%); border:2px solid #ffffff22; box-shadow:0 14px 32px rgba(0,0,0,.45), inset 0 -14px 26px rgba(0,0,0,.28); transition:background 240ms ease, transform 240ms ease; animation:float 3.6s ease-in-out infinite; }
+    .face { position:absolute; left:0; right:0; top:58px; height:70px; }
+    .eye { position:absolute; top:8px; width:24px; height:26px; border-radius:50%; background:#0b0d11; box-shadow:inset 0 -4px 0 #ffffff26; }
+    .eye.left { left:44px; } .eye.right { right:44px; }
+    .eye::after { content:''; position:absolute; top:5px; left:5px; width:8px; height:8px; border-radius:50%; background:#ffffffcc; }
+    .mouth { position:absolute; left:50%; transform:translateX(-50%); top:44px; width:34px; height:9px; border-radius:0 0 18px 18px; background:#0b0d11; transition:all 200ms ease; }
+    .hat { position:absolute; left:50%; transform:translateX(-50%); top:-16px; font-size:1.4rem; opacity:0; transition:opacity 200ms ease; }
+    @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-7px); } }
+    @keyframes blink { 0%,92%,100% { transform:scaleY(1); } 96% { transform:scaleY(.12); } }
+    @keyframes talk { 0%,100% { height:9px; } 50% { height:20px; } }
+    @keyframes shake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-5px); } 75% { transform:translateX(5px); } }
+    @keyframes bob { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-9px) rotate(-4deg); } }
+    @keyframes pop { 0% { transform:scale(.9); } 60% { transform:scale(1.06); } 100% { transform:scale(1); } }
+    .pet .eye { animation:blink 4.2s ease-in-out infinite; }
+    /* Estados: mismas claves que emite el backend (campo mood). */
+    .pet[data-state="idle"] { --tint:var(--accent); }
+    .pet[data-state="thinking"] { --tint:#6ea8fe; }
+    .pet[data-state="thinking"] .body { animation:bob 1.5s ease-in-out infinite; }
+    .pet[data-state="thinking"] .eye { transform:translate(-4px,-4px); }
+    .pet[data-state="thinking"] .mouth { width:16px; height:16px; border-radius:50%; background:#0b0d11; }
+    .pet[data-state="thinking"] .hat { content:''; opacity:1; }
+    .pet[data-state="success"] { --tint:var(--accent); }
+    .pet[data-state="success"] .body { animation:pop .55s ease-out 1, float 3.6s ease-in-out .6s infinite; }
+    .pet[data-state="success"] .eye { height:12px; border-radius:12px 12px 0 0; background:#0b0d11; }
+    .pet[data-state="success"] .eye::after { display:none; }
+    .pet[data-state="success"] .mouth { width:40px; height:18px; border-radius:0 0 22px 22px; }
+    .pet[data-state="warning"] { --tint:#f5b13d; }
+    .pet[data-state="warning"] .body { animation:shake .9s ease-in-out infinite; }
+    .pet[data-state="warning"] .eye { height:9px; border-radius:9px; }
+    .pet[data-state="warning"] .mouth { width:26px; height:6px; border-radius:6px; }
+    .pet[data-state="error"] { --tint:#ef5f5f; }
+    .pet[data-state="error"] .body { animation:shake .45s ease-in-out 3; }
+    .pet[data-state="error"] .eye { background:transparent; box-shadow:none; height:22px; }
+    .pet[data-state="error"] .eye::after { left:2px; top:8px; width:22px; height:5px; border-radius:3px; background:#0b0d11; transform:rotate(45deg); }
+    .pet[data-state="error"] .eye.right::after { transform:rotate(-45deg); }
+    .pet[data-state="error"] .mouth { width:26px; height:8px; border-radius:8px 8px 0 0; background:#0b0d11; }
+    .pet[data-state="speaking"] { --tint:var(--accent); }
+    .pet[data-state="speaking"] .mouth { animation:talk .38s ease-in-out infinite; }
+    .pet[data-state="speaking"] .body { animation:pop .5s ease-out 1, float 3.6s ease-in-out .5s infinite; }
+    .state-name { font-weight:800; letter-spacing:.06em; text-transform:uppercase; font-size:.78rem; color:var(--muted); }
+    .panel { border:1px solid var(--line); border-radius:12px; background:var(--panel); padding:18px; }
+    .panel ul { margin:8px 0 0; padding-left:18px; color:var(--muted); line-height:1.55; }
+    code { background:#0b0e13; border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:.86em; }
+    .overlay-frame { width:100%; height:170px; border:1px dashed var(--line); border-radius:10px; background:#0b0e13; }
+    .swatches { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+    .gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:12px; }
+    .asset-card { border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:12px; display:grid; place-items:center; gap:8px; }
+    .asset-card img { width:96px; height:96px; }
+    .asset-card .state-name { color:var(--text); font-weight:800; text-transform:uppercase; letter-spacing:.05em; font-size:.72rem; }
+    .asset-card .meta { font-size:.78rem; color:var(--muted); text-align:center; line-height:1.35; }
+    .asset-card.ok .meta { color:var(--accent); }
+    .asset-card.bad .meta { color:#ef5f5f; }
+    .swatch { width:34px; height:34px; border-radius:8px; border:1px solid var(--line); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1><span>Rulo</span> | Prototipo de mascota</h1>
+    <p class="lead">Direcciones visuales en CSS puro para los seis estados que ya emite el backend. El personaje de abajo es el prototipo en CSS para comparar direcciones; los seis SVG reales ya están generados y el overlay los usa cuando la mascota está activada (galería más abajo). Los assets van en <code>Rulo\assets\&lt;estado&gt;.svg</code> (512x512, fondo transparente).</p>
+
+    <div class="toolbar">
+      <button type="button" data-state="idle">1 · idle</button>
+      <button type="button" data-state="thinking">2 · thinking</button>
+      <button type="button" data-state="success" class="active">3 · success</button>
+      <button type="button" data-state="warning">4 · warning</button>
+      <button type="button" data-state="error">5 · error</button>
+      <button type="button" data-state="speaking">6 · speaking</button>
+      <span style="color:var(--muted)">Color base</span>
+      <input id="accent" type="color" value="#9fd50b">
+      <button type="button" id="toConfig" title="Guardar este color como color principal de Rulo">Usar este color en Rulo</button>
+    </div>
+
+    <div class="stage">
+      <div class="pet-card">
+        <div class="pet" id="pet" data-state="success">
+          <div class="body">
+            <div class="hat">💭</div>
+            <div class="face">
+              <div class="eye left"></div>
+              <div class="eye right"></div>
+              <div class="mouth"></div>
+            </div>
+          </div>
+        </div>
+        <div class="state-name" id="stateName">success</div>
+      </div>
+      <div class="panel">
+        <strong>Qué significa cada estado</strong>
+        <ul>
+          <li><code>idle</code> — sin actividad: color base, respiración lenta.</li>
+          <li><code>thinking</code> — buscando en Spotify: azul, ojos arriba, burbuja.</li>
+          <li><code>success</code> — pedido aceptado: color base, rebote y sonrisa.</li>
+          <li><code>warning</code> — cooldown o aviso: ámbar, ojos entrecerrados, vibración suave.</li>
+          <li><code>error</code> — pedido fallido: rojo, ojos en X, vibración corta.</li>
+          <li><code>speaking</code> — repetición de una respuesta: boca animada.</li>
+        </ul>
+        <p style="color:var(--muted);margin:12px 0 0">El backend valida el campo <code>mood</code> en <code>POST /api/rulo-bot-message</code> (estados permitidos exactos). El módulo de Spotify todavía envía <code>success</code> por defecto; cuando haya arte, se afina por caso (cooldown → warning, fallo → error).</p>
+        <div class="swatches" id="swatches"></div>
+      </div>
+    </div>
+
+    <h2>Assets reales del overlay</h2>
+    <p class="lead">Estos son los SVG que el overlay ya usa cuando la mascota está activada (uno por estado, servidos como <code>/rulo-assets/&lt;estado&gt;.svg</code>).</p>
+    <div class="gallery" id="gallery"></div>
+
+    <h2>Integración real (overlay con este estado)</h2>
+    <iframe class="overlay-frame" id="overlayPreview" title="Vista previa del overlay"></iframe>
+    <p class="lead" style="margin-top:10px">Esta vista previa usa el overlay real (<code>/rulo-bot-overlay.html?preview=1&amp;mood=...</code>). Si activás la mascota en el dashboard y todavía no hay assets, se muestra la inicial como respaldo.</p>
+  </main>
+  <script>
+    (function () {
+      const pet = document.getElementById('pet');
+      const stateName = document.getElementById('stateName');
+      const accent = document.getElementById('accent');
+      const preview = document.getElementById('overlayPreview');
+      const states = ['idle','thinking','success','warning','error','speaking'];
+      const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
+      const params = new URLSearchParams(location.search);
+      const startAccent = (params.get('accent') || '#9fd50b').replace('#', '');
+      if (/^[0-9a-f]{6}$/i.test(startAccent)) accent.value = '#' + startAccent;
+
+      function paint(state) {
+        const value = states.indexOf(state) === -1 ? 'idle' : state;
+        pet.dataset.state = value;
+        stateName.textContent = value;
+        document.querySelectorAll('.toolbar button[data-state]').forEach(function (btn) {
+          btn.classList.toggle('active', btn.dataset.state === value);
+        });
+        preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + value + '&message=' + encodeURIComponent('Vista previa del estado ' + value + '.') + '&v=' + Date.now();
+      }
+
+      function applyAccent(value) {
+        document.documentElement.style.setProperty('--accent', value);
+        document.querySelectorAll('.swatch').forEach(function (swatch) {
+          swatch.style.background = 'linear-gradient(160deg,' + value + ',#0e1116 140%)';
+          swatch.title = value;
+        });
+      }
+
+      document.querySelectorAll('.toolbar button[data-state]').forEach(function (btn) {
+        btn.onclick = function () { paint(btn.dataset.state); };
+      });
+      accent.oninput = function () { applyAccent(accent.value); };
+
+      document.getElementById('toConfig').onclick = function () {
+        fetch('/api/rulo-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ accent: accent.value }) })
+          .then(function (r) { return r.json(); })
+          .then(function () { document.getElementById('toConfig').textContent = 'Color aplicado en Rulo ✓'; })
+          .catch(function () { document.getElementById('toConfig').textContent = 'No se pudo aplicar'; });
+      };
+
+      window.addEventListener('keydown', function (event) {
+        const index = parseInt(event.key, 10) - 1;
+        if (index >= 0 && index < states.length) paint(states[index]);
+      });
+
+      ['#9fd50b','#221a61','#6ea8fe','#f5b13d','#ef5f5f','#e94f9c','#22d3ee'].forEach(function (color) {
+        const swatch = document.createElement('div');
+        swatch.className = 'swatch';
+        swatch.style.background = 'linear-gradient(160deg,' + color + ',#0e1116 140%)';
+        swatch.title = color + ' (clic para probar)';
+        swatch.onclick = function () { accent.value = color; applyAccent(color); };
+        document.getElementById('swatches').appendChild(swatch);
+      });
+
+      // Galeria de los SVG reales: reporta tamaño (o error) al lado de cada uno.
+      const assetStates = ['idle','thinking','success','warning','error','speaking'];
+      const gallery = document.getElementById('gallery');
+      assetStates.forEach(function (state) {
+        const card = document.createElement('div');
+        card.className = 'asset-card';
+        card.innerHTML = '<img alt="Rulo ' + state + '"><div class="state-name">' + state + '</div><div class="meta">cargando...</div>';
+        const img = card.querySelector('img');
+        const meta = card.querySelector('.meta');
+        img.onload = function () {
+          const w = img.naturalWidth, h = img.naturalHeight;
+          const good = w > 0 && h > 0;
+          card.classList.add(good ? 'ok' : 'bad');
+          meta.textContent = good ? (w + ' x ' + h + ' OK') : 'ERROR: tamaño 0';
+        };
+        img.onerror = function () { card.classList.add('bad'); meta.textContent = 'ERROR: no carga'; };
+        img.src = '/rulo-assets/' + state + '.svg';
+        gallery.appendChild(card);
+      });
+
+      applyAccent(accent.value);
+      paint(params.get('state') || 'success');
+    }());
+  </script>
+</body>
+</html>

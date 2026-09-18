@@ -1,5 +1,5 @@
 (function () {
-  const { getState, onChange, formatHandle, platformMeta } = window.BannerStudio;
+  const { getState, onChange, updateState, formatHandle, platformMeta } = window.BannerStudio;
   const root = document.body;
   const labelEl = document.getElementById('social-label');
   const handleEl = document.getElementById('social-handle');
@@ -9,11 +9,23 @@
   let switchTimer = null;
   let currentIndex = 0;
   let currentItems = [];
+  let lastState = null;
   const TRANSITION_OUT_MS = 360;
   const TRANSITION_IN_DELAY_MS = 90;
 
   function visibleItems(state) {
     return state.items.filter((item) => item.visible);
+  }
+
+  function shuffleArray(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
   }
 
   function setTheme(platform) {
@@ -80,6 +92,7 @@
     stopLoop();
     currentItems = visibleItems(state);
     currentIndex = 0;
+    lastState = state;
 
     if (!currentItems.length) {
       labelEl.textContent = 'CDelu';
@@ -94,6 +107,30 @@
     if (currentItems.length > 1) {
       loopTimer = setInterval(() => {
         currentIndex = (currentIndex + 1) % currentItems.length;
+        // Full cycle completed and randomMode is on -> reshuffle and restart
+        if (currentIndex === 0 && lastState && lastState.randomMode) {
+          var allItems = lastState.items.slice();
+          var visibleIndices = [];
+          var hiddenItems = [];
+          allItems.forEach(function(item, idx) {
+            if (item.visible) visibleIndices.push(idx);
+            else hiddenItems.push(item);
+          });
+          var shuffledVis = shuffleArray(visibleItems(lastState));
+          var newItems = [];
+          var visIdx = 0;
+          allItems.forEach(function(item) {
+            if (item.visible) {
+              newItems.push(shuffledVis[visIdx]);
+              visIdx++;
+            } else {
+              newItems.push(item);
+            }
+          });
+          window.BannerStudio.updateState({ items: newItems });
+          // onChange will call startLoop again with shuffled state
+          return;
+        }
         renderItem(currentItems[currentIndex], true);
       }, Math.max(1500, Number(state.loopInterval) || 4200));
     }

@@ -538,6 +538,48 @@ body {
   box-shadow: 0 4px 12px var(--danger-glow);
 }
 
+.btn-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.btn-warning:hover {
+  background: #f59e0b;
+  color: #000;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+}
+
+.btn-obs-header {
+  margin-left: 14px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.18) 0%, rgba(217, 119, 6, 0.28) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.15);
+}
+
+.btn-obs-header:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(217, 119, 6, 0.55) 100%);
+  border-color: rgba(251, 191, 36, 0.85);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+  color: #ffffff;
+}
+
+.btn-obs-header:active {
+  transform: translateY(0);
+}
+
 .btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -1040,3 +1082,217 @@ input[type="text"]:focus, input[type="url"]:focus {
   gap: 6px;
   align-items: center;
 }
+
+/* ─── Spotify Card ─────────────────────────────────────────────── */
+.status-badge-spotify {
+  background: rgba(29, 185, 84, 0.15);
+  color: #1db954;
+  border: 1px solid rgba(29, 185, 84, 0.35);
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spotify-card {
+  border-color: rgba(29, 185, 84, 0.25) !important;
+  background: linear-gradient(135deg, rgba(13, 20, 35, 0.75), rgba(10, 30, 18, 0.6)) !important;
+  cursor: default !important;
+}
+.spotify-card:hover {
+  border-color: rgba(29, 185, 84, 0.45) !important;
+  box-shadow: 0 0 0 1px rgba(29, 185, 84, 0.2), 0 8px 24px rgba(0,0,0,0.4) !important;
+}
+
+.spotify-config {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.spotify-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.spotify-device-target {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 8px 10px;
+  border-left: 3px solid rgba(29, 185, 84, 0.65);
+  background: rgba(29, 185, 84, 0.06);
+}
+
+.sp-device-help {
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.sp-device-help i {
+  color: #1db954;
+  margin-right: 4px;
+}
+
+.spotify-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.spotify-field-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.spotify-field-group label small {
+  text-transform: none;
+  font-weight: 400;
+  letter-spacing: 0;
+  opacity: 0.7;
+}
+
+.spotify-field-group input[type="text"],
+.spotify-field-group select {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  padding: 6px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+
+.spotify-field-group input[type="text"]:focus,
+.spotify-field-group select:focus {
+  border-color: rgba(29, 185, 84, 0.5);
+  background: rgba(29, 185, 84, 0.05);
+}
+
+.spotify-field-group select option {
+  background: #111;
+  color: #f3f4f6;
+}
+
+.spotify-options-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px 10px;
+}
+
+.sp-opt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.79rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+}
+
+.sp-opt input[type="checkbox"] {
+  accent-color: #1db954;
+  width: 13px;
+  height: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.sp-offset-opt input[type="number"] {
+  width: 52px;
+  min-width: 52px;
+  padding: 3px 5px;
+  margin: 0 2px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(29, 185, 84, 0.35);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.78rem;
+}
+.rulo-url-box { border-color: rgba(159, 213, 11, .45); }
+.sp-rulo-url-kind { min-width: 62px; color: #9fd50b; font-size: .78rem; font-weight: 700; }
+
+.spotify-style-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.sp-accent-group input[type="color"] {
+  width: 48px;
+  height: 34px;
+  padding: 2px 3px;
+  border-radius: 6px;
+  border: 1px solid var(--border-light);
+  background: rgba(255,255,255,0.06);
+  cursor: pointer;
+}
+
+.spotify-url-box {
+  background: rgba(29, 185, 84, 0.07);
+  border: 1px solid rgba(29, 185, 84, 0.2);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sp-url-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #1db954;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sp-url-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sp-url-line code {
+  flex: 1;
+  font-size: 0.72rem;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  color: #a7f3d0;
+  background: rgba(0,0,0,0.3);
+  border-radius: 4px;
+  padding: 4px 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.sp-obs-hint {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sp-obs-hint i {
+  color: #1db954;
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .spotify-fields        { grid-template-columns: 1fr; }
+  .spotify-options-grid  { grid-template-columns: repeat(2, 1fr); }
+  .spotify-style-row     { flex-direction: column; }
+}
+/* ─── Fin Spotify Card ──────────────────────────────────────────── */

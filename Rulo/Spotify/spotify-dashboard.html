@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Spotify</title>
+  <style>
+    :root { --accent:#9fd50b; --bg:#101318; --panel:#191e26; --panel-alt:#151a21; --line:#303845; --text:#f4f6f8; --muted:#aab4c0; --danger:#ff7d7d; --spotify:#1db954; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:15px "Segoe UI",Arial,sans-serif; }
+    main { width:min(1040px,100%); margin:0 auto; padding:26px 20px 52px; }
+    header { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:16px; }
+    h1 { margin:0; font-size:1.7rem; } h1 span { color:var(--accent); }
+    header p { margin:5px 0 0; color:var(--muted); }
+    nav { display:flex; gap:8px; }
+    header a { color:#111; background:var(--accent); border-radius:5px; padding:9px 12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+    header a.link-secondary { color:var(--text); background:var(--line); }
+    .status { color:var(--muted); font-size:.85rem; text-align:right; }
+    h2 { margin:26px 0 12px; font-size:1.05rem; }
+    h2 small { color:var(--muted); font-weight:400; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; }
+    .chip { border:1px solid var(--line); border-radius:999px; padding:7px 12px; background:var(--panel); font-size:.85rem; color:var(--muted); }
+    .chip strong { color:var(--text); font-weight:700; }
+    .chip.is-ok { border-color:var(--spotify); } .chip.is-ok strong { color:var(--spotify); }
+    .chip.is-warn { border-color:#c9a227; } .chip.is-warn strong { color:#e6c34a; }
+    .chip.is-bad { border-color:var(--danger); } .chip.is-bad strong { color:var(--danger); }
+    form.grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+    .field { padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+    .field.wide { grid-column:1/-1; }
+    label { display:block; margin-bottom:6px; font-weight:700; }
+    small { display:block; margin-top:5px; color:var(--muted); line-height:1.35; }
+    input[type=text], input[type=number] { width:100%; border:1px solid #465160; border-radius:5px; background:#0e1116; color:var(--text); padding:9px; font:inherit; }
+    input[type=checkbox] { width:auto; accent-color:var(--accent); transform:scale(1.15); margin-right:8px; }
+    .check { display:flex; align-items:flex-start; margin:0; }
+    .check span { font-weight:700; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .row input[type=text] { flex:1; min-width:180px; }
+    button { border:0; border-radius:5px; padding:10px 15px; color:#111; background:var(--accent); font-weight:800; cursor:pointer; font:inherit; font-weight:800; }
+    button.secondary { color:var(--text); background:var(--line); }
+    button.small { padding:7px 11px; font-size:.85rem; }
+    #notice { min-height:1.3em; color:var(--accent); font-weight:700; }
+    .test-mode-on { border-color:#e6c34a; background:#20211a; }
+    .devices { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+    .device { display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid var(--line); border-radius:6px; padding:8px 10px; background:var(--panel-alt); font-size:.9rem; }
+    .device.is-target { border-color:var(--accent); }
+    .device .meta { color:var(--muted); font-size:.8rem; }
+    .log { list-style:none; margin:0; padding:0; border:1px solid var(--line); border-radius:8px; background:var(--panel); max-height:340px; overflow:auto; }
+    .log-item { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:9px 12px; border-bottom:1px solid #232a34; font-size:.88rem; align-items:center; }
+    .log-item:last-child { border-bottom:0; }
+    .log-item .src { color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
+    .log-item .msg { color:var(--muted); }
+    .log-item.ok .msg strong { color:var(--spotify); } .log-item.fail .msg strong { color:var(--danger); }
+    .log-item time { color:#7c8794; font-size:.75rem; }
+    .empty { color:var(--muted); padding:12px; }
+    .test-result { margin-top:10px; font-size:.92rem; color:var(--muted); }
+    .test-result.pending { color:#e6c34a; }
+    .test-result.ok { color:var(--spotify); font-weight:700; }
+    .test-result.fail { color:var(--danger); font-weight:700; }
+    @media(max-width:700px){ form.grid{grid-template-columns:1fr;} .field.wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} nav{margin-top:10px;flex-wrap:wrap;} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1><span>Rulo</span> · Spotify</h1>
+        <p>Pedidos de música por chat: esperas, dispositivo, pruebas y registro.</p>
+      </div>
+      <nav>
+        <a id="histLink" href="/rulo-chat-historial.html">Historial</a>
+        <a id="dashLink" class="link-secondary" href="/rulo-dashboard.html">Dashboard Rulo</a>
+      </nav>
+      <div class="status" id="status">Cargando...</div>
+    </header>
+
+    <h2>Estado</h2>
+    <div class="chips">
+      <span class="chip" id="stBackend">Backend: <strong>…</strong></span>
+      <span class="chip" id="stClient">Extensión SSN: <strong>…</strong></span>
+      <span class="chip" id="stToken">Spotify: <strong>…</strong></span>
+      <span class="chip" id="stDevice">Dispositivo activo: <strong>…</strong></span>
+      <span class="chip" id="stEffective">Espera efectiva: <strong>…</strong></span>
+    </div>
+
+    <h2>Interruptores</h2>
+    <form class="grid" id="form">
+      <div class="field">
+        <label class="check"><input type="checkbox" data-key="enabled"><span>Pedidos de música por chat</span></label>
+        <small>Apagado: el bot ignora los pedidos, pero los comandos de diagnóstico siguen respondiendo.</small>
+      </div>
+      <div class="field" id="testModeField">
+        <label class="check"><input type="checkbox" data-key="testMode"><span>Modo prueba (sin esperas)</span></label>
+        <small>Saltea la espera global y la de cada usuario. Ideal para probar temas seguidos sin esperar. El bloqueo de "pedido en curso" sigue activo.</small>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" data-key="requireCommand"><span>Solo comandos (!playnow, !tema, !musica)</span></label>
+        <small>Apagado: también entiende frases como «poneme un tema de Amar Azul».</small>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" data-key="personalize"><span>Respuestas personalizadas</span></label>
+        <small>Antepone el nombre del que pidió: «Listo Mati, ya se está reproduciendo…».</small>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" data-key="announce"><span>Avisos en el overlay de Rulo</span></label>
+        <small>Si lo apagás, el módulo no manda mensajes al overlay (el chat sigue recibiendo la respuesta).</small>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" data-key="autoContinue"><span>Continuidad automática</span></label>
+        <small>Encola un tema similar cuando termina el pedido, para que no quede silencio.</small>
+      </div>
+
+      <h2 class="wide" style="margin:6px 0 0">Esperas y filtros</h2>
+      <div class="field">
+        <label for="cooldown">Espera global (segundos)</label>
+        <input type="number" data-key="cooldownSeconds" id="cooldown" min="0" max="3600" step="1">
+        <small>0 = sin espera entre pedidos distintos. Mods y host no la sufren.</small>
+      </div>
+      <div class="field">
+        <label for="userCooldown">Espera por usuario (segundos)</label>
+        <input type="number" data-key="userCooldownSeconds" id="userCooldown" min="0" max="7200" step="1">
+        <small>0 = la misma persona puede pedir seguido.</small>
+      </div>
+      <div class="field">
+        <label for="minText">Largo mínimo del comentario</label>
+        <input type="number" data-key="minTextLength" id="minText" min="3" max="120" step="1">
+        <small>Comentarios más cortos se ignoran (evita falsos positivos tipo «3»).</small>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" data-key="skipEnabled"><span>Quitar los primeros segundos</span></label>
+        <input type="number" data-key="skipSeconds" id="skipSeconds" min="1" max="120" step="1" style="margin-top:8px">
+        <small>Arranca el tema en ese segundo y corta el final, para empalmar canciones sin silencio.</small>
+      </div>
+      <div class="field">
+        <label for="pollSeconds">Cada cuánto consulta la extensión (segundos)</label>
+        <input type="number" data-key="pollSeconds" id="pollSeconds" min="1" max="15" step="1">
+        <small>El dashboard deja el pedido en cola y la extensión lo busca en su próxima consulta: <strong>1 s = casi instantáneo</strong>. Subilo si querés menos tráfico en la red.</small>
+      </div>
+    </form>
+
+    <h2>Dispositivo que debe reproducir</h2>
+    <div class="field">
+      <div class="row">
+        <input type="text" data-key="deviceTargetName" id="deviceTarget" placeholder="Vacío = automático (Ej: NOTEBOOK-MATI)">
+        <button class="small secondary" id="btnDevices" type="button">Buscar dispositivos</button>
+      </div>
+      <small>Parte del nombre que muestra Spotify alcanza. Si está vacío, usa el dispositivo activo o la primera PC.</small>
+      <div class="devices" id="devices"><span class="empty">Todavía no hay dispositivos reportados. Abrí Spotify en la PC del OBS y usá «Buscar dispositivos».</span></div>
+    </div>
+
+    <h2>Pruebas</h2>
+    <div class="field">
+      <label for="testQuery">Probar un tema o artista</label>
+      <div class="row">
+        <input type="text" id="testQuery" placeholder="Ej: Amar Azul Yo Tomo Licor">
+        <button id="btnTest" type="button">Reproducir ahora</button>
+        <button id="btnSearch" class="secondary" type="button">Buscar sin reproducir</button>
+      </div>
+      <small>Se saltea el parser y las esperas: es como si el streamer pidiera el tema. «Buscar sin reproducir» usa la misma tolerancia a errores de escritura y solo muestra qué encontró.</small>
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <label for="simComment">Simular un comentario del chat</label>
+      <div class="row">
+        <input type="text" id="simComment" placeholder="Ej: che poneme un tema de Damas Gratis">
+        <input type="text" id="simRequester" placeholder="Usuario" style="max-width:150px">
+        <button id="btnSimulate" type="button" class="secondary">Simular comentario</button>
+        <button id="btnParse" type="button" class="secondary">Solo analizar</button>
+      </div>
+      <small>Pasa por el mismo parser que el chat real: sirve para ver si una frase se entiende. «Solo analizar» muestra qué entendió sin reproducir nada.</small>
+      <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
+      <label>Transporte</label>
+      <div class="row">
+        <button class="small secondary" data-transport="pause" type="button">Pausa</button>
+        <button class="small secondary" data-transport="resume" type="button">Reanudar</button>
+        <button class="small secondary" data-transport="next" type="button">Siguiente</button>
+        <button class="small secondary" data-transport="previous" type="button">Anterior</button>
+      </div>
+      <small>Se ejecutan en la PC del OBS a través de la extensión conectada.</small>
+      <div class="test-result" id="testResult"></div>
+    </div>
+
+    <h2>Correcciones aprendidas <small id="aliasCount"></small></h2>
+    <div class="field">
+      <small>Cuando alguien escribe un nombre con error y el bot lo encuentra igual (por ejemplo «laberiso» → «la beriso»), la corrección se guarda acá y la próxima vez busca directo. También podés cargarla a mano antes de que pase.</small>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="aliasFrom" placeholder="Cuando escriben…  (ej: laberiso)">
+        <input type="text" id="aliasTo" placeholder="Buscar en Spotify…  (ej: la beriso)">
+        <button class="small" id="btnAliasAdd" type="button">Agregar</button>
+        <button class="small secondary" id="btnAliasClear" type="button">Vaciar</button>
+      </div>
+      <div class="devices" id="aliasList"><span class="empty">Sin correcciones guardadas.</span></div>
+    </div>
+
+    <h2>Registro de pedidos <small id="logCount"></small></h2>
+    <div class="row" style="margin-bottom:8px">
+      <button class="small secondary" id="btnClearLog" type="button">Vaciar registro</button>
+      <span id="notice"></span>
+    </div>
+    <ul class="log" id="log"><li class="empty">Sin pedidos registrados todavía.</li></ul>
+  </main>
+  <script>
+    (function () {
+      "use strict";
+      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","pollSeconds","deviceTargetName"];
+      const el = id => document.getElementById(id);
+      const status = el('status');
+      const notice = el('notice');
+      const logList = el('log');
+      const devicesBox = el('devices');
+      const session = new URLSearchParams(location.search).get('session') || '';
+      const field = key => document.querySelector('[data-key="' + key + '"]');
+      let saveTimer = null;
+      let settingsLoaded = false;
+      let watchTimer = null;
+
+      if (session) {
+        el('histLink').href = '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+        el('dashLink').href = '/rulo-dashboard.html?session=' + encodeURIComponent(session);
+      }
+
+      function esc(value) {
+        return String(value === undefined || value === null ? '' : value)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      function showNotice(text, error) {
+        notice.textContent = text || '';
+        notice.style.color = error ? 'var(--danger)' : 'var(--accent)';
+        setTimeout(() => { if (notice.textContent === text) notice.textContent = ''; }, 3500);
+      }
+
+      function readForm() {
+        const out = {};
+        KEYS.forEach(key => {
+          const node = field(key);
+          if (!node) return;
+          if (node.type === 'checkbox') out[key] = node.checked;
+          else if (node.type === 'number') out[key] = Number(node.value);
+          else out[key] = node.value;
+        });
+        return out;
+      }
+
+      function fillForm(settings) {
+        KEYS.forEach(key => {
+          const node = field(key);
+          if (!node || settings[key] === undefined) return;
+          if (node.type === 'checkbox') node.checked = settings[key] === true;
+          else node.value = settings[key];
+        });
+        el('testModeField').classList.toggle('test-mode-on', settings.testMode === true);
+      }
+
+      function formIsBusy() {
+        if (saveTimer) return true;
+        const active = document.activeElement;
+        if (!active) return false;
+        if (active === el('testQuery') || active === el('simComment') || active === el('simRequester')) return false;
+        return active.hasAttribute && active.hasAttribute('data-key');
+      }
+
+      function chip(id, label, value, state) {
+        const node = el(id);
+        if (!node) return;
+        node.className = 'chip' + (state ? ' is-' + state : '');
+        node.innerHTML = label + ': <strong>' + esc(value) + '</strong>';
+      }
+
+      function renderStatus(data) {
+        const client = data.client || {};
+        const seconds = client.sinceLastSeenMs === null || client.sinceLastSeenMs === undefined
+          ? null
+          : Math.round(client.sinceLastSeenMs / 1000);
+        const version = client.version ? ' v' + client.version : '';
+        const link = client.push ? ' · instantánea' : (client.connected ? ' · por consulta' : '');
+        chip('stBackend', 'Backend', 'activo', 'ok');
+        chip('stClient', 'Extensión SSN',
+          client.connected ? 'conectada' + version + link + (seconds !== null ? ' (hace ' + seconds + 's)' : '') : 'sin conexión',
+          client.connected ? (client.push ? 'ok' : 'warn') : 'bad');
+        chip('stToken', 'Spotify', client.hasToken ? 'conectado' : (client.connected ? 'sin token' : 'desconocido'),
+          client.hasToken ? 'ok' : 'warn');
+        chip('stDevice', 'Dispositivo activo', (data.devices && data.devices.activeName) || '—', '');
+        const settings = data.settings || {};
+        const effective = settings.testMode ? '0s (modo prueba)' : (settings.effectiveCooldownSeconds + 's / ' + settings.effectiveUserCooldownSeconds + 's');
+        chip('stEffective', 'Espera efectiva', effective, settings.testMode ? 'warn' : '');
+      }
+
+      function renderDevices(data) {
+        const list = (data.devices && data.devices.devices) || [];
+        const target = (readForm().deviceTargetName || '').trim().toLowerCase();
+        if (!list.length) {
+          devicesBox.innerHTML = '<span class="empty">Todavía no hay dispositivos reportados. Abrí Spotify en la PC del OBS y usá «Buscar dispositivos».</span>';
+          return;
+        }
+        devicesBox.innerHTML = list.map(device => {
+          const isTarget = target && String(device.name || '').toLowerCase().includes(target);
+          const flags = [];
+          if (device.isActive) flags.push('activo');
+          if (device.isRestricted) flags.push('restringido');
+          if (Number.isFinite(device.volumePercent) && device.volumePercent !== null) flags.push(device.volumePercent + '%');
+          return '<div class="device' + (isTarget ? ' is-target' : '') + '">' +
+            '<span><strong>' + esc(device.name) + '</strong> <span class="meta">' + esc(device.type || '') + (flags.length ? ' · ' + esc(flags.join(' · ')) : '') + '</span></span>' +
+            '<button class="small secondary" type="button" data-device="' + esc(device.name) + '">Usar este</button>' +
+          '</div>';
+        }).join('');
+        devicesBox.querySelectorAll('[data-device]').forEach(button => {
+          button.addEventListener('click', () => {
+            field('deviceTargetName').value = button.getAttribute('data-device');
+            save();
+          });
+        });
+      }
+
+      function renderAliases(aliases) {
+        const keys = Object.keys(aliases || {});
+        el('aliasCount').textContent = keys.length ? '(' + keys.length + ')' : '';
+        const box = el('aliasList');
+        if (!keys.length) {
+          box.innerHTML = '<span class="empty">Sin correcciones guardadas.</span>';
+          return;
+        }
+        box.innerHTML = keys.map(key =>
+          '<div class="device"><span><strong>' + esc(key) + '</strong> <span class="meta">→ ' + esc(aliases[key]) + '</span></span>' +
+          '<button class="small secondary" type="button" data-alias="' + esc(key) + '">Quitar</button></div>'
+        ).join('');
+        box.querySelectorAll('[data-alias]').forEach(button => {
+          button.addEventListener('click', () => {
+            post('/api/spotify-aliases-delete', { from: button.getAttribute('data-alias') }).then(data => {
+              if (!data || data.success !== true) return showNotice('No se pudo quitar', true);
+              showNotice('Corrección quitada');
+              refresh();
+            });
+          });
+        });
+      }
+
+      function renderLog(entries) {
+        const items = entries || [];
+        el('logCount').textContent = items.length ? '(' + items.length + ')' : '';
+        if (!items.length) {
+          logList.innerHTML = '<li class="empty">Sin pedidos registrados todavía.</li>';
+          return;
+        }
+        logList.innerHTML = items.map(entry => {
+          const time = new Date(entry.timestamp || Date.now()).toLocaleTimeString();
+          const track = entry.track && entry.track.name ? ' → <em>' + esc(entry.track.name) + '</em>' : '';
+          return '<li class="log-item ' + (entry.ok ? 'ok' : 'fail') + '">' +
+            '<span class="src">' + esc(entry.source || 'chat') + '</span>' +
+            '<span class="msg"><strong>' + esc(entry.requester || '—') + ':</strong> ' + esc(entry.message || '') + track + '</span>' +
+            '<time>' + esc(time) + '</time>' +
+          '</li>';
+        }).join('');
+      }
+
+      function applyStatus(data) {
+        renderStatus(data);
+        renderDevices(data);
+        renderAliases(data.aliases);
+        renderLog(data.log);
+        if (!settingsLoaded || !formIsBusy()) {
+          fillForm(data.settings || {});
+          settingsLoaded = true;
+        }
+      }
+
+      function refresh() {
+        return fetch('/api/spotify-status', { cache: 'no-store' })
+          .then(response => response.json())
+          .then(data => { applyStatus(data); status.textContent = 'Actualizado ' + new Date().toLocaleTimeString(); return data; })
+          .catch(() => { status.textContent = 'Sin conexión con Control Cortex (puerto 4000)'; return null; });
+      }
+
+      function save() {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        const settings = readForm();
+        return fetch('/api/spotify-settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: settings })
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (!data || data.ok !== true) throw new Error('guardado rechazado');
+            fillForm(data.settings);
+            showNotice('Ajustes guardados');
+            return refresh();
+          })
+          .catch(() => { showNotice('No se pudieron guardar los ajustes', true); return null; });
+      }
+
+      function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 400);
+      }
+
+      function post(url, body) {
+        return fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {})
+        }).then(response => response.json()).catch(() => null);
+      }
+
+      // El dashboard deja el pedido en cola y la extensión lo toma al instante si
+      // el enlace WebSocket está activo (o en su próxima consulta si no).
+      function watchForResult(what) {
+        const since = Date.now();
+        let elapsed = 0;
+        const box = el('testResult');
+        const pollSeconds = Number(readForm().pollSeconds) || 4;
+        clearInterval(watchTimer);
+        box.className = 'test-result pending';
+        box.textContent = '⏳ ' + what + ' en camino. Si el enlace instantáneo está activo suena ya; si no, hasta ' + pollSeconds + 's…';
+        watchTimer = setInterval(() => {
+          elapsed += 800;
+          fetch('/api/spotify-status', { cache: 'no-store' })
+            .then(response => response.json())
+            .then(data => {
+              applyStatus(data);
+              const entry = (data.log || []).find(item => (item.timestamp || 0) >= since);
+              if (entry) {
+                clearInterval(watchTimer);
+                const ok = entry.ok === true;
+                box.className = 'test-result ' + (ok ? 'ok' : 'fail');
+                box.textContent = (ok ? '✔ ' : '✖ ') + entry.message + (entry.track && entry.track.name ? ' → ' + entry.track.name : '');
+                return;
+              }
+              const connected = data.client && data.client.connected;
+              if (!connected && elapsed > 6000) {
+                clearInterval(watchTimer);
+                box.className = 'test-result fail';
+                box.textContent = '✖ La extensión no está conectada. En Brave: brave://extensions → Actualizar en SocialStream Ninja.';
+              } else if (elapsed > 25000) {
+                clearInterval(watchTimer);
+                box.className = 'test-result fail';
+                box.textContent = '✖ Sin respuesta después de 25 s. Revisá la extensión.';
+              }
+            })
+            .catch(() => {});
+        }, 800);
+      }
+
+      KEYS.forEach(key => {
+        const node = field(key);
+        if (!node) return;
+        node.addEventListener('change', () => {
+          if (key === 'testMode') el('testModeField').classList.toggle('test-mode-on', node.checked);
+          scheduleSave();
+        });
+      });
+
+      el('btnTest').addEventListener('click', () => {
+        const query = el('testQuery').value.trim();
+        if (query.length < 2) return showNotice('Escribí un tema o artista', true);
+        post('/api/spotify-test-request', { query: query, requester: 'Dashboard' }).then(data => {
+          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo encolar la prueba', true);
+          showNotice('Prueba encolada');
+          watchForResult('Prueba «' + query + '»');
+        });
+      });
+
+      el('btnSearch').addEventListener('click', () => {
+        const query = el('testQuery').value.trim();
+        if (query.length < 2) return showNotice('Escribí un tema o artista', true);
+        post('/api/spotify-test-request', { query: query, requester: 'Dashboard', searchOnly: true }).then(data => {
+          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo encolar la búsqueda', true);
+          showNotice('Búsqueda encolada (no reproduce)');
+          watchForResult('Búsqueda «' + query + '»');
+        });
+      });
+
+      el('btnSimulate').addEventListener('click', () => {
+        const comment = el('simComment').value.trim();
+        if (comment.length < 2) return showNotice('Escribí un comentario para simular', true);
+        post('/api/spotify-simulate-comment', { comment: comment, requester: el('simRequester').value.trim() || 'Prueba' }).then(data => {
+          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo simular', true);
+          showNotice('Comentario simulado encolado');
+          watchForResult('Comentario «' + comment.slice(0, 40) + '»');
+        });
+      });
+
+      el('btnParse').addEventListener('click', () => {
+        const comment = el('simComment').value.trim();
+        if (comment.length < 2) return showNotice('Escribí un comentario para analizar', true);
+        post('/api/spotify-simulate-comment', { comment: comment, requester: el('simRequester').value.trim() || 'Prueba', parseOnly: true }).then(data => {
+          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo analizar', true);
+          showNotice('Analizando (no reproduce)');
+          watchForResult('Análisis «' + comment.slice(0, 40) + '»');
+        });
+      });
+
+      document.querySelectorAll('[data-transport]').forEach(button => {
+        button.addEventListener('click', () => {
+          const action = button.getAttribute('data-transport');
+          post('/api/spotify-transport', { action: action }).then(data => {
+            if (!data || data.ok !== true) return showNotice('No se pudo enviar el comando', true);
+            showNotice('Comando «' + action + '» encolado');
+            watchForResult('Comando ' + action);
+          });
+        });
+      });
+
+      el('btnDevices').addEventListener('click', () => {
+        post('/api/spotify-transport', { action: 'devices' }).then(data => {
+          if (!data || data.ok !== true) return showNotice('No se pudo pedir la lista', true);
+          showNotice('Pidiendo dispositivos a la extensión…');
+          watchForResult('Pedido de dispositivos');
+        });
+      });
+
+      el('btnAliasAdd').addEventListener('click', () => {
+        const from = el('aliasFrom').value.trim();
+        const to = el('aliasTo').value.trim();
+        if (from.length < 2 || to.length < 2) return showNotice('Completá "cuando escriben" y "buscar"', true);
+        post('/api/spotify-aliases', { from: from, to: to }).then(data => {
+          if (!data || data.success !== true) return showNotice('No se pudo guardar la corrección', true);
+          el('aliasFrom').value = '';
+          el('aliasTo').value = '';
+          showNotice('Corrección guardada');
+          refresh();
+        });
+      });
+
+      el('btnAliasClear').addEventListener('click', () => {
+        post('/api/spotify-aliases-clear', {}).then(() => { showNotice('Correcciones vaciadas'); refresh(); });
+      });
+
+      el('btnClearLog').addEventListener('click', () => {
+        post('/api/spotify-request-log-clear', {}).then(() => { showNotice('Registro vaciado'); refresh(); });
+      });
+
+      refresh();
+      setInterval(refresh, 2500);
+    }());
+  </script>
+</body>
+</html>

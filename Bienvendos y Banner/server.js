@@ -15,6 +15,27 @@ const PORT = process.env.PORT || 9344;
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
+// Carga de .env local (sin dependencias): la contrasena de OBS no vive en settings.json.
+(function loadEnvFile(filePath) {
+  try {
+    if (!fs.existsSync(filePath)) return;
+    for (const rawLine of fs.readFileSync(filePath, 'utf8').split(/\r?\n/)) {
+      const line = rawLine.trim();
+      if (!line || line.startsWith('#')) continue;
+      const separator = line.indexOf('=');
+      if (separator <= 0) continue;
+      const key = line.slice(0, separator).trim();
+      let value = line.slice(separator + 1).trim();
+      if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+        value = value.slice(1, -1);
+      }
+      if (key && process.env[key] === undefined) process.env[key] = value;
+    }
+  } catch (error) {
+    console.warn('[Banner] No se pudo leer .env:', error.message);
+  }
+}(path.join(__dirname, '.env')));
+
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -83,7 +104,20 @@ const defaultSettings = {
   obsPort: 4455,
   obsPassword: "",
   obsScene: "Main Scene",
-  obsAutoTransition: false
+  obsAutoTransition: false,
+  // Banner Social Loop Settings
+  banner: {
+    loopInterval: 4200,
+    pauseOnHover: false,
+    randomMode: false,
+    items: [
+      { id: 'instagram', platform: 'instagram', label: 'Instagram', handle: '/cdelu.ar', visible: true },
+      { id: 'facebook-1', platform: 'facebook', label: 'Facebook', handle: '/cdeluArg', visible: true },
+      { id: 'facebook-2', platform: 'facebook', label: 'Facebook', handle: '/cdeluweb', visible: true },
+      { id: 'tiktok', platform: 'tiktok', label: 'TikTok', handle: '@cdelu.ar', visible: true },
+      { id: 'web', platform: 'web', label: 'Web', handle: 'www.cdelu.ar', visible: true }
+    ]
+  }
 };
 
 function clamp(value, min, max) {
@@ -108,6 +142,25 @@ function normalizeSettings(candidate = {}) {
   merged.musicEnabled = merged.musicEnabled === true;
   merged.particlesGlow = merged.particlesGlow !== false;
   merged.obsAutoTransition = merged.obsAutoTransition === true;
+  // Normalize banner config
+  if (!merged.banner || typeof merged.banner !== 'object') {
+    merged.banner = { ...defaultSettings.banner };
+  }
+  merged.banner.loopInterval = Number.isFinite(Number(merged.banner.loopInterval)) ? Math.max(1500, Number(merged.banner.loopInterval)) : defaultSettings.banner.loopInterval;
+  merged.banner.pauseOnHover = !!merged.banner.pauseOnHover;
+  merged.banner.randomMode = !!merged.banner.randomMode;
+  merged.banner.items = Array.isArray(merged.banner.items)
+    ? merged.banner.items.map((item, index) => ({
+        id: item && item.id ? String(item.id) : `item-${index}-${Date.now()}`,
+        platform: item && item.platform && ['instagram', 'facebook', 'tiktok', 'telegram', 'web'].includes(item.platform) ? item.platform : 'web',
+        label: item && item.label ? String(item.label) : 'Web',
+        handle: item && typeof item.handle === 'string' ? item.handle : '',
+        visible: item ? item.visible !== false : true
+      }))
+    : defaultSettings.banner.items.map(item => ({ ...item }));
+  if (merged.banner.items.length === 0) {
+    merged.banner.items = defaultSettings.banner.items.map(item => ({ ...item }));
+  }
   merged.socials = Array.isArray(merged.socials)
     ? merged.socials.map((social, index) => ({
         id: social && social.id ? String(social.id) : `${(social && social.platform) || 'custom'}-${index}`,
@@ -199,7 +252,8 @@ async function connectToOBS(force = false) {
 
   const host = settings.obsHost || '127.0.0.1';
   const port = settings.obsPort || 4455;
-  const password = settings.obsPassword || '';
+  // Si el panel no tiene contrasena guardada, se usa la del .env (no versionado).
+  const password = settings.obsPassword || process.env.OBS_WS_PASSWORD || '';
 
   obsConnecting = true;
   obsConnected = false;
@@ -375,6 +429,24 @@ app.get('/api/settings', (req, res) => {
   res.json(settings);
 });
 
+// Banner Config API
+app.get('/api/banner-config', (req, res) => {
+  res.json(settings.banner);
+});
+
+app.post('/api/banner-config', (req, res) => {
+  const { banner } = req.body;
+  if (!banner || typeof banner !== 'object') {
+    return res.status(400).json({ error: 'Invalid banner config' });
+  }
+  updateSettings({ banner }).then(() => {
+    io.emit('bannerUpdated', settings.banner);
+    res.json({ success: true, banner: settings.banner });
+  }).catch((err) => {
+    res.status(500).json({ error: 'Failed to save banner config' });
+  });
+});
+
 // Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id);
@@ -417,6 +489,13 @@ io.on('connection', (socket) => {
     if (obsSettingsChanged) {
       connectToOBS(true).catch(err => console.error('OBS settings change reconnection failed:', err));
     }
+  });
+
+  // Handle banner config updates from admin dashboard
+  socket.on('updateBanner', (bannerConfig) => {
+    updateSettings({ banner: bannerConfig }).then(() => {
+      io.emit('bannerUpdated', settings.banner);
+    });
   });
 
   // Handle countdown commands
