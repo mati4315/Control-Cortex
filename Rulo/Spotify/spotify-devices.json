@@ -3,11 +3,11 @@
     {
       "name": "Web Player (Chrome)",
       "type": "Computer",
-      "isActive": false,
+      "isActive": true,
       "isRestricted": false,
-      "volumePercent": 32
+      "volumePercent": 47
     }
   ],
-  "activeName": "",
-  "updatedAt": 1789730371342
+  "activeName": "Web Player (Chrome)",
+  "updatedAt": 1789737600383
 }

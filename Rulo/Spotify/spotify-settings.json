@@ -8,8 +8,10 @@
   "personalize": true,
   "announce": true,
   "autoContinue": true,
-  "skipEnabled": true,
+  "skipEnabled": false,
   "skipSeconds": 10,
-  "pollSeconds": 1,
+  "pollSeconds": 7,
+  "artistVariety": true,
+  "artistVarietyPool": 12,
   "deviceTargetName": "Web Player (Chrome)"
 }

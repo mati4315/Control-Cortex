@@ -4,10 +4,10 @@
   "private": true,
   "description": "Pruebas de interfaz de Rulo, del dashboard de Spotify y del panel Control Cortex con jsdom (sin navegador).",
   "scripts": {
-    "test": "node rulo-ui-tests.js && node panel-url-test.js && node spotify-dashboard-test.js && node spotify-module-test.js",
+    "test": "node rulo-ui-tests.js && node panel-url-test.js && node spotify-dashboard-test.js && node spotify-training-test.js && node spotify-bot-test.js && node spotify-module-test.js && node ssn-patcher-test.js && node spotify-files-test.js && node spotify-responses-test.js && node spotify-analytics-test.js",
     "test:ui": "node rulo-ui-tests.js",
     "test:panel": "node panel-url-test.js",
-    "test:spotify": "node spotify-dashboard-test.js && node spotify-module-test.js"
+    "test:spotify": "node spotify-dashboard-test.js && node spotify-training-test.js && node spotify-bot-test.js && node spotify-module-test.js && node ssn-patcher-test.js && node spotify-files-test.js && node spotify-responses-test.js && node spotify-analytics-test.js"
   },
   "license": "ISC",
   "type": "commonjs",

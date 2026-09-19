@@ -67,7 +67,10 @@
         <p>Pedidos de música por chat: esperas, dispositivo, pruebas y registro.</p>
       </div>
       <nav>
-        <a id="histLink" href="/rulo-chat-historial.html">Historial</a>
+        <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Ajustes</a>
+        <a id="trainLink" class="link-secondary" href="/rulo-spotify-training.html">Entrenamiento</a>
+        <a id="botLink" class="link-secondary" href="/rulo-spotify-bot.html">Bot / Rulo</a>
+        <a id="histLink" class="link-secondary" href="/rulo-chat-historial.html">Historial</a>
         <a id="dashLink" class="link-secondary" href="/rulo-dashboard.html">Dashboard Rulo</a>
       </nav>
       <div class="status" id="status">Cargando...</div>
@@ -79,6 +82,7 @@
       <span class="chip" id="stClient">Extensión SSN: <strong>…</strong></span>
       <span class="chip" id="stToken">Spotify: <strong>…</strong></span>
       <span class="chip" id="stDevice">Dispositivo activo: <strong>…</strong></span>
+        <span class="chip" id="stAnalisis" style="cursor:pointer" title="Ir al análisis">Análisis: <strong>…</strong></span>
       <span class="chip" id="stEffective">Espera efectiva: <strong>…</strong></span>
     </div>
 
@@ -108,6 +112,10 @@
         <label class="check"><input type="checkbox" data-key="autoContinue"><span>Continuidad automática</span></label>
         <small>Encola un tema similar cuando termina el pedido, para que no quede silencio.</small>
       </div>
+
+      <h2 class="wide" style="margin:6px 0 0">Variedad de temas</h2>
+      <label class="card"><input type="checkbox" data-key="artistVariety"> Si piden <em>un tema de un artista</em> (o de un género) sin decir cuál, elegir uno al azar en vez de poner siempre el mismo</label>
+      <label class="card">Cuántos resultados mirar para elegir: <input type="number" data-key="artistVarietyPool" min="5" max="50" step="5" style="width:80px;display:inline-block"> <small class="hint" style="margin:0">(5 a 50)</small></label>
 
       <h2 class="wide" style="margin:6px 0 0">Esperas y filtros</h2>
       <div class="field">
@@ -179,7 +187,7 @@
 
     <h2>Correcciones aprendidas <small id="aliasCount"></small></h2>
     <div class="field">
-      <small>Cuando alguien escribe un nombre con error y el bot lo encuentra igual (por ejemplo «laberiso» → «la beriso»), la corrección se guarda acá y la próxima vez busca directo. También podés cargarla a mano antes de que pase.</small>
+      <small>Cuando alguien escribe un nombre con error y el bot lo encuentra igual (por ejemplo «laberiso» → «la beriso»), la corrección se guarda acá y la próxima vez busca directo. También podés cargarla a mano antes de que pase. Las <strong>palabras clave, verbos y géneros</strong> con los que el bot entiende los pedidos se editan en <a href="/rulo-spotify-training.html" style="color:var(--accent)">Entrenamiento del bot</a>.</small>
       <div class="row" style="margin-top:8px">
         <input type="text" id="aliasFrom" placeholder="Cuando escriben…  (ej: laberiso)">
         <input type="text" id="aliasTo" placeholder="Buscar en Spotify…  (ej: la beriso)">
@@ -195,11 +203,65 @@
       <span id="notice"></span>
     </div>
     <ul class="log" id="log"><li class="empty">Sin pedidos registrados todavía.</li></ul>
+
+    <h2>Análisis <small>(historial completo, no solo los últimos 50)</small></h2>
+    <span class="hint">Se guarda en SQLite (<code>Rulo/Spotify/spotify-analytics.db</code>): cada comentario que pidió música, cómo lo entendió el bot, qué contestó y si en eso participó la IA. Sirve para ver qué falla y entrenarlo mejor. Los números son del período elegido.</span>
+    <div class="card">
+      <div class="chips">
+        <span class="chip" id="anTotal">Interacciones: <strong>—</strong></span>
+        <span class="chip" id="anPedidos">Pedidos: <strong>—</strong></span>
+        <span class="chip" id="anPlayed">Reproducidas: <strong>—</strong></span>
+        <span class="chip" id="anNotFound">No encontradas: <strong>—</strong></span>
+        <span class="chip" id="anWait">Con espera: <strong>—</strong></span>
+        <span class="chip" id="anIa">Con IA: <strong>—</strong></span>
+        <span class="chip" id="anBase">Base: <strong>—</strong></span>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <select id="anDias" style="flex:0 0 auto;width:auto">
+          <option value="1">Hoy</option>
+          <option value="7" selected>Últimos 7 días</option>
+          <option value="30">Últimos 30 días</option>
+          <option value="365">Último año</option>
+        </select>
+        <button class="small secondary" id="btnAn" type="button">Ver análisis</button>
+        <button class="small secondary" id="btnAnCsv" type="button">Descargar CSV</button>
+      </div>
+      <div id="anAvisos" style="margin-top:12px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="small secondary" id="btnAnReviewed" type="button">Marcar como revisado</button>
+        <button class="small secondary" id="btnAnSugerir" type="button">Sugerir mejoras con IA</button>
+        <span id="anAviso"></span>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div class="card">
+          <h3>Lo que pidieron y no se encontró <small>(para entrenar el parser)</small></h3>
+          <ul class="log" id="anNoEncontradas"><li class="empty">Sin datos todavía.</li></ul>
+        </div>
+        <div class="card">
+          <h3>Lo más pedido</h3>
+          <ul class="log" id="anTop"><li class="empty">Sin datos todavía.</li></ul>
+        </div>
+        <div class="card">
+          <h3>Las canciones que puso Rulo <small>(más pedidas primero)</small></h3>
+          <ul class="log" id="anCanciones"><li class="empty">Sin datos todavía.</li></ul>
+        </div>
+        <div class="card">
+          <h3>Se saltaron o pausaron <small>(¿les gustó?)</small></h3>
+          <ul class="log" id="anSaltadas"><li class="empty">Sin datos todavía.</li></ul>
+          <div class="hint" id="anTasaSalteo" style="margin-top:8px"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h3>Sugerencias de la IA <small>(para los que no se encontraron)</small></h3>
+        <span class="hint">La IA mira los pedidos que fallaron y propone qué cargar. Revisá cada una y aplicá las que te sirvan.</span>
+        <ul class="log" id="anSugerencias"><li class="empty">Todavía no pediste sugerencias.</li></ul>
+      </div>
+    </div>
   </main>
   <script>
     (function () {
       "use strict";
-      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","pollSeconds","deviceTargetName"];
+      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","pollSeconds","artistVariety","artistVarietyPool","deviceTargetName"];
       const el = id => document.getElementById(id);
       const status = el('status');
       const notice = el('notice');
@@ -261,6 +323,21 @@
         if (!node) return;
         node.className = 'chip' + (state ? ' is-' + state : '');
         node.innerHTML = label + ': <strong>' + esc(value) + '</strong>';
+      }
+
+      function renderRecordatorio(datos) {
+        const info = (datos && datos.analytics) || null;
+        const chip = el('stAnalisis');
+        if (!chip) return;
+        const pendientes = info ? info.pendientes : 0;
+        if (!info || !pendientes) {
+          chip.className = 'chip';
+          chip.innerHTML = 'Análisis: <strong>al día</strong>';
+          return;
+        }
+        chip.className = 'chip is-warn';
+        chip.innerHTML = 'Análisis: <strong>' + esc(pendientes) + ' sin revisar</strong>' +
+          (info.nuevosNoEncontrados ? ' (' + esc(info.nuevosNoEncontrados) + ' sin encontrar)' : '');
       }
 
       function renderStatus(data) {
@@ -351,6 +428,7 @@
 
       function applyStatus(data) {
         renderStatus(data);
+        renderRecordatorio(data);
         renderDevices(data);
         renderAliases(data.aliases);
         renderLog(data.log);
@@ -528,6 +606,210 @@
       });
 
       refresh();
+      // --- Analisis (SQLite) ---
+      function chipAnalisis(id, etiqueta, valor, estado) {
+        const node = el(id);
+        if (!node) return;
+        node.className = 'chip' + (estado ? ' is-' + estado : '');
+        node.innerHTML = etiqueta + ': <strong>' + esc(valor) + '</strong>';
+      }
+
+      function renderAnalisis(data) {
+        const a = (data && data.analytics) || null;
+        if (!a) {
+          chipAnalisis('anBase', 'Base', 'no disponible', 'bad');
+          return;
+        }
+        chipAnalisis('anTotal', 'Interacciones', a.total);
+        chipAnalisis('anPedidos', 'Pedidos', a.pedidos);
+        chipAnalisis('anPlayed', 'Reproducidas', a.reproducidas, a.reproducidas ? 'ok' : '');
+        chipAnalisis('anNotFound', 'No encontradas', a.noEncontradas, a.noEncontradas ? 'warn' : 'ok');
+        chipAnalisis('anWait', 'Con espera', a.rechazadas);
+        chipAnalisis('anIa', 'Con IA (interpretó', a.conIaInterpretando + ' / respondió ' + a.conIaRespondiendo + ')', a.conIaCualquiera ? 'ok' : '');
+        chipAnalisis('anBase', 'Base', (a.filePath || '').split(/[\\/]/).pop() || 'sqlite', a.total ? 'ok' : '');
+        const noEncontradas = (a.noEncontradasDetalle || []).slice(0, 8);
+        el('anNoEncontradas').innerHTML = noEncontradas.length
+          ? noEncontradas.map(item => '<li class="log-item fail"><span class="msg">' + esc(item.comment || item.query || '') + '</span><time>' + esc(new Date(item.iso || Date.now()).toLocaleString()) + '</time></li>').join('')
+          : '<li class="empty">Nada sin encontrar en este período.</li>';
+        const top = []
+          .concat((a.topPedidosRepetidos || []).map(item => ({ texto: item.comment, veces: item.n })))
+          .concat((a.topArtistas || []).map(item => ({ texto: item.artist, veces: item.n })))
+          .slice(0, 8);
+        el('anTop').innerHTML = top.length
+          ? top.map(item => '<li class="log-item ok"><span class="msg">' + esc(item.texto) + '</span><time>' + esc(item.veces) + '×</time></li>').join('')
+          : '<li class="empty">Sin datos todavía.</li>';
+      }
+
+      function cargarAnalisis() {
+        const dias = el('anDias').value || '7';
+        return fetch('/api/spotify-analytics?dias=' + encodeURIComponent(dias), { cache: 'no-store' })
+          .then(response => response.json())
+          .then(datos => {
+            renderAnalisis(datos);
+            renderAvisos((datos && datos.analytics) || null);
+            renderCanciones((datos && datos.analytics) || null);
+            return datos;
+          })
+          .catch(() => null);
+      }
+
+      // Avisos + recordatorio de revisar el analisis.
+      function renderAvisos(a) {
+        const avisos = (a && a.avisos) || [];
+        const recordatorio = (a && a.recordatorio) || null;
+        const partes = [];
+        if (recordatorio && recordatorio.pendientes >= 5) {
+          const dias = recordatorio.diasEsperando;
+          partes.push('<div class="card" style="border-color:var(--warn);margin-bottom:8px"><strong style="color:var(--warn)">Recordatorio:</strong> hay ' +
+            esc(recordatorio.pendientes) + ' interacciones nuevas para mirar' +
+            (recordatorio.nuevosNoEncontrados ? ' (' + esc(recordatorio.nuevosNoEncontrados) + ' sin encontrar)' : '') +
+            (dias >= 1 ? ', la más vieja espera desde hace ' + esc(dias) + ' día(s)' : '') +
+            '. Cuando termines, apretá <em>Marcar como revisado</em>.</div>');
+        }
+        avisos.forEach(aviso => {
+          partes.push('<div class="card" style="border-color:' + (aviso.nivel === 'warn' ? 'var(--warn)' : 'var(--line)') + ';margin-bottom:8px">' +
+            (aviso.nivel === 'warn' ? '<strong style="color:var(--warn)">Aviso:</strong> ' : '<strong>Info:</strong> ') + esc(aviso.mensaje) + '</div>');
+        });
+        el('anAvisos').innerHTML = partes.join('');
+        if (a && a.recordatorio && a.recordatorio.pendientes) {
+          chipAnalisis('anBase', 'Base', 'sqlite', 'ok');
+        }
+      }
+
+      function renderCanciones(a) {
+        const filas = (a && a.topCanciones) || [];
+        el('anCanciones').innerHTML = filas.length
+          ? filas.map(fila => '<li class="log-item ok"><span class="msg"><strong>' + esc(fila.track_name) + '</strong>' +
+              (fila.track_artist ? ' <em>' + esc(fila.track_artist) + '</em>' : '') +
+              (fila.continuaciones ? ' <small>(' + esc(fila.continuaciones) + ' de Rulo solo)</small>' : '') +
+              '</span><time>' + esc(fila.puestas || fila.veces) + '×' + (fila.saltadas ? ' · ' + esc(fila.saltadas) + ' saltadas' : '') + '</time></li>').join('')
+          : '<li class="empty">Todavía no hay canciones registradas.</li>';
+
+        const saltadas = (a && a.saltadas) || [];
+        el('anSaltadas').innerHTML = saltadas.length
+          ? saltadas.map(fila => '<li class="log-item fail"><span class="msg">' + esc(fila.track_name || '') +
+              ' <small>' + esc(fila.status === 'paused' ? 'pausado' : 'saltado') + (fila.since_play_ms ? ' a los ' + Math.round(fila.since_play_ms / 1000) + 's' : '') + '</small>' +
+              '</span><time>' + esc(new Date(fila.iso).toLocaleTimeString()) + '</time></li>').join('')
+          : '<li class="empty">Nadie saltó ni pausó un tema en este período.</li>';
+        const tasa = (a && a.tasaSalteo) || null;
+        el('anTasaSalteo').textContent = tasa && tasa.puestas
+          ? 'De ' + tasa.puestas + ' temas puestos se saltaron ' + tasa.saltadas + ' (' + tasa.porcentaje + '%).'
+          : 'Sin datos suficientes para medir saltos.';
+      }
+
+      function renderSugerencias(lista, analizados) {
+        if (!lista || !lista.length) {
+          el('anSugerencias').innerHTML = '<li class="empty">La IA no devolvió sugerencias.</li>';
+          return;
+        }
+        const etiqueta = { alias: 'corrección', cancion: 'tema', artista: 'artista', palabra: 'palabra de pedido', genero: 'género', nada: 'no es un pedido' };
+        el('anSugerencias').innerHTML =
+          '<li class="empty">Analizó ' + esc(analizados || lista.length) + ' pedidos sin encontrar.</li>' +
+          lista.map((item, indice) => {
+            const seAplica = (item.tipo === 'palabra' || item.tipo === 'genero' || (item.de && item.a && item.tipo !== 'nada'));
+            return '<li class="log-item ' + (item.tipo === 'nada' ? 'fail' : 'ok') + '">' +
+              '<span class="msg"><strong>' + esc(item.comentario) + '</strong><br>' +
+              '<small>' + esc(etiqueta[item.tipo] || item.tipo) + ': ' + esc(item.problema || '') + '</small>' +
+              (item.de || item.a ? '<br><small>' + esc(item.de || '') + ' &rarr; ' + esc(item.a || '') + '</small>' : '') +
+              '</span>' +
+              (seAplica ? '<button class="small" type="button" data-aplicar="' + indice + '">Aplicar</button>' : '') +
+              '</li>';
+          }).join('');
+        el('anSugerencias').setAttribute('data-sugerencias', JSON.stringify(lista));
+      }
+
+      function aplicarSugerencia(indice) {
+        const lista = JSON.parse(el('anSugerencias').getAttribute('data-sugerencias') || '[]');
+        const item = lista[indice];
+        if (!item) return;
+        if (item.tipo === 'palabra') {
+          fetch('/api/spotify-vocabulary', { cache: 'no-store' })
+            .then(response => response.json())
+            .then(datos => {
+              const vocabulario = datos.vocabulary;
+              const palabra = (item.de || item.a || '').toLowerCase();
+              if (!palabra) throw new Error('sin palabra');
+              if (vocabulario.musicWords.indexOf(palabra) === -1) vocabulario.musicWords.push(palabra);
+              return fetch('/api/spotify-vocabulary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vocabulary: vocabulario })
+              });
+            })
+            .then(() => showNotice('Palabra agregada al entrenamiento'))
+            .catch(() => showNotice('No se pudo aplicar la sugerencia', true));
+          return;
+        }
+        if (item.tipo === 'genero') {
+          fetch('/api/spotify-vocabulary', { cache: 'no-store' })
+            .then(response => response.json())
+            .then(datos => {
+              const vocabulario = datos.vocabulary;
+              const destino = String(item.a || '').toLowerCase();
+              const genero = vocabulario.genres.find(entrada => entrada.spotify.toLowerCase() === destino || entrada.id.toLowerCase() === destino);
+              const palabra = String(item.de || '').toLowerCase();
+              if (!genero || !palabra) throw new Error('sin genero');
+              if (genero.words.indexOf(palabra) === -1) genero.words.push(palabra);
+              return fetch('/api/spotify-vocabulary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ vocabulary: vocabulario })
+              });
+            })
+            .then(() => showNotice('Género actualizado'))
+            .catch(() => showNotice('No se pudo aplicar (¿el género existe?)', true));
+          return;
+        }
+        post('/api/spotify-aliases', { from: item.de, to: item.a })
+          .then(resultado => showNotice(resultado && resultado.success ? 'Corrección aprendida' : 'No se pudo aplicar', !(resultado && resultado.success)));
+      }
+
+      el('btnAnSugerir').addEventListener('click', () => {
+        const dias = el('anDias').value || '7';
+        const lista = el('anSugerencias');
+        lista.innerHTML = '<li class="empty">Pidiendo sugerencias a la IA...</li>';
+        fetch('/api/spotify-ai-suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dias: Number(dias) })
+        })
+          .then(response => response.json())
+          .then(datos => {
+            if (!datos || datos.ok !== true) {
+              lista.innerHTML = '<li class="empty" style="color:var(--danger)">' + esc((datos && datos.error) || 'La IA no respondió.') + '</li>';
+              return;
+            }
+            renderSugerencias(datos.sugerencias, datos.analizados);
+          })
+          .catch(() => { lista.innerHTML = '<li class="empty" style="color:var(--danger)">No se pudo consultar la IA.</li>'; });
+      });
+
+      el('anSugerencias').addEventListener('click', evento => {
+        const indice = evento.target && evento.target.getAttribute && evento.target.getAttribute('data-aplicar');
+        if (indice !== null && indice !== undefined) aplicarSugerencia(Number(indice));
+      });
+
+      el('btnAnReviewed').addEventListener('click', () => {
+        post('/api/spotify-analytics-reviewed', {}).then(() => {
+          showNotice('Marcado como revisado');
+          cargarAnalisis();
+        });
+      });
+
+      el('stAnalisis').addEventListener('click', () => {
+        const destino = document.getElementById('anTotal');
+        if (destino && destino.scrollIntoView) destino.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+
+      el('btnAn').addEventListener('click', cargarAnalisis);
+      el('anDias').addEventListener('change', cargarAnalisis);
+      el('btnAnCsv').addEventListener('click', () => {
+        const dias = el('anDias').value || '7';
+        window.open('/api/spotify-analytics.csv?dias=' + encodeURIComponent(dias), '_blank');
+      });
+
+      refresh();
+      cargarAnalisis();
       setInterval(refresh, 2500);
     }());
   </script>

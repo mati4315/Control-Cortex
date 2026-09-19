@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Bot / Rulo</title>
+  <style>
+    :root { --accent:#9fd50b; --bg:#101318; --panel:#191e26; --panel-alt:#151a21; --line:#303845; --text:#f4f6f8; --muted:#aab4c0; --danger:#ff7d7d; --spotify:#1db954; --warn:#e6c34a; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:15px "Segoe UI",Arial,sans-serif; }
+    main { width:min(1100px,100%); margin:0 auto; padding:26px 20px 60px; }
+    header { margin-bottom:14px; border-bottom:1px solid var(--line); padding-bottom:14px; }
+    .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .tabs a { color:var(--text); background:var(--line); border-radius:5px 5px 0 0; padding:9px 14px; font-weight:700; text-decoration:none; }
+    .tabs a.active { color:#111; background:var(--accent); }
+    h1 { margin:0; font-size:1.6rem; } h1 span { color:var(--accent); }
+    header p { margin:6px 0 0; color:var(--muted); max-width:70ch; }
+    .status { color:var(--muted); font-size:.85rem; float:right; }
+    h2 { margin:26px 0 4px; font-size:1.05rem; }
+    h2 small, .hint { color:var(--muted); font-weight:400; font-size:.85rem; }
+    .hint { display:block; margin:6px 0 10px; line-height:1.4; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .chip { border:1px solid var(--line); border-radius:999px; padding:7px 12px; background:var(--panel); font-size:.85rem; color:var(--muted); }
+    .chip strong { color:var(--text); }
+    .chip.is-ok { border-color:var(--spotify); } .chip.is-ok strong { color:var(--spotify); }
+    .chip.is-warn { border-color:var(--warn); } .chip.is-warn strong { color:var(--warn); }
+    .chip.ph { border-style:dashed; font-family:Consolas,monospace; font-size:.8rem; padding:4px 9px; }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .card { padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+    .card h3 { margin:0 0 6px; font-size:.98rem; }
+    .card .mood { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+    textarea, input[type=text], input[type=number] { width:100%; border:1px solid #465160; border-radius:5px; background:#0e1116; color:var(--text); padding:9px; font:inherit; }
+    textarea { min-height:120px; resize:vertical; font-family:Consolas,monospace; font-size:.86rem; line-height:1.5; }
+    input[type=checkbox] { accent-color:var(--accent); transform:scale(1.15); margin-right:8px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    button { border:0; border-radius:5px; padding:10px 15px; color:#111; background:var(--accent); font-weight:800; cursor:pointer; font:inherit; }
+    button.secondary { color:var(--text); background:var(--line); }
+    button.small { padding:7px 11px; font-size:.85rem; }
+    .result { margin:10px 0 0; padding:10px; border-radius:6px; background:#0e1116; border:1px solid var(--line); font-family:Consolas,monospace; font-size:.85rem; white-space:pre-wrap; color:var(--muted); display:none; }
+    .result.ok { display:block; border-color:var(--spotify); color:var(--text); }
+    .result.fail { display:block; border-color:var(--danger); color:var(--danger); }
+    .notice { margin-left:10px; color:var(--accent); font-size:.85rem; } .notice.error { color:var(--danger); }
+    .preview-out { margin-top:8px; padding:12px; border-radius:6px; background:#0e1116; border:1px solid var(--line); min-height:44px; font-size:.95rem; }
+    .preview-out em { color:var(--muted); }
+    .demo-list { list-style:none; padding:0; margin:10px 0 0; display:flex; flex-direction:column; gap:6px; }
+    .demo-list li { border-left:3px solid var(--line); padding:6px 10px; background:var(--panel-alt); border-radius:0 5px 5px 0; font-size:.92rem; }
+    .count { color:var(--muted); font-size:.8rem; }
+    @media (max-width:620px) { .grid { grid-template-columns:1fr; } main { padding:18px 12px 50px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="tabs">
+      <a href="/rulo-spotify.html">Ajustes</a>
+      <a href="/rulo-spotify-training.html">Entrenamiento</a>
+      <a class="active" href="/rulo-spotify-bot.html">Bot / Rulo</a>
+    </div>
+    <header>
+      <h1>Bot / <span>Rulo</span></h1>
+      <span class="status" id="status">Cargando...</span>
+      <p>Cómo pide la gente la música y qué contesta el bot: cada momento del pedido tiene varias respuestas posibles. Se elige una al azar (sin repetir las últimas) y el nombre del que pidió entra solo.</p>
+      <div class="chips">
+        <span class="chip" id="chWords">Palabras: <strong>…</strong></span>
+        <span class="chip" id="chVerbs">Verbos: <strong>…</strong></span>
+        <span class="chip" id="chCommands">Comandos: <strong>…</strong></span>
+        <span class="chip" id="chContexts">Contextos: <strong>…</strong></span>
+        <span class="chip" id="chVariants">Respuestas: <strong>…</strong></span>
+        <span class="chip" id="chRandom">Azar: <strong>…</strong></span>
+        <span class="chip" id="chClient">Extensión: <strong>…</strong></span>
+      </div>
+    </header>
+
+    <h2>Cómo pide la gente <small>(lo que el bot escucha)</small></h2>
+    <span class="hint">Estas son las palabras con las que el chat pide música. Una por línea. Es la misma lista que usa la página de entrenamiento: si la cambiás acá, también cambia allá (y la extensión la recibe al instante).</span>
+    <div class="grid">
+      <div class="card">
+        <h3>Palabras de música</h3>
+        <span class="hint">tema, temita, música, canción… Cualquiera de estas convierte el comentario en un pedido.</span>
+        <textarea data-list="musicWords" rows="6"></textarea>
+      </div>
+      <div class="card">
+        <h3>Verbos de pedido</h3>
+        <span class="hint">poneme, pasame, quiero escuchar… Se combinan con la palabra de música o el artista.</span>
+        <textarea data-list="requestVerbs" rows="6"></textarea>
+      </div>
+      <div class="card">
+        <h3>Comandos</h3>
+        <span class="hint">Pedidos directos que se resuelven antes que todo lo demás. Uno por línea.</span>
+        <textarea data-list="commands" rows="4"></textarea>
+      </div>
+      <div class="card">
+        <h3>Saludos y muletillas <small>(se descartan)</small></h3>
+        <span class="hint">Lo que se saca del comentario antes de analizarlo. Uno por línea entre las dos cajas.</span>
+        <textarea data-list="greetings" rows="3"></textarea>
+        <textarea data-list="fillers" rows="3" style="margin-top:8px"></textarea>
+      </div>
+    </div>
+
+    <h2>Respuestas del bot / Rulo</h2>
+    <span class="hint">Una respuesta por línea. Los datos entre llaves se completan solos: <code>{nombre}</code> (el que pidió), <code>{tema}</code>, <code>{artista}</code>, <code>{pedido}</code>, <code>{busqueda}</code>, <code>{genero}</code>, <code>{segundos}</code>, <code>{dispositivo}</code>, <code>{accion}</code>, <code>{comando}</code>, <code>{dispositivos}</code>, <code>{entendido}</code>. Si una variante pide un dato que en ese momento no existe, el bot la saltea y elige otra.<br>
+    El botón <strong>Generar 3 con IA</strong> usa el cerebro: se activa, se le pone el endpoint y el modelo en <a href="/rulo-spotify-training.html#cerebro" style="color:var(--accent)">Entrenamiento → Cerebro (IA)</a>, y la clave va en <code>Control Cortex/backend/.env</code> como <code>SPOTIFY_AI_API_KEY</code>.</span>
+    <div class="card" style="margin-bottom:14px">
+      <div class="row">
+        <label style="flex:0 0 auto"><input type="checkbox" id="respRandom"> Elegir al azar</label>
+        <label style="flex:0 0 auto"><input type="checkbox" id="respAvoid"> No repetir las últimas</label>
+        <label style="flex:0 0 auto">Recientes a recordar: <input type="number" id="respRecent" min="0" max="10" style="width:70px;display:inline-block"></label>
+        <span id="notice"></span>
+      </div>
+      <span class="hint" style="margin-bottom:0">Si apagás el azar, el bot usa siempre la primera respuesta de cada lista.</span>
+    </div>
+
+    <div class="grid" id="contexts" style="grid-template-columns:1fr"></div>
+
+    <h2>Vista previa <small>(sin tocar Spotify)</small></h2>
+    <span class="hint">Elige un momento y mirá cómo quedaría el mensaje con datos de ejemplo. El nombre del que pidió es <strong>Matías</strong>.</span>
+    <div class="card">
+      <div class="row">
+        <select id="demoContext" style="flex:1"></select>
+        <button class="small" id="btnDemo" type="button">Ver una al azar</button>
+        <button class="small secondary" id="btnDemo5" type="button">Ver 5 seguidas (para chequear que varíe)</button>
+      </div>
+      <div class="preview-out" id="demoOut"><em>Todavía no probaste ninguna.</em></div>
+      <ul class="demo-list" id="demoList"></ul>
+    </div>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+      const LIST_KEYS = ["musicWords", "requestVerbs", "commands", "greetings", "fillers"];
+      const el = id => document.getElementById(id);
+      const notice = el('notice');
+      const status = el('status');
+      // Datos de ejemplo para la vista previa y para probar cada contexto.
+      const SAMPLE = {
+        nombre: "Matías",
+        tema: "Costumbres",
+        artista: "Damas Gratis",
+        pedido: "un tema de damas gratis",
+        busqueda: "amar azul",
+        genero: "cumbia",
+        segundos: 40,
+        dispositivo: "NOTEBOOK-MATI",
+        accion: "pause",
+        comando: "!tema",
+        dispositivos: "NOTEBOOK-MATI (activo)",
+        entendido: "artista/tema de damas gratis"
+      };
+
+      let state = { vocabulary: null, contexts: [], aliases: {}, client: {}, stamp: null, aiKeyPresent: false, externalPending: false };
+      let saveTimer = null;
+      const history = new Map();
+
+      function esc(value) {
+        return String(value === undefined || value === null ? '' : value)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      function showNotice(text, isError) {
+        notice.textContent = text;
+        notice.className = 'notice' + (isError ? ' error' : '');
+        if (showNotice.timer) clearTimeout(showNotice.timer);
+        showNotice.timer = setTimeout(() => { notice.textContent = ''; }, 4000);
+      }
+      function listToText(list) { return (Array.isArray(list) ? list : []).join('\n'); }
+      function textToList(value) {
+        return String(value || '').split('\n').map(line => line.trim()).filter(Boolean);
+      }
+
+      // --- misma logica de eleccion que usa el modulo en la extension ---------
+      function placeholdersOf(template) {
+        const found = [];
+        String(template || '').replace(/\{(\w+)\}/g, (match, key) => {
+          if (found.indexOf(key) === -1) found.push(key);
+          return match;
+        });
+        return found;
+      }
+      function fillPlaceholders(template, values) {
+        const data = values || {};
+        return String(template || '')
+          .replace(/\{(\w+)\}/g, (match, key) => {
+            const value = data[key];
+            return value === undefined || value === null ? '' : String(value);
+          })
+          // Si quedo una llave desconocida, se saca (nunca se muestra en el chat).
+          .replace(/\{[^}]{0,60}\}/g, '')
+          .replace(/\s+([,.;:!?])/g, '$1')
+          .replace(/\(\s*\)/g, '')
+          .replace(/\s{2,}/g, ' ')
+          .replace(/^[\s,;:-]+|[\s,;:-]+$/, '')
+          .trim();
+      }
+      function pickVariant(contextId) {
+        const responses = (state.vocabulary && state.vocabulary.responses) || {};
+        const block = (responses.contexts || {})[contextId];
+        const variants = (block && Array.isArray(block.variants) ? block.variants : []).map(v => String(v).trim()).filter(Boolean);
+        if (!variants.length) return '';
+        const usable = variants.filter(variant => placeholdersOf(variant).every(name => SAMPLE[name]));
+        const pool = usable.length ? usable : variants;
+        if (responses.random === false) return pool[0];
+        const recent = Math.max(0, Math.min(10, Number(responses.recent) || 0));
+        const keep = responses.avoidRepeat !== false && recent > 0;
+        const past = keep ? (history.get(contextId) || []) : [];
+        let available = pool.filter(item => past.indexOf(item) === -1);
+        if (!available.length) {
+          // Se agotaron las novedades: se reinicia la memoria corta, pero igual se
+          // evita repetir la ultima respuesta si hay otra opcion.
+          const ultima = past[past.length - 1];
+          history.set(contextId, []);
+          available = pool.filter(item => item !== ultima);
+          if (!available.length) available = pool;
+        }
+        const chosen = available[Math.floor(Math.random() * available.length)];
+        if (keep) history.set(contextId, (history.get(contextId) || []).concat([chosen]).slice(-recent));
+        return chosen;
+      }
+      function lowerFirstWord(text) {
+        // "Buscando" -> "buscando", pero "NO-ESTA" queda como esta (siglas).
+        const value = String(text || '');
+        if (!value) return value;
+        if (/^[A-ZÁÉÍÓÚÑÜ]{2,}/.test(value)) return value;
+        return value.charAt(0).toLowerCase() + value.slice(1);
+      }
+      function previewReply(contextId) {
+        const template = pickVariant(contextId);
+        if (!template) return 'Sin respuestas cargadas para este momento.';
+        let text = fillPlaceholders(template, SAMPLE);
+        // Igual que el modulo: si la variante no trae {nombre}, se agrega adelante.
+        if (template.indexOf('{nombre}') === -1 && SAMPLE.nombre) {
+          text = SAMPLE.nombre + ', ' + lowerFirstWord(text);
+        }
+        return text;
+      }
+
+      // --- render -------------------------------------------------------------
+      function renderChips() {
+        const vocabulary = state.vocabulary || {};
+        const count = list => (Array.isArray(list) ? list.length : 0);
+        const responses = vocabulary.responses || {};
+        const contexts = responses.contexts || {};
+        const total = Object.keys(contexts).reduce((sum, key) => sum + ((contexts[key].variants || []).length), 0);
+        el('chWords').innerHTML = 'Palabras: <strong>' + count(vocabulary.musicWords) + '</strong>';
+        el('chVerbs').innerHTML = 'Verbos: <strong>' + count(vocabulary.requestVerbs) + '</strong>';
+        el('chCommands').innerHTML = 'Comandos: <strong>' + count(vocabulary.commands) + '</strong>';
+        el('chContexts').innerHTML = 'Contextos: <strong>' + Object.keys(contexts).length + '</strong>';
+        el('chVariants').innerHTML = 'Respuestas: <strong>' + total + '</strong>';
+        el('chRandom').className = 'chip' + (responses.random !== false ? ' is-ok' : ' is-warn');
+        el('chRandom').innerHTML = 'Azar: <strong>' + (responses.random !== false ? 'activado' : 'apagado') + '</strong>';
+        const client = state.client || {};
+        el('chClient').className = 'chip' + (client.connected ? ' is-ok' : ' is-warn');
+        el('chClient').innerHTML = 'Extensión: <strong>' + (client.connected ? 'conectada' + (client.version ? ' v' + client.version : '') : 'sin conexión') + '</strong>';
+      }
+
+      function fillLists(vocabulary) {
+        LIST_KEYS.forEach(key => {
+          const node = document.querySelector('[data-list="' + key + '"]');
+          if (node) node.value = listToText(vocabulary[key]);
+        });
+        const responses = vocabulary.responses || {};
+        el('respRandom').checked = responses.random !== false;
+        el('respAvoid').checked = responses.avoidRepeat !== false;
+        el('respRecent').value = responses.recent === undefined ? 4 : responses.recent;
+      }
+
+      function contadorDe(bloque) {
+        const variantes = (bloque && bloque.variants) || [];
+        const deIa = (bloque && bloque.aiVariants) || [];
+        return variantes.length + ' respuesta(s)' + (deIa.length ? ' · ' + deIa.length + ' con IA' : '');
+      }
+
+      function contextCard(meta) {
+        const block = ((state.vocabulary.responses || {}).contexts || {})[meta.id] || { variants: [] };
+        const variants = Array.isArray(block.variants) ? block.variants : [];
+        const placeholders = (meta.placeholders || []).map(name => '<span class="chip ph">{' + esc(name) + '}</span>').join('');
+        return '' +
+          '<div class="card" data-context-card="' + esc(meta.id) + '">' +
+            '<div class="row" style="justify-content:space-between">' +
+              '<h3>' + esc(meta.label) + '</h3>' +
+              '<span class="count" data-context-count="' + esc(meta.id) + '">' + esc(contadorDe(block)) + '</span>' +
+            '</div>' +
+            '<div class="row" style="gap:6px;margin:6px 0 8px"><span class="mood">' + esc(meta.mood || '') + '</span>' + placeholders + '</div>' +
+            '<textarea data-context="' + esc(meta.id) + '" rows="' + Math.min(10, Math.max(4, variants.length + 1)) + '">' + esc(listToText(variants)) + '</textarea>' +
+            '<div class="row" style="margin-top:8px">' +
+              '<button class="small secondary" type="button" data-test="' + esc(meta.id) + '">Probar al azar</button>' +
+              '<button class="small secondary" type="button" data-ai="' + esc(meta.id) + '">Generar 3 con IA</button>' +
+              '<button class="small secondary" type="button" data-reset="' + esc(meta.id) + '">Restaurar esta lista</button>' +
+            '</div>' +
+            '<pre class="result" data-result="' + esc(meta.id) + '"></pre>' +
+          '</div>';
+      }
+
+      function renderContexts() {
+        el('contexts').innerHTML = state.contexts.map(contextCard).join('');
+        const options = state.contexts.map(meta => '<option value="' + esc(meta.id) + '">' + esc(meta.label) + '</option>').join('');
+        const current = el('demoContext').value;
+        el('demoContext').innerHTML = options;
+        if (current) el('demoContext').value = current;
+      }
+
+      // --- guardado -----------------------------------------------------------
+      function readLists() {
+        const vocabulary = state.vocabulary;
+        LIST_KEYS.forEach(key => {
+          const node = document.querySelector('[data-list="' + key + '"]');
+          if (node) vocabulary[key] = textToList(node.value);
+        });
+        return vocabulary;
+      }
+      function readResponses() {
+        const vocabulary = state.vocabulary;
+        vocabulary.responses = vocabulary.responses || { contexts: {} };
+        vocabulary.responses.random = el('respRandom').checked;
+        vocabulary.responses.avoidRepeat = el('respAvoid').checked;
+        vocabulary.responses.recent = Math.min(10, Math.max(0, Number(el('respRecent').value) || 0));
+        vocabulary.responses.contexts = vocabulary.responses.contexts || {};
+        document.querySelectorAll('[data-context]').forEach(node => {
+          const id = node.getAttribute('data-context');
+          vocabulary.responses.contexts[id] = vocabulary.responses.contexts[id] || { label: '', variants: [] };
+          vocabulary.responses.contexts[id].variants = textToList(node.value);
+        });
+        return vocabulary;
+      }
+      function save() {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        const vocabulary = readResponses();
+        readLists();
+        return fetch('/api/spotify-vocabulary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vocabulary: vocabulary })
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (!data || data.ok !== true) throw new Error('rechazado');
+            state.vocabulary = data.vocabulary;
+            if (data.stamps && data.stamps.vocabulary) state.stamp = data.stamps.vocabulary;
+            state.externalPending = false;
+            renderChips();
+            document.querySelectorAll('[data-context-card]').forEach(card => {
+              const id = card.getAttribute('data-context-card');
+              const block = ((state.vocabulary.responses || {}).contexts || {})[id] || { variants: [] };
+              const counter = card.querySelector('[data-context-count]');
+              if (counter) counter.textContent = contadorDe(block);
+            });
+            showNotice('Guardado: la extensión ya lo tiene');
+            return data;
+          })
+          .catch(() => { showNotice('No se pudo guardar', true); return null; });
+      }
+      function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 600);
+      }
+      function formIsBusy() {
+        if (saveTimer) return true;
+        const active = document.activeElement;
+        if (!active) return false;
+        return active.tagName === 'TEXTAREA' || active.tagName === 'INPUT' || active.tagName === 'SELECT';
+      }
+
+      // --- carga y refresco ---------------------------------------------------
+      function applyVocabulary(vocabulary) {
+        state.vocabulary = vocabulary;
+        fillLists(vocabulary);
+        renderContexts();
+        renderChips();
+      }
+      function refresh() {
+        return fetch('/api/spotify-status', { cache: 'no-store' })
+          .then(response => response.json())
+          .then(data => {
+            state.client = data.client || {};
+            state.aliases = data.aliases || {};
+            const stamp = (data.stamps && data.stamps.vocabulary) || null;
+            if (!state.vocabulary) {
+              state.stamp = stamp;
+              applyVocabulary(data.vocabulary);
+            } else {
+              renderChips();
+              if (stamp && state.stamp && stamp !== state.stamp) {
+                if (formIsBusy()) {
+                  if (!state.externalPending) {
+                    state.externalPending = true;
+                    showNotice('Las respuestas cambiaron en el archivo. Terminá de editar y recargá la página para no pisar nada.', true);
+                  }
+                } else {
+                  state.stamp = stamp;
+                  state.externalPending = false;
+                  applyVocabulary(data.vocabulary);
+                  showNotice('Recargado: el archivo cambió afuera.');
+                }
+              }
+            }
+            status.textContent = 'Actualizado ' + new Date().toLocaleTimeString();
+            return data;
+          })
+          .catch(() => { status.textContent = 'Sin conexión con Control Cortex (puerto 4000)'; return null; });
+      }
+      function loadVocabulary() {
+        return fetch('/api/spotify-vocabulary', { cache: 'no-store' })
+          .then(response => response.json())
+          .then(data => {
+            state.contexts = data.responseContexts || [];
+            state.aiKeyPresent = data.aiKeyPresent === true;
+            if (data.stamps && data.stamps.vocabulary) state.stamp = data.stamps.vocabulary;
+            applyVocabulary(data.vocabulary);
+            state.externalPending = false;
+            return data;
+          })
+          .catch(() => { showNotice('No se pudo cargar el vocabulario', true); return null; });
+      }
+
+      // --- interacciones ------------------------------------------------------
+      document.addEventListener('input', event => {
+        const target = event.target;
+        if (!target) return;
+        if (target.hasAttribute('data-list') || target.hasAttribute('data-context') || ['respRandom', 'respAvoid', 'respRecent'].indexOf(target.id) !== -1) {
+          scheduleSave();
+        }
+      });
+      el('contexts').addEventListener('click', event => {
+        const target = event.target;
+        if (!target || !target.getAttribute) return;
+        const testId = target.getAttribute('data-test');
+        const aiId = target.getAttribute('data-ai');
+        const resetId = target.getAttribute('data-reset');
+        if (testId) {
+          const box = document.querySelector('[data-result="' + testId + '"]');
+          const text = previewReply(testId);
+          box.className = 'result ok';
+          box.textContent = 'Así lo diría: ' + text;
+          return;
+        }
+        if (resetId) {
+          const defaults = (state.defaultResponses || {}).contexts || {};
+          const original = defaults[resetId];
+          if (!original) return showNotice('No hay lista original para este momento', true);
+          document.querySelector('[data-context="' + resetId + '"]').value = listToText(original.variants);
+          scheduleSave();
+          return;
+        }
+        if (aiId) {
+          const box = document.querySelector('[data-result="' + aiId + '"]');
+          box.className = 'result';
+          box.textContent = 'Pidiendo 3 respuestas nuevas a la IA...';
+          box.className = 'result ok';
+          fetch('/api/spotify-ai-replies', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ context: aiId, count: 3 })
+          })
+            .then(response => response.json())
+            .then(data => {
+              if (!data || data.ok !== true) {
+                box.className = 'result fail';
+                box.textContent = (data && data.error) || 'La IA no respondió.';
+                return;
+              }
+              // El backend ya las guardo y marco como de IA: aca solo se refleja.
+              const node = document.querySelector('[data-context="' + aiId + '"]');
+              if (data.vocabulary) {
+                state.vocabulary = data.vocabulary;
+                const bloque = ((state.vocabulary.responses || {}).contexts || {})[aiId] || { variants: [] };
+                node.value = listToText(bloque.variants);
+                const card = document.querySelector('[data-context-card="' + aiId + '"]');
+                const counter = card && card.querySelector('[data-context-count]');
+                if (counter) counter.textContent = contadorDe(bloque);
+                renderChips();
+              } else {
+                const actuales = textToList(node.value);
+                data.variants.forEach(variant => { if (actuales.indexOf(variant) === -1) actuales.push(variant); });
+                node.value = actuales.join('\n');
+                scheduleSave();
+              }
+              box.className = 'result ok';
+              box.textContent = 'Agregadas (marcadas como de IA):\n' + data.variants.join('\n');
+            })
+            .catch(() => { box.className = 'result fail'; box.textContent = 'No se pudo consultar la IA.'; });
+        }
+      });
+      el('btnDemo').addEventListener('click', () => {
+        const id = el('demoContext').value;
+        const text = previewReply(id);
+        el('demoOut').innerHTML = esc(text);
+        el('demoList').innerHTML = '';
+      });
+      el('btnDemo5').addEventListener('click', () => {
+        const id = el('demoContext').value;
+        const picks = [];
+        for (let i = 0; i < 5; i += 1) picks.push(previewReply(id));
+        el('demoOut').innerHTML = esc(picks[0]);
+        el('demoList').innerHTML = picks.map(text => '<li>' + esc(text) + '</li>').join('');
+      });
+
+      el('demoContext').addEventListener('change', () => { el('demoList').innerHTML = ''; });
+      // El vocabulario por defecto sirve para "Restaurar esta lista".
+      loadVocabulary().then(data => {
+        state.defaultResponses = (data && data.defaults && data.defaults.responses) || null;
+      });
+      refresh();
+      setInterval(refresh, 4000);
+    }());
+  </script>
+</body>
+</html>

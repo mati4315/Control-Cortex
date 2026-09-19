@@ -57,7 +57,10 @@ function loadModule(options) {
     cortexCalls: [],
     skipCalls: 0,
     aliases: opts.aliases || null,
-    lastSearch: []
+    vocabulary: opts.vocabulary || null,
+    aiInterpretation: opts.aiInterpretation || null,
+    lastSearch: [],
+    lastLimits: []
   };
 
   const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -93,6 +96,7 @@ function loadModule(options) {
       state.cortexCalls.push({ url: target, body: null });
       const payload = { ok: true, settings: state.settings, command: batch[0] || null, commands: batch, sessionId: 'S1', serverTime: Date.now() };
       if (state.aliases) payload.aliases = state.aliases;
+      if (state.vocabulary) payload.vocabulary = state.vocabulary;
       return jsonResponse(payload);
     }
     if (target.indexOf('/api/spotify-device-target') !== -1) {
@@ -100,6 +104,11 @@ function loadModule(options) {
     }
     if (target.indexOf('/api/spotify-playback-offset') !== -1) {
       return jsonResponse({ enabled: state.settings.skipEnabled, seconds: state.settings.skipSeconds });
+    }
+    if (target.indexOf('/api/spotify-ai-interpret') !== -1) {
+      state.cortexCalls.push({ url: target, body });
+      if (!state.aiInterpretation) return jsonResponse({ ok: false, error: 'La IA esta desactivada.' });
+      return jsonResponse({ ok: true, interpretation: state.aiInterpretation });
     }
     if (target.indexOf('http://127.0.0.1:4000/') === 0) {
       state.cortexCalls.push({ url: target, body });
@@ -109,10 +118,14 @@ function loadModule(options) {
     // --- Spotify Web API simulada ---
     if (target.indexOf('/v1/search') !== -1) {
       const q = decodeURIComponent((target.split('q=')[1] || '').split('&')[0]);
+      const limite = Number((target.split('limit=')[1] || '3').split('&')[0]) || 3;
       state.lastSearch.push(q);
+      state.lastLimits.push(limite);
       const resolver = opts.search;
       const found = typeof resolver === 'function' ? resolver(q) : TRACK;
-      return jsonResponse({ tracks: { items: found ? [found] : [] } });
+      // El resolver puede devolver un tema, una lista de temas o nada.
+      const items = Array.isArray(found) ? found.slice(0, limite) : (found ? [found] : []);
+      return jsonResponse({ tracks: { items } });
     }
     if (target.indexOf('/me/player/devices') !== -1) {
       return jsonResponse({ devices: [DEVICE] });
@@ -188,7 +201,9 @@ async function waitFor(predicate, timeoutMs, stepMs) {
 
     await integration.syncSpotifySettings();
     check('sync: ajustes del dashboard cargados', integration.getCortexSpotifySettings() && integration.getCortexSpotifySettings().deviceTargetName === 'NOTEBOOK-MATI', JSON.stringify(integration.getCortexSpotifySettings()));
-    check('sync: limites efectivos por defecto', JSON.stringify(integration.describeAutoMusicLimits()) === '{"minTextLength":8,"requireCommand":false}', JSON.stringify(integration.describeAutoMusicLimits()));
+    const limites = integration.describeAutoMusicLimits();
+    check('sync: limites efectivos por defecto', limites.minTextLength === 8 && limites.requireCommand === false, JSON.stringify({ minTextLength: limites.minTextLength, requireCommand: limites.requireCommand }));
+    check('sync: el vocabulario viaja con los limites', !!(limites.vocab && limites.vocab.musicWords && limites.regexes), JSON.stringify(Object.keys(limites)));
 
     // El dashboard sube el largo minimo a 40: una frase corta deja de leerse.
     state.settings = { ...state.settings, minTextLength: 40 };
@@ -472,6 +487,309 @@ async function waitFor(predicate, timeoutMs, stepMs) {
     check('analisis: no reproduce nada', state.lastPlayBody === null, JSON.stringify(state.lastPlayBody));
     dom.window.close();
   }
+
+  // ---------- M) el vocabulario manda (entrenamiento en vivo) ----------
+  {
+    const { dom, integration } = loadModule({});
+    await integration.syncSpotifySettings();
+    check('vocabulario: "un hit de los palmeras" no se entiende por defecto', integration.parseAutoMusicRequest('un hit de los palmeras') === null, JSON.stringify(integration.parseAutoMusicRequest('un hit de los palmeras')));
+    check('vocabulario: "manda damas gratis" no se entiende por defecto', integration.parseAutoMusicRequest('manda damas gratis') === null, JSON.stringify(integration.parseAutoMusicRequest('manda damas gratis')));
+
+    // El dashboard de entrenamiento agrega "hit", "manda" y un genero nuevo.
+    const base = integration.getVocabulary();
+    integration.cortexSpotifyVocabulary = {
+      ...base,
+      musicWords: base.musicWords.concat(['hit', 'hits']),
+      requestVerbs: ['manda'].concat(base.requestVerbs),
+      genres: base.genres.concat([{ id: 'k-pop', spotify: 'k-pop', words: ['kpop', 'k pop'] }])
+    };
+
+    const withHit = integration.parseAutoMusicRequest('un hit de los palmeras');
+    check('vocabulario: al agregar "hit" el pedido se entiende', withHit && withHit.query === 'artist:los palmeras', JSON.stringify(withHit));
+    const withVerb = integration.parseAutoMusicRequest('manda damas gratis');
+    check('vocabulario: al agregar "manda" se entiende sin la palabra tema', withVerb && withVerb.query === 'damas gratis', JSON.stringify(withVerb));
+    const withGenre = integration.parseAutoMusicRequest('poneme un kpop');
+    check('vocabulario: el genero nuevo funciona', withGenre && withGenre.query === 'genre:k-pop', JSON.stringify(withGenre));
+    check('vocabulario: describe lo cargado', integration.describeVocabulary().musicWords.length === base.musicWords.length + 2, JSON.stringify(integration.describeVocabulary().musicWords.length));
+    dom.window.close();
+  }
+
+  // ---------- N) cerebro (IA) para lo que las reglas no entienden ----------
+  {
+    const base = loadModule({});
+    const vocab = base.integration.getVocabulary();
+    base.dom.window.close();
+
+    const conIa = {
+      ...vocab,
+      ai: { enabled: true, endpoint: 'https://ia.local/v1/chat/completions', model: 'demo', instructions: '', onlyWhenNotUnderstood: true, requireSignal: true, timeoutMs: 5000 }
+    };
+    const { dom, integration, state } = loadModule({
+      vocabulary: conIa,
+      aiInterpretation: { action: 'play', artist: 'Amar Azul', query: '', title: '', genre: '', confidence: 0.9 }
+    });
+    await integration.syncSpotifySettings();
+    check('cerebro: queda activado desde el vocabulario', integration.getVocabulary().ai.enabled === true, JSON.stringify(integration.getVocabulary().ai.enabled));
+
+    // "otro tema" tiene señal (palabra de musica) pero las reglas no lo pueden resolver.
+    const response = await integration.handleCommand('otro tema', { chatname: 'Mati', type: 'youtube' });
+    check('cerebro: la IA resuelve lo que las reglas no entienden', /Yo Tomo Licor|Amar Azul/.test(String(response)), response);
+    const iaCalls = cortexCall(state, '/api/spotify-ai-interpret');
+    check('cerebro: se consulta con el comentario', iaCalls.length === 1 && /otro tema/.test(iaCalls[0].body.comment), JSON.stringify(iaCalls.map(call => call.body.comment)));
+    const iaLog = cortexCall(state, '/api/spotify-request-log').map(call => call.body).find(entry => entry.source === 'ia');
+    check('cerebro: el pedido queda registrado como IA', !!iaLog && iaLog.ok === true, JSON.stringify(iaLog));
+
+    // Sin señal de pedido no se molesta a la IA.
+    const before = cortexCall(state, '/api/spotify-ai-interpret').length;
+    await integration.handleCommand('buenas a todos, como va la noche', { chatname: 'Mati', type: 'youtube' });
+    check('cerebro: sin señal de pedido no consulta', cortexCall(state, '/api/spotify-ai-interpret').length === before, cortexCall(state, '/api/spotify-ai-interpret').length - before);
+    dom.window.close();
+  }
+
+  {
+    const base = loadModule({});
+    const vocab = base.integration.getVocabulary();
+    base.dom.window.close();
+    const { dom, integration, state } = loadModule({
+      vocabulary: { ...vocab, ai: { ...vocab.ai, enabled: false } },
+      aiInterpretation: { action: 'play', artist: 'Amar Azul' }
+    });
+    await integration.syncSpotifySettings();
+    const response = await integration.handleCommand('otro tema', { chatname: 'Mati', type: 'youtube' });
+    check('cerebro: apagado no consulta ni reproduce', response === null && cortexCall(state, '/api/spotify-ai-interpret').length === 0, JSON.stringify(response));
+    dom.window.close();
+  }
+
+  // ---------- O) respuestas del bot: variantes, azar y sin repetir ----------
+  {
+    const RESPONSES = {
+      random: true,
+      avoidRepeat: true,
+      recent: 2,
+      contexts: {
+        ok: {
+          label: 'ok',
+          variants: [
+            'VAR-A {nombre}: {tema} - {artista}',
+            'VAR-B {nombre}: {tema} - {artista}',
+            'VAR-C {nombre}: {tema} - {artista}'
+          ]
+        },
+        searching: { label: 'buscando', variants: ['BUSCO {busqueda}', 'BUSCO-GENERO {genero}'] },
+        notFound: { label: 'no encontre', variants: ['NO-ESTA {pedido}'] }
+      }
+    };
+
+    const { dom, integration, state } = loadModule({});
+    await integration.syncSpotifySettings();
+    const base = integration.getVocabulary();
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, { responses: RESPONSES });
+
+    const values = { nombre: 'Mati', tema: 'Costumbres', artista: 'Damas Gratis' };
+    const picks = [];
+    for (let i = 0; i < 6; i += 1) picks.push(integration.describeBotReply('ok', values));
+    check('respuestas: usa las variantes configuradas', picks.every(text => /^VAR-[ABC] Mati: Costumbres - Damas Gratis$/.test(text)), JSON.stringify(picks.slice(0, 3)));
+    check('respuestas: devuelve mas de una variante distinta', new Set(picks).size >= 2, JSON.stringify(picks));
+    check('respuestas: no repite antes de agotar (recent 2)', picks[0] !== picks[1] && picks[1] !== picks[2] && picks[0] !== picks[2], JSON.stringify(picks.slice(0, 3)));
+    check('respuestas: solo salen las variantes de ese contexto', picks.every(text => text.indexOf('BUSCO') === -1 && text.indexOf('NO-ESTA') === -1), JSON.stringify(picks.slice(0, 2)));
+
+    // Una variante que necesita un dato que no existe se saltea.
+    const sinGenero = [];
+    for (let i = 0; i < 5; i += 1) sinGenero.push(integration.describeBotReply('searching', { busqueda: 'amar azul' }));
+    check('respuestas: saltea la variante sin datos', sinGenero.every(text => text === 'BUSCO amar azul'), JSON.stringify(sinGenero));
+    const conGenero = integration.describeBotReply('searching', { busqueda: 'cumbia', genero: 'cumbia' });
+    check('respuestas: con el dato usa las dos', /^BUSCO(-GENERO)? cumbia$/.test(conGenero), conGenero);
+
+    // Y el camino real del chat usa las variantes configuradas.
+    const delChat = await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati', type: 'youtube' });
+    check('respuestas: el chat usa la variante configurada', /^VAR-[ABC] Mati: Yo Tomo Licor - Amar Azul$/.test(String(delChat)), delChat);
+
+    // Pedidos rechazados por espera: tambien salen del contexto configurado.
+    state.settings = { ...state.settings, cooldownSeconds: 300 };
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, {
+      responses: Object.assign({}, RESPONSES, { contexts: Object.assign({}, RESPONSES.contexts, { waitGlobal: { label: 'espera', variants: ['CALMA {segundos}s {nombre}'] } }) })
+    });
+    await integration.syncSpotifySettings();
+    const espera = await integration.handleCommand('!tema Damas Gratis', { chatname: 'Mati', type: 'youtube' });
+    check('respuestas: el aviso de espera tambien es configurable', /^CALMA \d+s Mati$/.test(String(espera)), espera);
+
+    // Sin respuestas configuradas vuelve el texto de siempre (compatibilidad).
+    integration.cortexSpotifyVocabulary = Object.assign({}, base);
+    state.settings = { ...state.settings, cooldownSeconds: 0, userCooldownSeconds: 0, testMode: true };
+    await integration.syncSpotifySettings();
+    integration.cortexSpotifyVocabulary = Object.assign({}, base);
+    const clasico = await integration.handleCommand('!tema Damas Gratis', { chatname: 'Mati', type: 'youtube' });
+    check('respuestas: sin configuracion queda el texto de siempre', /^Listo Mati, ya se esta reproduciendo: /.test(String(clasico)), clasico);
+
+    // Variante sin {nombre}: se le agrega el nombre delante (como antes), salvo
+    // que la personalizacion este apagada.
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, {
+      responses: Object.assign({}, RESPONSES, { contexts: { ok: { label: 'ok', variants: ['SIN NOMBRE EN LA VARIANTE: {tema}'] } } })
+    });
+    const conNombre = integration.describeBotReply('ok', values);
+    check('respuestas: si la variante no trae {nombre} se agrega delante', /^Mati, SIN NOMBRE EN LA VARIANTE: Costumbres$/.test(conNombre), conNombre);
+    check('respuestas: no rompe las siglas al personalizar', /^Mati, SIN NOMBRE/.test(conNombre), conNombre);
+    state.settings = { ...state.settings, personalize: false };
+    await integration.syncSpotifySettings();
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, {
+      responses: Object.assign({}, RESPONSES, { contexts: { ok: { label: 'ok', variants: ['SIN NOMBRE EN LA VARIANTE: {tema}'] } } })
+    });
+    const sinPersonalizar = integration.describeBotReply('ok', values);
+    check('respuestas: con personalizacion apagada no agrega el nombre', sinPersonalizar === 'SIN NOMBRE EN LA VARIANTE: Costumbres', sinPersonalizar);
+
+    // Azar apagado: siempre la primera variante.
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, {
+      responses: { random: false, avoidRepeat: true, recent: 4, contexts: RESPONSES.contexts }
+    });
+    const fijas = [];
+    for (let i = 0; i < 4; i += 1) fijas.push(integration.describeBotReply('ok', values));
+    check('respuestas: con azar apagado repite la primera', fijas.every(text => text === fijas[0]), JSON.stringify(fijas));
+
+    // Contexto inexistente: no rompe, devuelve lo que se le pase como respaldo.
+    check('respuestas: contexto desconocido no rompe', integration.describeBotReply('no-existe', values) === '', integration.describeBotReply('no-existe', values));
+    dom.window.close();
+  }
+
+  // ---------- P) lo que se reporta para el analisis (SQLite) ----------
+  {
+    const RESPONSES = {
+      random: true,
+      avoidRepeat: true,
+      recent: 4,
+      contexts: {
+        ok: { label: 'ok', variants: ['FABRICA {nombre}: {tema}', 'DE-LA-IA {nombre}: {tema}'], aiVariants: ['DE-LA-IA {nombre}: {tema}'] },
+        searching: { label: 'buscando', variants: ['Buscando {busqueda}...'] },
+        notFound: { label: 'no', variants: ['NO-ESTA {pedido}'] }
+      }
+    };
+    // El buscador simulado devuelve null para "zzz": asi se prueba el caso no encontrado.
+    const { dom, integration, state } = loadModule({ search: consulta => (/zzz/i.test(consulta) ? null : TRACK) });
+    await integration.syncSpotifySettings();
+    const base = integration.getVocabulary();
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, { responses: RESPONSES });
+
+    await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati', type: 'youtube', userid: 'u-77' });
+    const reporte = cortexCall(state, '/api/spotify-request-log').pop().body;
+    check('reporte: manda el comentario original', reporte.comment === '!tema Amar Azul', JSON.stringify(reporte.comment));
+    check('reporte: manda la plataforma y el id del que pidio', reporte.platform === 'youtube' && reporte.requesterId === 'u-77', JSON.stringify({ platform: reporte.platform, id: reporte.requesterId }));
+    check('reporte: manda el estado del pedido', reporte.status === 'played', reporte.status);
+    check('reporte: manda la respuesta que dio el bot', /FABRICA|DE-LA-IA/.test(String(reporte.reply && reporte.reply.text)), JSON.stringify(reporte.reply));
+    check('reporte: manda de que contexto salio la respuesta', reporte.reply && reporte.reply.context === 'ok', JSON.stringify(reporte.reply && reporte.reply.context));
+    check('reporte: manda la variante usada', typeof (reporte.reply && reporte.reply.variant) === 'string' && reporte.reply.variant.length > 5, JSON.stringify(reporte.reply && reporte.reply.variant));
+    check('reporte: dice si la respuesta era de la IA', reporte.reply && typeof reporte.reply.ai === 'boolean' && reporte.reply.ai === (RESPONSES.contexts.ok.aiVariants.indexOf(reporte.reply.variant) !== -1), JSON.stringify(reporte.reply));
+    check('reporte: dice si lo interpreto la IA (aca no)', reporte.aiInterpreted === false, JSON.stringify(reporte.aiInterpreted));
+    check('reporte: manda el pedido tal como se leyo', reporte.parsed && reporte.parsed.query === 'amar azul', JSON.stringify(reporte.parsed));
+
+    // Un pedido que no se encuentra: estado notfound y el motivo.
+    state.settings = { ...state.settings, testMode: true };
+    await integration.syncSpotifySettings();
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, { responses: RESPONSES });
+    const noEsta = await integration.handleCommand('!tema Zzz No Existe', { chatname: 'Sofi', type: 'tiktok' });
+    const reporte2 = cortexCall(state, '/api/spotify-request-log').pop().body;
+    check('reporte: el pedido no encontrado queda marcado', reporte2.status === 'notfound' && /NO-ESTA/.test(String(reporte2.reply.text)), JSON.stringify({ status: reporte2.status, reply: reporte2.reply.text }));
+    check('reporte: avisa que el que pidio era de otra plataforma', reporte2.platform === 'tiktok', reporte2.platform);
+    check('reporte: y no mezcla el comentario del pedido anterior', reporte2.comment === '!tema Zzz No Existe', JSON.stringify(reporte2.comment));
+    dom.window.close();
+  }
+
+  // ---------- P2) respuestas: no repite la anterior ni con la ventana llena ----------
+  {
+    // Contexto "ok" con solo dos variantes y ventana de 4: la memoria corta no
+    // alcanza para evitar la repeticion, la garantia tiene que venir del motor
+    // (antes, al agotarse la ventana, podia repetir la ultima).
+    const VOCAB = {
+      responses: {
+        random: true,
+        avoidRepeat: true,
+        recent: 4,
+        contexts: {
+          ok: { label: 'ok', variants: ['SALIDA-1 {tema}', 'SALIDA-2 {tema}'], aiVariants: [] }
+        }
+      }
+    };
+    const { dom, integration, state } = loadModule({ vocabulary: VOCAB });
+    await integration.syncSpotifySettings();
+    const bloque = integration.cortexSpotifyVocabulary.responses.contexts.ok;
+    check('respuestas: el vocabulario de prueba tiene las 2 variantes', bloque.variants.length === 2, JSON.stringify(bloque));
+
+    const salidas = [];
+    for (let i = 0; i < 8; i += 1) {
+      const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:ke personajes', requester: 'Prueba' });
+      salidas.push(r && r.message);
+    }
+    check('respuestas: no repite la anterior aunque la ventana cubra todas', (() => { for (let i = 1; i < salidas.length; i += 1) { if (salidas[i] === salidas[i - 1]) return false; } return true; })(), JSON.stringify(salidas));
+    check('respuestas: y usa las dos variantes', new Set(salidas.filter(Boolean)).size === 2, JSON.stringify(salidas));
+    dom.window.close();
+  }
+
+  // ---------- Q) variedad: "un tema de X" no siempre el mismo ----------
+  {
+    // Spotify devuelve 5 temas del artista (uno repetido con otra URI): el bot elige al azar.
+    const CATALOGO = [
+      { id: 'k1', uri: 'spotify:track:k1', name: 'Uno Nunca Sabe', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }], album: { name: 'A', images: [] } },
+      { id: 'k2', uri: 'spotify:track:k2', name: 'Un Finde', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }], album: { name: 'A', images: [] } },
+      { id: 'k3', uri: 'spotify:track:k3', name: 'Como Olvidarme', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }], album: { name: 'A', images: [] } },
+      { id: 'k4', uri: 'spotify:track:k4', name: 'Yo Tomo', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }], album: { name: 'A', images: [] } },
+      { id: 'k5', uri: 'spotify:track:k5', name: 'Uno Nunca Sabe', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }], album: { name: 'B', images: [] } }
+    ];
+    const MAS_CUMBIA = [
+      { id: 'c1', uri: 'spotify:track:c1', name: 'La Cumbia Del Barrio', duration_ms: 200000, artists: [{ name: 'Amar Azul' }], album: { name: 'A', images: [] } },
+      { id: 'c2', uri: 'spotify:track:c2', name: 'Yo Tomo', duration_ms: 200000, artists: [{ name: 'Amar Azul' }], album: { name: 'A', images: [] } },
+      { id: 'c3', uri: 'spotify:track:c3', name: 'El Fantasma', duration_ms: 200000, artists: [{ name: 'Amar Azul' }], album: { name: 'A', images: [] } }
+    ];
+    const { dom, integration, state } = loadModule({
+      search: consulta => (/ke personajes/i.test(consulta) ? CATALOGO : (/cumbia/i.test(consulta) ? MAS_CUMBIA : TRACK))
+    });
+    await integration.syncSpotifySettings();
+    state.settings = { ...state.settings, testMode: true };
+
+    // 1) el pedido se lee como artista y sin tema puntual
+    await integration.runDashboardSpotifyCommand({ type: 'simulate', comment: 'pasame otro tema de ke personajes', requester: 'Prueba', parseOnly: true });
+    const analisis = cortexCall(state, '/api/spotify-request-log').map(call => call.body).pop();
+    check('variedad: "otro tema de X" se lee como artista', /artista\/tema de ke personajes/i.test(analisis && analisis.message), JSON.stringify(analisis && analisis.message));
+
+    // 2) seis veces el mismo pedido -> varios temas distintos
+    const nombres = [];
+    for (let i = 0; i < 6; i += 1) {
+      const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:ke personajes', requester: 'Prueba' });
+      nombres.push(r && r.track && r.track.name);
+    }
+    check('variedad: elige entre los temas del artista', new Set(nombres).size >= 3, JSON.stringify(nombres));
+    check('variedad: no devuelve siempre el mismo (antes el primero)', nombres.some(n => n !== 'Uno Nunca Sabe'), JSON.stringify(nombres));
+    check('variedad: nunca repite dos veces seguidas', (() => { for (let i = 1; i < nombres.length; i += 1) { if (nombres[i] === nombres[i - 1]) return false; } return true; })(), JSON.stringify(nombres));
+    check('variedad: le pide mas resultados a Spotify', state.lastLimits.some(l => l >= 5), JSON.stringify(state.lastLimits.slice(0, 5)));
+    check('variedad: no cuenta dos veces el mismo tema (single + disco)', new Set(nombres.filter(Boolean)).size + 1 >= 4, JSON.stringify(nombres));
+
+    // 3) apagada -> vuelve a ser determinista (el primero de siempre)
+    state.settings = { ...state.settings, artistVariety: false };
+    await integration.syncSpotifySettings();
+    const fijos = [];
+    for (let i = 0; i < 3; i += 1) {
+      const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:ke personajes', requester: 'Prueba' });
+      fijos.push(r && r.track && r.track.name);
+    }
+    check('variedad: apagada vuelve al primero de siempre', new Set(fijos).size === 1 && fijos[0] === 'Uno Nunca Sabe', JSON.stringify(fijos));
+
+    // 4) un pedido puntual (tema + artista) sigue exacto
+    state.settings = { ...state.settings, artistVariety: true };
+    await integration.syncSpotifySettings();
+    const puntual = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'track:Costumbres artist:Damas Gratis', requester: 'Prueba' });
+    check('variedad: un pedido puntual no se toca', puntual && puntual.track && puntual.track.name === TRACK.name, JSON.stringify(puntual && puntual.track && puntual.track.name));
+
+    // 5) genero: mismo criterio (no siempre la misma cumbia)
+    const generos = [];
+    for (let i = 0; i < 4; i += 1) {
+      const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'genre:cumbia', requester: 'Prueba' });
+      generos.push(r && r.track && r.track.name);
+    }
+    // Ojo: la continuacion automatica pudo encolar algun tema antes, asi que puede
+    // haber menos frescos. La garantia es la misma: no repite seguido.
+    check('variedad: tambien en los pedidos de genero', new Set(generos).size >= 2, JSON.stringify(generos));
+    check('variedad: en genero tampoco repite dos veces seguidas', (() => { for (let i = 1; i < generos.length; i += 1) { if (generos[i] === generos[i - 1]) return false; } return true; })(), JSON.stringify(generos));
+    dom.window.close();
+  }
+
+  // ---------- Resultado ----------
 
   // ---------- Resultado ----------
   const failed = results.filter(item => !item.ok);

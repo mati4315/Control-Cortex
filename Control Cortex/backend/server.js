@@ -7,6 +7,21 @@ const path = require('path');
 const pm2 = require('pm2');
 const os = require('os');
 const { OBSWebSocket } = require('obs-websocket-js');
+const { createFileStore } = require('./file-store');
+const { createAnalytics } = require('./spotify-analytics');
+const {
+  RESPONSE_CONTEXTS,
+  RESPONSE_CONTEXT_META,
+  DEFAULT_SPOTIFY_RESPONSES,
+  normalizeSpotifyResponses,
+  cleanVariantFor,
+  variantKey,
+  aiFailureMessage,
+  aiEnvelopeError,
+  addAiVariants,
+  parseAiSuggestions
+} = require('./spotify-responses');
+const { SPOTIFY_MODULE_VERSION } = require('./versions');
 
 const app = express();
 const server = http.createServer(app);
@@ -182,6 +197,7 @@ const SPOTIFY_SETTINGS_PATH = path.join(SPOTIFY_DIR, 'spotify-settings.json');
 const SPOTIFY_REQUEST_LOG_PATH = path.join(SPOTIFY_DIR, 'spotify-request-log.json');
 const SPOTIFY_DEVICES_PATH = path.join(SPOTIFY_DIR, 'spotify-devices.json');
 const SPOTIFY_ALIASES_PATH = path.join(SPOTIFY_DIR, 'spotify-aliases.json');
+const SPOTIFY_VOCABULARY_PATH = path.join(SPOTIFY_DIR, 'spotify-vocabulary.json');
 const SPOTIFY_REQUEST_LOG_LIMIT = 50;
 const SPOTIFY_COMMAND_TTL_MS = 120000;
 const DEFAULT_SPOTIFY_SETTINGS = {
@@ -197,6 +213,8 @@ const DEFAULT_SPOTIFY_SETTINGS = {
   skipEnabled: false,        // arrancar en el segundo N y cortar el final
   skipSeconds: 10,
   pollSeconds: 4,            // cada cuanto consulta la extension los comandos del dashboard
+  artistVariety: true,       // "un tema de X" -> uno al azar, no siempre el mismo
+  artistVarietyPool: 20,     // cuantos resultados mira para elegir al azar (5-50)
   deviceTargetName: ''       // vacio = dispositivo automatico
 };
 
@@ -222,6 +240,8 @@ function normalizeSpotifySettings(raw) {
     skipEnabled: pick('skipEnabled', false) === true,
     skipSeconds: clampSpotifyNumber(pick('skipSeconds', 10), 10, 1, 120),
     pollSeconds: clampSpotifyNumber(pick('pollSeconds', 4), 4, 1, 15),
+    artistVariety: pick('artistVariety', true) !== false,
+    artistVarietyPool: clampSpotifyNumber(pick('artistVarietyPool', 20), 20, 5, 50),
     deviceTargetName: String(pick('deviceTargetName', '') || '').trim().slice(0, 120)
   };
 }
@@ -267,6 +287,9 @@ let spotifyRequestLogSaveTimer = null;
 function writeSpotifySettingsFile() {
   fs.mkdirSync(SPOTIFY_DIR, { recursive: true });
   fs.writeFileSync(SPOTIFY_SETTINGS_PATH, JSON.stringify(spotifySettings, null, 2), 'utf8');
+  // El sello se actualiza: este guardado es nuestro, no una edicion externa.
+  // (try por si todavia no se creo el store, durante el arranque.)
+  try { spotifySettingsStore.markSynced(spotifySettings); } catch (error) { /* store no listo */ }
 }
 
 function mirrorLegacySpotifySettings() {
@@ -311,12 +334,26 @@ function saveSpotifyRequestLog() {
   }, 400);
 }
 
+// Limpia lo que venga en spotify-aliases.json (lo puede escribir una IA):
+// claves y valores en minusculas, sin basura, tope de 200 pares.
+function normalizeSpotifyAliases(raw) {
+  const clean = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return clean;
+  Object.keys(raw).slice(0, 200).forEach(key => {
+    const cleanKey = String(key || '').trim().toLowerCase().slice(0, 60);
+    const cleanValue = String(raw[key] || '').trim().toLowerCase().slice(0, 60);
+    if (cleanKey && cleanValue && cleanKey !== cleanValue) clean[cleanKey] = cleanValue;
+  });
+  return clean;
+}
+
 // Correcciones de escritura aprendidas ("laberiso" -> "la beriso"): las carga
 // el modulo de la extension y las aprende solo cuando una variante funciona.
 function saveSpotifyAliases() {
   try {
     fs.mkdirSync(SPOTIFY_DIR, { recursive: true });
     fs.writeFileSync(SPOTIFY_ALIASES_PATH, JSON.stringify(spotifyAliases, null, 2), 'utf8');
+    spotifyAliasesStore.markSynced(spotifyAliases);
   } catch (error) {
     console.warn('[Spotify] No se pudieron guardar las correcciones:', error.message);
   }
@@ -331,6 +368,7 @@ function learnSpotifyAlias(from, to, meta) {
   if (keys.length > 200) delete spotifyAliases[keys[0]];
   saveSpotifyAliases();
   pushToSpotifyClients({ type: 'spotify_aliases', aliases: spotifyAliases });
+  try { spotifyAnalytics.recordEvent('alias_learned', { from: key, to: value }); } catch (error) { /* arranque */ }
   console.log(`[Spotify] Correccion aprendida: "${key}" -> "${value}"`);
   return {
     from: key,
@@ -338,6 +376,153 @@ function learnSpotifyAlias(from, to, meta) {
     artist: String(meta?.artist || '').slice(0, 120),
     track: String(meta?.track || '').slice(0, 120)
   };
+}
+
+// --- Vocabulario: como esta entrenado el bot (Rulo/Spotify/spotify-vocabulary.json) ---
+// Es la fuente de verdad del parser: la extension lo lee en vivo y el dashboard de
+// entrenamiento lo edita. El respaldo del modulo usa estas mismas listas.
+const DEFAULT_SPOTIFY_VOCABULARY = {
+  commands: ['!playnow', '!tema', '!musica'],
+  musicWords: ['tema', 'temas', 'temita', 'temitas', 'temon', 'temones', 'temazo', 'temazos', 'music', 'musica', 'musicas', 'musicon', 'musiquita', 'cancion', 'canciones', 'cancioncita', 'track', 'tracks', 'rola', 'rolas', 'rolita'],
+  requestVerbs: ['quiero escuchar', 'quiero oir', 'me pones', 'me podes poner', 'podes poner', 'podrias poner', 'poneme', 'ponele', 'ponete', 'pones', 'poner', 'pongan', 'pone', 'pon', 'pasame', 'pasate', 'pasale', 'pasen', 'pasa', 'quiero', 'quisiera', 'queria', 'pedime', 'pedia', 'pedi', 'pedir', 'pido', 'necesito'],
+  greetings: ['hola', 'holis', 'buen dia', 'buenas tardes', 'buenas noches', 'buenas', 'bue', 'que tal', 'q tal', 'como va', 'como andan', 'como estas', 'como te va', 'epa', 'hey', 'saludos', 'aloha', 'buenas y santas'],
+  fillers: ['che', 'por favor', 'porfa', 'porfavor', 'please', 'dale', 'gracias', 'muchas gracias', 'amigo', 'amiga', 'genio', 'crack', 'maestro', 'capo', 'grande', 'bot', 'porfi'],
+  articles: ['un', 'una', 'unos', 'unas', 'el', 'la', 'los', 'las', 'algun', 'alguna', 'alguno', 'algunos', 'otro', 'otra'],
+  genres: [
+    { id: 'bachata', spotify: 'bachata', words: ['bachata', 'bachatas'] },
+    { id: 'blues', spotify: 'blues', words: ['blues'] },
+    { id: 'chamame', spotify: 'chamame', words: ['chamame'] },
+    { id: 'cumbia', spotify: 'cumbia', words: ['cumbia', 'cumbias', 'cumbia villera'] },
+    { id: 'cuarteto', spotify: 'cuarteto', words: ['cuarteto', 'cuartetos'] },
+    { id: 'electronica', spotify: 'electronic', words: ['electronica', 'electro', 'edm'] },
+    { id: 'folklore', spotify: 'folk', words: ['folklore', 'folclore'] },
+    { id: 'funk', spotify: 'funk', words: ['funk'] },
+    { id: 'jazz', spotify: 'jazz', words: ['jazz'] },
+    { id: 'merengue', spotify: 'merengue', words: ['merengue', 'merengues'] },
+    { id: 'metal', spotify: 'metal', words: ['metal'] },
+    { id: 'pop', spotify: 'pop', words: ['pop'] },
+    { id: 'rap', spotify: 'rap', words: ['rap'] },
+    { id: 'reggae', spotify: 'reggae', words: ['reggae', 'regae'] },
+    { id: 'reggaeton', spotify: 'reggaeton', words: ['reggaeton', 'regueton', 'regueto', 'regeton', 'regeaton', 'regaeton'] },
+    { id: 'romantico', spotify: 'romantico', words: ['romantico', 'romantica', 'romanticos', 'romanticas', 'romanticon'] },
+    { id: 'rock', spotify: 'rock', words: ['rock'] },
+    { id: 'salsa', spotify: 'salsa', words: ['salsa', 'salsas'] },
+    { id: 'techno', spotify: 'techno', words: ['techno', 'tekno'] },
+    { id: 'trap', spotify: 'trap', words: ['trap', 'traps'] },
+    { id: 'vallenato', spotify: 'vallenato', words: ['vallenato', 'vallenatos'] }
+  ],
+  typoSwaps: [['y', 'i'], ['i', 'y'], ['b', 'v'], ['v', 'b'], ['s', 'z'], ['z', 's'], ['ll', 'y'], ['qu', 'k'], ['c', 's']],
+  search: { maxAttempts: 7, variantLimit: 8 },
+  // Respuestas del bot / Rulo: varias variantes por contexto, al azar y sin
+  // repetir. Se editan desde la pestana "Bot / Rulo".
+  responses: DEFAULT_SPOTIFY_RESPONSES,
+  // Cerebro (futuro). La clave NUNCA se guarda aca: sale de backend/.env
+  // (SPOTIFY_AI_API_KEY). El dashboard solo muestra si esta puesta.
+  ai: {
+    enabled: false,
+    endpoint: '',
+    model: '',
+    instructions: '',
+    onlyWhenNotUnderstood: true,
+    requireSignal: true,
+    timeoutMs: 8000
+  }
+};
+
+function normalizeWordList(value, limit) {
+  if (!Array.isArray(value)) return [];
+  const out = [];
+  value.slice(0, limit || 400).forEach(word => {
+    const clean = String(word === undefined || word === null ? '' : word).trim().slice(0, 80);
+    if (clean && !out.some(item => item.toLowerCase() === clean.toLowerCase())) out.push(clean);
+  });
+  return out;
+}
+
+function normalizeSpotifyVocabulary(raw) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const base = DEFAULT_SPOTIFY_VOCABULARY;
+  const pick = (key, fallback) => (source[key] === undefined ? fallback : source[key]);
+  const genres = (Array.isArray(pick('genres', base.genres)) ? pick('genres', base.genres) : base.genres)
+    .slice(0, 100)
+    .map(entry => ({
+      id: String(entry?.id || entry?.spotify || '').trim().slice(0, 40),
+      spotify: String(entry?.spotify || entry?.id || '').trim().slice(0, 40),
+      words: normalizeWordList(entry?.words, 60)
+    }))
+    .filter(entry => entry.id && entry.spotify && entry.words.length);
+  const swaps = (Array.isArray(pick('typoSwaps', base.typoSwaps)) ? pick('typoSwaps', base.typoSwaps) : base.typoSwaps)
+    .slice(0, 60)
+    .filter(pair => Array.isArray(pair) && pair.length === 2 && String(pair[0]).length)
+    .map(pair => [String(pair[0]).slice(0, 6), String(pair[1] === undefined ? '' : pair[1]).slice(0, 6)]);
+  const ai = pick('ai', base.ai) && typeof pick('ai', base.ai) === 'object' ? pick('ai', base.ai) : base.ai;
+  return {
+    commands: normalizeWordList(pick('commands', base.commands), 20).map(cmd => cmd.toLowerCase().slice(0, 30)),
+    musicWords: normalizeWordList(pick('musicWords', base.musicWords), 200),
+    requestVerbs: normalizeWordList(pick('requestVerbs', base.requestVerbs), 200),
+    greetings: normalizeWordList(pick('greetings', base.greetings), 200),
+    fillers: normalizeWordList(pick('fillers', base.fillers), 200),
+    articles: normalizeWordList(pick('articles', base.articles), 100),
+    genres,
+    typoSwaps: swaps,
+    search: {
+      maxAttempts: clampSpotifyNumber(pick('search', base.search) && pick('search', base.search).maxAttempts, 7, 1, 12),
+      variantLimit: clampSpotifyNumber(pick('search', base.search) && pick('search', base.search).variantLimit, 8, 1, 16)
+    },
+    ai: {
+      enabled: ai.enabled === true,
+      endpoint: String(ai.endpoint || '').trim().slice(0, 300),
+      model: String(ai.model || '').trim().slice(0, 120),
+      instructions: String(ai.instructions || '').trim().slice(0, 2000),
+      onlyWhenNotUnderstood: ai.onlyWhenNotUnderstood !== false,
+      requireSignal: ai.requireSignal !== false,
+      timeoutMs: clampSpotifyNumber(ai.timeoutMs, 8000, 1000, 60000)
+    },
+    responses: normalizeSpotifyResponses(pick('responses', base.responses))
+  };
+}
+
+let spotifyVocabulary = DEFAULT_SPOTIFY_VOCABULARY;
+
+function saveSpotifyVocabularyFile() {
+  try {
+    fs.mkdirSync(SPOTIFY_DIR, { recursive: true });
+    fs.writeFileSync(SPOTIFY_VOCABULARY_PATH, JSON.stringify(spotifyVocabulary, null, 2), 'utf8');
+    try { spotifyVocabularyStore.markSynced(spotifyVocabulary); } catch (error) { /* store no listo */ }
+  } catch (error) {
+    console.warn('[Spotify] No se pudo guardar el vocabulario:', error.message);
+  }
+}
+
+function saveSpotifyVocabulary(patch) {
+  const next = Object.assign({}, spotifyVocabulary, patch && typeof patch === 'object' ? patch : {});
+  if (patch && patch.ai && typeof patch.ai === 'object') {
+    next.ai = Object.assign({}, spotifyVocabulary.ai, patch.ai);
+  }
+  if (patch && patch.search && typeof patch.search === 'object') {
+    next.search = Object.assign({}, spotifyVocabulary.search, patch.search);
+  }
+  spotifyVocabulary = normalizeSpotifyVocabulary(next);
+  saveSpotifyVocabularyFile();
+  pushToSpotifyClients({ type: 'spotify_vocabulary', vocabulary: spotifyVocabulary });
+  broadcast({ type: 'spotify_vocabulary', vocabulary: spotifyVocabulary });
+  // Queda registrado cada cambio de entrenamiento (cuando se toco y que).
+  try {
+    const contextos = spotifyVocabulary.responses.contexts;
+    spotifyAnalytics.recordEvent('vocabulary_saved', {
+      musicWords: spotifyVocabulary.musicWords.length,
+      requestVerbs: spotifyVocabulary.requestVerbs.length,
+      genres: spotifyVocabulary.genres.length,
+      respuestas: Object.keys(contextos).length,
+      variantes: Object.keys(contextos).reduce((suma, id) => suma + contextos[id].variants.length, 0),
+      iaActivada: spotifyVocabulary.ai.enabled === true
+    });
+  } catch (error) { /* arranque */ }
+  return spotifyVocabulary;
+}
+
+function spotifyAiKey() {
+  return String(process.env.SPOTIFY_AI_API_KEY || process.env.SPOTIFY_AI_KEY || '').trim();
 }
 
 function queueSpotifyCommand(command) {
@@ -361,6 +546,69 @@ function dequeueSpotifyCommand() {
   return spotifyCommandQueue.shift() || null;
 }
 
+// --- Edicion externa de los JSON (a mano o con una IA) ---
+// Cada archivo tiene su store: relee solo si cambio de verdad. Antes se leia una
+// vez al arrancar y una edicion por fuera quedaba invisible (peor: el siguiente
+// guardado del dashboard la pisaba).
+const spotifySettingsStore = createFileStore({
+  filePath: SPOTIFY_SETTINGS_PATH,
+  normalize: normalizeSpotifySettings,
+  fallback: DEFAULT_SPOTIFY_SETTINGS,
+  label: 'Spotify ajustes'
+});
+const spotifyVocabularyStore = createFileStore({
+  filePath: SPOTIFY_VOCABULARY_PATH,
+  normalize: normalizeSpotifyVocabulary,
+  fallback: DEFAULT_SPOTIFY_VOCABULARY,
+  label: 'Spotify vocabulario'
+});
+const spotifyAliasesStore = createFileStore({
+  filePath: SPOTIFY_ALIASES_PATH,
+  normalize: normalizeSpotifyAliases,
+  fallback: {},
+  label: 'Spotify correcciones'
+});
+
+// Relee los tres archivos si cambiaron y avisa a la extension por WebSocket.
+// Devuelve que cambio, para poder registrarlo.
+function syncSpotifyFiles() {
+  const changed = {};
+  const freshSettings = spotifySettingsStore.refresh();
+  if (freshSettings) {
+    spotifySettings = freshSettings;
+    applySpotifySettings();
+    mirrorLegacySpotifySettings();
+    changed.settings = true;
+    pushToSpotifyClients({ type: 'spotify_settings', settings: spotifySettings });
+  }
+  const freshVocabulary = spotifyVocabularyStore.refresh();
+  if (freshVocabulary) {
+    spotifyVocabulary = freshVocabulary;
+    changed.vocabulary = true;
+    pushToSpotifyClients({ type: 'spotify_vocabulary', vocabulary: spotifyVocabulary });
+    console.log(`[Spotify] Vocabulario recargado del archivo: ${spotifyVocabulary.musicWords.length} palabras, ${spotifyVocabulary.genres.length} generos.`);
+  }
+  const freshAliases = spotifyAliasesStore.refresh();
+  if (freshAliases) {
+    spotifyAliases = freshAliases;
+    changed.aliases = true;
+    pushToSpotifyClients({ type: 'spotify_aliases', aliases: spotifyAliases });
+    console.log(`[Spotify] Correcciones recargadas del archivo: ${Object.keys(spotifyAliases).length}.`);
+  }
+  if (changed.settings) console.log('[Spotify] Ajustes recargados del archivo.');
+  return changed;
+}
+
+// Los sellos de cada archivo: el dashboard los usa para saber si una edicion
+// externa cambio el contenido mientras tenia el formulario abierto.
+function spotifyFileStamps() {
+  return {
+    settings: spotifySettingsStore.stamp(),
+    vocabulary: spotifyVocabularyStore.stamp(),
+    aliases: spotifyAliasesStore.stamp()
+  };
+}
+
 function spotifySettingsPublic() {
   return {
     ...spotifySettings,
@@ -370,17 +618,15 @@ function spotifySettingsPublic() {
   };
 }
 
-try {
-  if (fs.existsSync(SPOTIFY_SETTINGS_PATH)) {
-    spotifySettings = normalizeSpotifySettings(JSON.parse(fs.readFileSync(SPOTIFY_SETTINGS_PATH, 'utf8')));
-  } else {
-    spotifySettings = normalizeSpotifySettings(readLegacySpotifySettings());
-    writeSpotifySettingsFile();
-    console.log('[Spotify] Ajustes creados en Rulo/Spotify/spotify-settings.json');
-  }
-} catch (error) {
-  console.warn('[Spotify] No se pudieron leer los ajustes:', error.message);
-  spotifySettings = { ...DEFAULT_SPOTIFY_SETTINGS };
+// Ajustes: primera carga (el store relee solo si el archivo cambia afuera).
+const settingsInit = spotifySettingsStore.init();
+if (!settingsInit.exists) {
+  spotifySettings = normalizeSpotifySettings(readLegacySpotifySettings());
+  writeSpotifySettingsFile();
+  console.log('[Spotify] Ajustes creados en Rulo/Spotify/spotify-settings.json');
+} else {
+  spotifySettings = normalizeSpotifySettings(spotifySettingsStore.value);
+  if (!settingsInit.ok) spotifySettings = { ...DEFAULT_SPOTIFY_SETTINGS };
 }
 applySpotifySettings();
 mirrorLegacySpotifySettings();
@@ -411,25 +657,56 @@ try {
   console.warn('[Spotify] No se pudo leer la lista de dispositivos:', error.message);
 }
 
-try {
-  if (fs.existsSync(SPOTIFY_ALIASES_PATH)) {
-    const savedAliases = JSON.parse(fs.readFileSync(SPOTIFY_ALIASES_PATH, 'utf8'));
-    if (savedAliases && typeof savedAliases === 'object' && !Array.isArray(savedAliases)) {
-      Object.keys(savedAliases).slice(0, 200).forEach(key => {
-        const cleanKey = String(key || '').trim().toLowerCase().slice(0, 60);
-        const cleanValue = String(savedAliases[key] || '').trim().slice(0, 60);
-        if (cleanKey && cleanValue) spotifyAliases[cleanKey] = cleanValue;
-      });
-      console.log(`[Spotify] Correcciones de escritura cargadas: ${Object.keys(spotifyAliases).length}.`);
-    }
+// Correcciones de escritura: primera carga.
+const aliasesInit = spotifyAliasesStore.init();
+if (aliasesInit.exists && aliasesInit.ok) {
+  spotifyAliases = normalizeSpotifyAliases(spotifyAliasesStore.value);
+  console.log(`[Spotify] Correcciones de escritura cargadas: ${Object.keys(spotifyAliases).length}.`);
+} else if (!aliasesInit.exists) {
+  spotifyAliases = {};
+  saveSpotifyAliases();
+}
+
+// Vocabulario guardado: si no existe, se siembra con los valores por defecto.
+const vocabularyInit = spotifyVocabularyStore.init();
+if (!vocabularyInit.exists) {
+  spotifyVocabulary = normalizeSpotifyVocabulary(DEFAULT_SPOTIFY_VOCABULARY);
+  saveSpotifyVocabularyFile();
+  console.log('[Spotify] Vocabulario creado en Rulo/Spotify/spotify-vocabulary.json');
+} else {
+  spotifyVocabulary = normalizeSpotifyVocabulary(spotifyVocabularyStore.value);
+  if (vocabularyInit.ok) {
+    console.log(`[Spotify] Vocabulario cargado: ${spotifyVocabulary.musicWords.length} palabras de musica, ${spotifyVocabulary.requestVerbs.length} verbos, ${spotifyVocabulary.genres.length} generos.`);
   }
-} catch (error) {
-  console.warn('[Spotify] No se pudieron leer las correcciones:', error.message);
+  // Si el archivo todavia no tiene el bloque de respuestas, se completa una vez
+  // asi queda visible y editable (el resto del archivo no se toca). El normalize
+  // siempre agrega el bloque, asi que hay que mirar el texto crudo del archivo.
+  let rawHadResponses = true;
+  try { rawHadResponses = /"responses"\s*:/.test(fs.readFileSync(SPOTIFY_VOCABULARY_PATH, 'utf8')); } catch (error) { rawHadResponses = true; }
+  if (!rawHadResponses) {
+    saveSpotifyVocabularyFile();
+    console.log(`[Spotify] Respuestas del bot agregadas al vocabulario (${Object.keys(spotifyVocabulary.responses.contexts).length} contextos).`);
+  }
 }
 
 
 app.use(cors());
 app.use(express.json());
+
+// Antes de cada consulta de Spotify: si algun JSON cambio afuera (edicion a mano
+// o de una IA), se relee y se le avisa a la extension. Ademas un vigilante cada
+// 2 s hace lo mismo aunque no haya ningun dashboard abierto, asi el bot toma los
+// cambios sin reiniciar nada.
+app.use('/api', (req, res, next) => {
+  if (req.path.indexOf('/spotify') === 0 || req.path.indexOf('/cortex') === 0) {
+    try { syncSpotifyFiles(); } catch (error) { console.warn('[Spotify] No se pudo releer los archivos:', error.message); }
+  }
+  next();
+});
+
+setInterval(() => {
+  try { syncSpotifyFiles(); } catch (error) { /* se reintenta en el proximo tick */ }
+}, 2000).unref();
 
 app.get('/spotify-lyrics-overlay.html', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -488,6 +765,25 @@ app.get('/rulo-spotify.html', (req, res, next) => {
   });
 });
 
+// Dashboard de entrenamiento del bot (vocabulario, correcciones, cerebro/IA).
+app.get('/rulo-spotify-bot.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'Spotify', 'spotify-bot.html'), error => {
+    if (error) next(error);
+  });
+});
+
+app.get('/rulo-spotify-training.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'Spotify', 'spotify-training.html'), error => {
+    if (error) next(error);
+  });
+});
+
 // Assets de la mascota (Rulo/assets).
 app.use('/rulo-assets', express.static(path.join(WORKSPACE_ROOT, 'Rulo', 'assets')));
 
@@ -533,7 +829,7 @@ app.post('/api/spotify-playback-offset', (req, res) => {
 // --- Dashboard de Spotify (Rulo/Spotify) ---
 
 app.get('/api/spotify-settings', (req, res) => {
-  res.json({ ok: true, settings: spotifySettingsPublic(), defaults: DEFAULT_SPOTIFY_SETTINGS });
+  res.json({ ok: true, settings: spotifySettingsPublic(), defaults: DEFAULT_SPOTIFY_SETTINGS, stamps: spotifyFileStamps() });
 });
 
 app.post('/api/spotify-settings', (req, res) => {
@@ -541,7 +837,7 @@ app.post('/api/spotify-settings', (req, res) => {
   try {
     const settings = saveSpotifySettings({ ...spotifySettings, ...patch });
     console.log('[Spotify] Ajustes guardados desde el dashboard.');
-    res.json({ ok: true, settings: spotifySettingsPublic() });
+    res.json({ ok: true, settings: spotifySettingsPublic(), stamps: spotifyFileStamps() });
   } catch (error) {
     console.error('[Spotify] No se pudieron guardar los ajustes:', error);
     res.status(500).json({ ok: false, error: 'No se pudieron guardar los ajustes de Spotify.' });
@@ -583,8 +879,10 @@ app.get('/api/spotify-client-state', (req, res) => {
     ok: true,
     settings: spotifySettings,
     aliases: spotifyAliases,
+    vocabulary: spotifyVocabulary,
     command: commands[0] || null,
     commands,
+    stamps: spotifyFileStamps(),
     sessionId: RULO_SESSION_ID,
     serverTime: Date.now()
   });
@@ -592,7 +890,7 @@ app.get('/api/spotify-client-state', (req, res) => {
 
 // --- Correcciones de escritura ("laberiso" -> "la beriso") ---
 app.get('/api/spotify-aliases', (req, res) => {
-  res.json({ success: true, aliases: spotifyAliases, total: Object.keys(spotifyAliases).length });
+  res.json({ success: true, aliases: spotifyAliases, total: Object.keys(spotifyAliases).length, stamps: spotifyFileStamps() });
 });
 
 app.post('/api/spotify-aliases', (req, res) => {
@@ -620,6 +918,431 @@ app.post('/api/spotify-aliases-clear', (req, res) => {
   saveSpotifyAliases();
   pushToSpotifyClients({ type: 'spotify_aliases', aliases: spotifyAliases });
   res.json({ success: true, aliases: spotifyAliases });
+});
+
+// --- Vocabulario (entrenamiento del bot) ---
+app.get('/api/spotify-vocabulary', (req, res) => {
+  res.json({
+    ok: true,
+    vocabulary: spotifyVocabulary,
+    defaults: DEFAULT_SPOTIFY_VOCABULARY,
+    responseContexts: RESPONSE_CONTEXT_META,
+    aiKeyPresent: spotifyAiKey().length > 0,
+    stamps: spotifyFileStamps(),
+    file: 'Rulo/Spotify/spotify-vocabulary.json'
+  });
+});
+
+app.post('/api/spotify-vocabulary', (req, res) => {
+  try {
+    const patch = req.body?.vocabulary && typeof req.body.vocabulary === 'object' ? req.body.vocabulary : (req.body || {});
+    const vocabulary = saveSpotifyVocabulary(patch);
+    res.json({
+      ok: true,
+      vocabulary,
+      stamps: spotifyFileStamps(),
+      aiKeyPresent: spotifyAiKey().length > 0,
+      resumen: {
+        musicWords: vocabulary.musicWords.length,
+        requestVerbs: vocabulary.requestVerbs.length,
+        greetings: vocabulary.greetings.length,
+        fillers: vocabulary.fillers.length,
+        articles: vocabulary.articles.length,
+        genres: vocabulary.genres.length,
+        commands: vocabulary.commands.length
+      }
+    });
+  } catch (error) {
+    console.error('[Spotify] No se pudo guardar el vocabulario:', error);
+    res.status(500).json({ ok: false, error: 'No se pudo guardar el vocabulario.' });
+  }
+});
+
+app.post('/api/spotify-vocabulary-reset', (req, res) => {
+  try {
+    spotifyVocabulary = normalizeSpotifyVocabulary(DEFAULT_SPOTIFY_VOCABULARY);
+    saveSpotifyVocabularyFile();
+    pushToSpotifyClients({ type: 'spotify_vocabulary', vocabulary: spotifyVocabulary });
+    res.json({ ok: true, vocabulary: spotifyVocabulary, stamps: spotifyFileStamps() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: 'No se pudo restaurar el vocabulario.' });
+  }
+});
+
+// --- Cerebro (futuro): interpretar un comentario con la IA configurada ---
+function validateAiInterpretation(value) {
+  if (!value || typeof value !== 'object') return null;
+  const action = String(value.action || '').toLowerCase();
+  if (action !== 'play' && action !== 'none') return null;
+  const confidence = Number(value.confidence);
+  return {
+    action,
+    query: String(value.query || '').slice(0, 200),
+    artist: String(value.artist || '').slice(0, 120),
+    title: String(value.title || '').slice(0, 120),
+    genre: String(value.genre || '').slice(0, 40),
+    confidence: Number.isFinite(confidence) ? Math.round(confidence * 100) / 100 : null,
+    reply: String(value.reply || '').slice(0, 200)
+  };
+}
+
+function extractAiInterpretation(text) {
+  const raw = String(text || '');
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.choices?.[0]?.message?.content) return extractAiInterpretation(parsed.choices[0].message.content);
+    if (parsed?.interpretation) return validateAiInterpretation(parsed.interpretation);
+    if (parsed?.action) return validateAiInterpretation(parsed);
+  } catch (error) {}
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    return validateAiInterpretation(JSON.parse(match[0]));
+  } catch (error) {
+    return null;
+  }
+}
+
+app.post('/api/spotify-ai-interpret', async (req, res) => {
+  const ai = spotifyVocabulary.ai || {};
+  const comment = String(req.body?.comment || '').trim().slice(0, 400);
+  if (!comment) return res.status(400).json({ ok: false, error: 'Falta el comentario.' });
+  if (ai.enabled !== true) return res.status(409).json({ ok: false, error: 'La IA esta desactivada en el dashboard de entrenamiento.' });
+  if (!ai.endpoint) return res.status(409).json({ ok: false, error: 'Falta configurar el endpoint de la IA.' });
+
+  const key = spotifyAiKey();
+  const generos = [...new Set(spotifyVocabulary.genres.map(entry => entry.spotify))];
+  const systemPrompt = [
+    'Sos el interprete de pedidos de musica de un stream en vivo.',
+    'Recibis un comentario del chat y respondes SOLO un objeto JSON, sin texto extra.',
+    'Formato: {"action":"play"|"none","artist":"","title":"","genre":"","query":"","confidence":0.0,"reply":""}',
+    'Reglas:',
+    '- Si el comentario pide musica (aunque este mal escrito), action "play" y completa lo que reconozcas.',
+    '- "artist" es el interprete o grupo, "title" el nombre del tema, "query" el texto de busqueda si no separaste artista/tema.',
+    '- "genre" solo con uno de estos valores: ' + generos.join(', ') + '.',
+    '- Si NO es un pedido de musica, action "none" y reply vacio.',
+    '- No inventes: si no estas seguro, deja el campo vacio y baja "confidence".',
+    ai.instructions ? 'Instrucciones del streamer: ' + ai.instructions : ''
+  ].filter(Boolean).join('\n');
+
+  const isOpenAiStyle = /chat\/completions|responses/.test(ai.endpoint);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ai.timeoutMs || 8000);
+  try {
+    const response = await fetch(ai.endpoint, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: `Bearer ${key}` } : {}),
+      body: JSON.stringify(isOpenAiStyle
+        ? {
+            model: ai.model || 'gpt-4o-mini',
+            temperature: 0,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: comment }
+            ]
+          }
+        : {
+            comment,
+            requester: String(req.body?.requester || '').slice(0, 80),
+            genres: generos,
+            instructions: ai.instructions || ''
+          })
+    });
+    const text = await response.text();
+    const fallo = aiFailureMessage(text) || aiFailureMessage(aiEnvelopeError(safeJson(text)));
+    if (fallo) {
+      console.warn('[Spotify IA] El proveedor rechazo el pedido:', text.slice(0, 200));
+      return res.status(502).json({ ok: false, error: fallo });
+    }
+    const interpretation = extractAiInterpretation(text);
+    if (!interpretation) {
+      console.warn('[Spotify IA] Respuesta no interpretable:', text.slice(0, 200));
+      return res.status(502).json({ ok: false, error: 'La IA no devolvio un pedido valido.' });
+    }
+    console.log(`[Spotify IA] "${comment.slice(0, 40)}" -> ${interpretation.action} ${interpretation.artist || interpretation.query || interpretation.genre || ''}`.trim());
+    res.json({ ok: true, interpretation });
+  } catch (error) {
+    const timedOut = error?.name === 'AbortError';
+    console.warn('[Spotify IA] Error:', timedOut ? 'timeout' : error.message);
+    res.status(502).json({ ok: false, error: timedOut ? 'La IA tardo demasiado.' : 'No se pudo consultar la IA.' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+// JSON.parse que no explota (para mirar el error que mando el proveedor).
+function safeJson(text) {
+  try { return JSON.parse(String(text || '')); } catch (error) { return null; }
+}
+
+// Saca las variantes de la respuesta de la IA: array JSON, objeto con "variants"
+// o una lista de lineas. Despues limpia cada una para ese contexto (placeholders
+// permitidos, largo, sin repetir lo que ya hay).
+function extractAiVariants(text, entry, existing, count) {
+  const raw = String(text || '').trim();
+  const parseCandidate = candidate => {
+    if (!candidate) return null;
+    const arrayMatch = candidate.match(/\[[\s\S]*\]/);
+    const source = arrayMatch ? arrayMatch[0] : candidate;
+    let parsed = null;
+    try { parsed = JSON.parse(source); } catch (error) { parsed = null; }
+    if (parsed && !Array.isArray(parsed) && Array.isArray(parsed.variants)) parsed = parsed.variants;
+    if (Array.isArray(parsed)) {
+      return parsed.map(item => (item && typeof item === 'object' ? item.text || item.variant || item.message : item));
+    }
+    // Ultimo recurso: lineas sueltas sin numeracion ni vinetas.
+    return candidate
+      .split(/\r?\n/)
+      .map(line => line.replace(/^\s*(?:[-*]|\d+[.)])\s*/, '').replace(/^"|"$/g, '').trim())
+      .filter(Boolean);
+  };
+
+  let candidates = parseCandidate(raw);
+  try {
+    const envelope = JSON.parse(raw);
+    const content = envelope?.choices?.[0]?.message?.content || envelope?.content || envelope?.text;
+    if (typeof content === 'string') candidates = parseCandidate(content);
+  } catch (error) { /* no vino envuelto */ }
+
+  const seen = (existing || []).map(item => variantKey(item)).filter(Boolean);
+  const out = [];
+  (candidates || []).forEach(item => {
+    const clean = cleanVariantFor(entry, item);
+    if (!clean || clean.length < 6) return;
+    // Nada que sea en realidad un error del proveedor entra como respuesta.
+    if (aiFailureMessage(clean)) return;
+    if (!/\s/.test(clean)) return;
+    const key = variantKey(clean);
+    if (!key) return;
+    // Se descarta si es igual a una que ya existe o si la contiene
+    // ("Repetida: Listo {nombre}, ya se esta reproduciendo...", por ejemplo).
+    const repetida = seen.some(other => other === key || (other.length >= 12 && key.indexOf(other) !== -1) || (key.length >= 12 && other.indexOf(key) !== -1));
+    if (repetida) return;
+    seen.push(key);
+    out.push(clean);
+  });
+  const limit = Math.min(6, Math.max(1, Math.round(Number(count) || 3)));
+  return out.slice(0, limit);
+}
+
+app.post('/api/spotify-ai-replies', async (req, res) => {
+  const contextId = String(req.body?.context || '').trim();
+  const entry = RESPONSE_CONTEXTS.find(item => item.id === contextId);
+  if (!entry) return res.status(400).json({ ok: false, error: 'Ese contexto de respuesta no existe.' });
+
+  const count = Math.min(6, Math.max(1, Math.round(Number(req.body?.count) || 3)));
+  const ai = spotifyVocabulary.ai || {};
+  if (ai.enabled !== true) return res.status(409).json({ ok: false, error: 'El cerebro (IA) esta apagado. Activalo en la seccion Cerebro de la pagina de entrenamiento.' });
+  if (!ai.endpoint) return res.status(409).json({ ok: false, error: 'Falta configurar el endpoint de la IA.' });
+
+  const key = spotifyAiKey();
+  const current = (spotifyVocabulary.responses.contexts[contextId] || {}).variants || [];
+  const placeholders = (entry.placeholders || []).map(name => '{' + name + '}');
+  const systemPrompt = [
+    'Sos Rulo, el bot musical de un stream en vivo en Argentina. Hablas en rioplatense, informal y corto.',
+    'Escribis SOLO un array JSON de strings, sin texto extra.',
+    'Tenes que escribir ' + count + ' formas NUEVAS de avisar lo mismo en este momento del pedido: ' + entry.label + '.',
+    placeholders.length
+      ? 'Podes usar estos datos entre llaves: ' + placeholders.join(' ') + '. No inventes otros placeholders.'
+      : 'No uses placeholders entre llaves.',
+    'Cada variante tiene que ser una frase completa y natural, de una sola linea, sin comillas raras.',
+    'No repitas ninguna de las que ya existen: ' + (current.slice(0, 8).join(' | ') || '(todavia no hay)'),
+    'No agregues emojis ni texto fuera del array.',
+    ai.instructions ? 'Instrucciones del streamer: ' + ai.instructions : ''
+  ].filter(Boolean).join('\n');
+
+  const isOpenAiStyle = /chat\/completions|responses/.test(ai.endpoint);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ai.timeoutMs || 8000);
+  try {
+    const response = await fetch(ai.endpoint, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: `Bearer ${key}` } : {}),
+      body: JSON.stringify(isOpenAiStyle
+        ? {
+            model: ai.model || 'gpt-4o-mini',
+            temperature: 0.9,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: 'Contexto: ' + entry.label + '. Escribi ' + count + ' variantes nuevas.' }
+            ]
+          }
+        : {
+            context: contextId,
+            label: entry.label,
+            placeholders: entry.placeholders || [],
+            existing: current.slice(0, 8),
+            count,
+            instructions: ai.instructions || ''
+          })
+    });
+    const text = await response.text();
+    const fallo = aiFailureMessage(text) || aiFailureMessage(aiEnvelopeError(safeJson(text)));
+    if (fallo) {
+      console.warn('[Spotify IA] El proveedor rechazo el pedido:', text.slice(0, 200));
+      return res.status(502).json({ ok: false, error: fallo });
+    }
+    const generadas = extractAiVariants(text, entry, current, count);
+    if (!generadas.length) {
+      console.warn('[Spotify IA] Variantes no interpretables:', text.slice(0, 200));
+      return res.status(502).json({ ok: false, error: 'La IA no devolvio variantes validas.' });
+    }
+    // Se guardan solas y quedan marcadas como de IA (asi despues se puede saber
+    // si la respuesta que salio al aire la escribio la IA o es de fabrica).
+    const agregadas = addAiVariants(spotifyVocabulary.responses, contextId, generadas);
+    if (!agregadas.length) {
+      return res.status(502).json({ ok: false, error: 'La IA no devolvio variantes nuevas (repitio las que ya estaban).' });
+    }
+    saveSpotifyVocabulary({});
+    console.log(`[Spotify IA] ${agregadas.length} variantes nuevas para "${contextId}" (marcadas como de IA).`);
+    try {
+      spotifyAnalytics.recordEvent('ai_replies', { context: contextId, count, variants: agregadas.length }, ai.model || '');
+    } catch (error) { /* nada */ }
+    res.json({ ok: true, context: contextId, variants: agregadas, vocabulary: spotifyVocabulary });
+  } catch (error) {
+    const timedOut = error?.name === 'AbortError';
+    console.warn('[Spotify IA] Error generando respuestas:', timedOut ? 'timeout' : error.message);
+    res.status(502).json({ ok: false, error: timedOut ? 'La IA tardo demasiado.' : 'No se pudo consultar la IA.' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+// --- Analisis (SQLite): todo lo que pasa con los pedidos, para buscar mejoras ---
+const spotifyAnalytics = createAnalytics({
+  filePath: path.join(SPOTIFY_DIR, 'spotify-analytics.db'),
+  session: RULO_SESSION_ID,
+  log: mensaje => console.warn('[Spotify analisis] ' + mensaje)
+});
+if (spotifyAnalytics.enabled) {
+  console.log('[Spotify] Historial de analisis listo: Rulo/Spotify/spotify-analytics.db');
+}
+
+app.get('/api/spotify-analytics', (req, res) => {
+  const stats = spotifyAnalytics.stats(req.query?.dias);
+  if (!stats) return res.status(503).json({ ok: false, error: 'El historial de analisis no esta disponible en este Node.' });
+  // Avisos: lo que conviene mirar (tasa de no encontrados, pedidos repetidos, saltos...).
+  stats.avisos = spotifyAnalytics.avisos(req.query?.dias);
+  res.json({ ok: true, analytics: stats });
+});
+
+// Avisos sueltos (los usa el recordatorio semanal).
+app.get('/api/spotify-analytics-alerts', (req, res) => {
+  res.json({ ok: true, avisos: spotifyAnalytics.avisos(req.query?.dias), recordatorio: (spotifyAnalytics.stats(req.query?.dias) || {}).recordatorio || null });
+});
+
+// Marcar como revisado: apaga el recordatorio hasta que haya algo nuevo.
+app.post('/api/spotify-analytics-reviewed', (req, res) => {
+  res.json({ ok: true, marcadas: spotifyAnalytics.markReviewed() });
+});
+
+// Que la IA proponga como arreglar los pedidos que no se encontraron.
+app.post('/api/spotify-ai-suggest', async (req, res) => {
+  const ai = spotifyVocabulary.ai || {};
+  const filas = spotifyAnalytics.rows({ dias: req.body?.dias || 30, limite: 40, estado: 'notfound' });
+  const comentarios = [];
+  filas.forEach(fila => {
+    const texto = String(fila.comment || '').trim();
+    if (texto && comentarios.indexOf(texto) === -1 && comentarios.length < 15) comentarios.push(texto);
+  });
+  if (!comentarios.length) {
+    return res.status(400).json({ ok: false, error: 'Todavia no hay pedidos sin encontrar en el historial.' });
+  }
+  if (ai.enabled !== true) return res.status(409).json({ ok: false, error: 'El cerebro (IA) esta apagado. Activalo en Entrenamiento -> Cerebro (IA).' });
+  if (!ai.endpoint) return res.status(409).json({ ok: false, error: 'Falta configurar el endpoint de la IA.' });
+
+  const key = spotifyAiKey();
+  const generos = [...new Set(spotifyVocabulary.genres.map(entry => entry.spotify))];
+  const artistas = [...new Set(spotifyVocabulary.aliases ? Object.values(spotifyVocabulary.aliases) : [])].slice(0, 20);
+  const systemPrompt = [
+    'Sos el que entrena a Rulo, el bot musical de un stream en vivo. Te paso comentarios que pidieron musica y NO se encontraron en Spotify.',
+    'Para cada uno decidi que paso y que habria que cargar. Responde SOLO un array JSON, sin texto extra.',
+    'Formato: [{"comment":"<el comentario tal cual>","problema":"<que fallo, corto>","tipo":"alias|cancion|artista|palabra|genero|nada","de":"<lo que escribio la persona>","a":"<lo que deberia buscar>"}]',
+    'Reglas:',
+    '- tipo "alias" cuando esta mal escrito o abreviado (de -> a, ejemplo: "laberiso" -> "la beriso").',
+    '- tipo "cancion" o "artista" cuando el nombre esta bien pero el bot no lo encontro en Spotify (a = nombre probable).',
+    '- tipo "palabra" cuando usan una palabra de pedido que el bot no conoce (de = la palabra).',
+    '- tipo "genero" cuando piden un genero que no esta en la lista: ' + generos.join(', ') + '.',
+    '- tipo "nada" si no es un pedido de musica o no se puede deducir.',
+    '- Usa exactamente los comentarios que te paso, sin inventar otros.',
+    '- No repitas lo que ya esta: los generos son ' + generos.join(', ') + ' y ya hay correcciones como ' + (artistas.join(', ') || '(ninguna)') + '.',
+    ai.instructions ? 'Instrucciones del streamer: ' + ai.instructions : ''
+  ].filter(Boolean).join('\n');
+
+  const isOpenAiStyle = /chat\/completions|responses/.test(ai.endpoint);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ai.timeoutMs || 8000);
+  try {
+    const response = await fetch(ai.endpoint, {
+      method: 'POST',
+      signal: controller.signal,
+      headers: Object.assign({ 'Content-Type': 'application/json' }, key ? { Authorization: `Bearer ${key}` } : {}),
+      body: JSON.stringify(isOpenAiStyle
+        ? {
+            model: ai.model || 'gpt-4o-mini',
+            temperature: 0.3,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: comentarios.map((texto, indice) => indice + 1 + '. ' + texto).join('\n') }
+            ]
+          }
+        : { comentarios, generos, instructions: ai.instructions || '' })
+    });
+    const text = await response.text();
+    const fallo = aiFailureMessage(text) || aiFailureMessage(aiEnvelopeError(safeJson(text)));
+    if (fallo) return res.status(502).json({ ok: false, error: fallo });
+    const sugerencias = parseAiSuggestions(text, comentarios);
+    if (!sugerencias.length) {
+      console.warn('[Spotify IA] Sugerencias no interpretables:', text.slice(0, 200));
+      return res.status(502).json({ ok: false, error: 'La IA no devolvio sugerencias validas.' });
+    }
+    console.log(`[Spotify IA] ${sugerencias.length} sugerencias para los pedidos que no se encontraron.`);
+    try { spotifyAnalytics.recordEvent('ai_suggest', { comentarios: comentarios.length, sugerencias: sugerencias.length }, ai.model || ''); } catch (error) { /* nada */ }
+    res.json({ ok: true, sugerencias, analizados: comentarios.length });
+  } catch (error) {
+    const timedOut = error?.name === 'AbortError';
+    console.warn('[Spotify IA] Error sugiriendo:', timedOut ? 'timeout' : error.message);
+    res.status(502).json({ ok: false, error: timedOut ? 'La IA tardo demasiado.' : 'No se pudo consultar la IA.' });
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+app.get('/api/spotify-analytics-rows', (req, res) => {
+  res.json({
+    ok: true,
+    rows: spotifyAnalytics.rows({ dias: req.query?.dias, limite: req.query?.limite, estado: req.query?.estado }),
+    file: 'Rulo/Spotify/spotify-analytics.db'
+  });
+});
+
+app.get('/api/spotify-analytics.csv', (req, res) => {
+  const contenido = spotifyAnalytics.csv(req.query?.dias);
+  const dias = Math.max(1, Math.min(3650, Number(req.query?.dias) || 30));
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  res.set('Content-Disposition', `attachment; filename="rulo-spotify-analisis-${dias}d.csv"`);
+  res.send(contenido);
+});
+
+// --- Estado de la instalacion: sirve para verificar despues de actualizar SSN ---
+app.get('/api/cortex-install-status', (req, res) => {
+  const now = Date.now();
+  const sinceClient = spotifyClientStatus.lastSeenAt ? now - spotifyClientStatus.lastSeenAt : null;
+  res.json({
+    ok: true,
+    moduleVersion: typeof SPOTIFY_MODULE_VERSION === 'number' ? SPOTIFY_MODULE_VERSION : null,
+    baseUrl: typeof CORTEX_BASE_URL === 'string' ? CORTEX_BASE_URL : '',
+    install: typeof ssnInstallStatus === 'object' ? ssnInstallStatus : { ok: false, steps: [], warnings: ['Sin datos: el backend no aplico el parcheo.'] },
+    extension: {
+      ...spotifyClientStatus,
+      sinceLastSeenMs: sinceClient,
+      connected: sinceClient !== null && sinceClient < 15000,
+      push: spotifySockets.size > 0
+    },
+    checkedAt: now
+  });
 });
 
 app.post('/api/spotify-test-request', (req, res) => {
@@ -668,6 +1391,41 @@ app.post('/api/spotify-request-log', (req, res) => {
   spotifyRequestLog.push(entry);
   while (spotifyRequestLog.length > SPOTIFY_REQUEST_LOG_LIMIT) spotifyRequestLog.shift();
   saveSpotifyRequestLog();
+  // Historial completo en SQLite: el JSON del dashboard guarda solo los ultimos 50.
+  const reply = body.reply && typeof body.reply === 'object' ? body.reply : {};
+  const parsed = body.parsed && typeof body.parsed === 'object' ? body.parsed : {};
+  spotifyAnalytics.recordInteraction({
+    timestamp: entry.timestamp,
+    source: entry.source,
+    platform: body.platform,
+    requester: entry.requester,
+    requesterId: body.requesterId,
+    comment: body.comment,
+    isRequest: body.isRequest === true || !!entry.query || !!parsed.query,
+    parsedSource: parsed.source || body.parsed_source,
+    artist: parsed.artist || body.artist,
+    title: parsed.title || body.title,
+    genre: parsed.genre || body.genre,
+    query: entry.query || parsed.query,
+    status: String(body.status || '').slice(0, 30) || (entry.ok ? 'played' : 'error'),
+    reason: entry.message,
+    ok: entry.ok,
+    aiInterpreted: body.aiInterpreted === true,
+    aiModel: body.aiModel,
+    replyText: reply.text || body.replyText,
+    replyContext: reply.context,
+    replyVariant: reply.variant,
+    replyRandom: reply.random,
+    replyAi: reply.ai === true || body.replyAi === true,
+    trackName: track && track.name,
+    trackArtist: track && track.artist,
+    trackUri: track && track.uri,
+    trackSource: body.trackSource,
+    seconds: body.seconds,
+    durationMs: body.durationMs,
+    // Cuanto tiempo paso desde que sono el tema: sirve para el enganche.
+    sincePlayMs: body.sincePlayMs
+  });
   broadcast({ type: 'spotify_request', entry });
   res.json({ success: true, entry });
 });
@@ -733,7 +1491,19 @@ app.get('/api/spotify-status', (req, res) => {
     },
     devices: spotifyDevicesSnapshot,
     log: spotifyRequestLog.slice(-SPOTIFY_REQUEST_LOG_LIMIT).reverse(),
+    stamps: spotifyFileStamps(),
+    // Recordatorio: cuantas interacciones quedan sin revisar en el analisis.
+    analytics: (() => {
+      try {
+        const stats = spotifyAnalytics.stats(7);
+        return stats && stats.recordatorio ? stats.recordatorio : null;
+      } catch (error) {
+        return null;
+      }
+    })(),
     aliases: spotifyAliases,
+    vocabulary: spotifyVocabulary,
+    aiKeyPresent: spotifyAiKey().length > 0,
     pendingCommands: spotifyCommandQueue.length,
     sessionId: RULO_SESSION_ID,
     serverTime: now
@@ -767,144 +1537,38 @@ app.post('/api/spotify-simulate-comment', (req, res) => {
 const SSN_PATH = path.resolve(__dirname, '../../SocialStream Ninja');
 
 // --- SSN AUTO-PATCHER ---
-// Revisa que la extensión conserve los ajustes locales al actualizar SSN.
-try {
-    const ssnManifestPath = path.resolve(__dirname, '../../SocialStream Ninja/manifest.json');
-    if (fs.existsSync(ssnManifestPath)) {
-        const manifestData = JSON.parse(fs.readFileSync(ssnManifestPath, 'utf8'));
-        if (!manifestData.key) {
-            console.log('[SSN Auto-Patcher] ⚠️ Falta la key en manifest.json. Inyectando...');
-            const newManifest = {
-                key: "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyUdjby5vpkeVePz8Qx1nYP0y4bl4rjJs1/7DJVMyFTsVgRxJWVCCbXKgNturGB5AQwKG2vQoBitrxez9/mfyQhqsoIG8gVXSKyNag99Lg44gFW39IE3Z14MgDSGBJ0fYASkPSZBjSybdaHuPuFt/t5ffBUU/EhdB1dE6GtnVhIv0zxK/caheuGqkSz13yq7lLyWJkCAF8EGjAfULwWU05gW6oJg11Ssfh4JWFO34HMnn6jMyfz4J/HMllVVXHecOk0nliwJKcMzBLQ4SIJHKAjO639/OUFamOjth2HqooEtZJTIMoY4IBAr/AxhKdaaE2DnUIcVhr3K8slcbDaPjSwIDAQAB",
-                ...manifestData
-            };
-            fs.writeFileSync(ssnManifestPath, JSON.stringify(newManifest, null, 2), 'utf8');
-            console.log('[SSN Auto-Patcher] ✅ Key inyectada exitosamente. ID de extensión protegido.');
-        } else {
-            console.log('[SSN Auto-Patcher] ✅ Key correcta en manifest.json.');
-        }
-    }
-
-    const localOverrideTargetDir = path.resolve(__dirname, '../../SocialStream Ninja/local-overrides');
-    const localOverrides = [
-        ['stable-ssn-session-id.js', path.resolve(__dirname, '../integrations/spotify-auto-music/stable-ssn-session-id.js')],
-        ['spotify-auto-music.js', path.resolve(__dirname, '../integrations/spotify-auto-music/spotify-auto-music.js')],
-        ['spotify-cortex-overlay-relay.js', path.resolve(__dirname, '../integrations/spotify-auto-music/spotify-cortex-overlay-relay.js')],
-        ['rulo-chat-relay.js', path.resolve(WORKSPACE_ROOT, 'Rulo/rulo-chat-relay.js')]
-    ];
-    for (const [overrideFile, sourcePath] of localOverrides) {
-        const targetPath = path.join(localOverrideTargetDir, overrideFile);
-        if (fs.existsSync(sourcePath)) {
-            fs.mkdirSync(localOverrideTargetDir, { recursive: true });
-            const sourceCode = fs.readFileSync(sourcePath, 'utf8');
-            const targetCode = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf8') : '';
-            if (sourceCode !== targetCode) {
-                fs.writeFileSync(targetPath, sourceCode, 'utf8');
-                console.log(`[SSN Auto-Patcher] ✅ ${overrideFile} copiado a SocialStream Ninja/local-overrides.`);
-            }
-        }
-    }
-
-    // URL base de Cortex generada: evita repetir la IP LAN en cada override.
+// Todo el parcheo vive en ssn-patcher.js y se aplica en cada arranque, con
+// verificacion. El resultado queda en ssnInstallStatus y se ve en
+// GET /api/cortex-install-status.
+const ssnInstallStatus = (() => {
+    const { applySsnPatches } = require('./ssn-patcher');
     try {
-        fs.mkdirSync(localOverrideTargetDir, { recursive: true });
-        const baseUrlOverridePath = path.join(localOverrideTargetDir, 'cortex-base-url.js');
-        const baseUrlCode = [
-            '// Generado automaticamente por Control Cortex al arrancar. No editar a mano.',
-            '(function () {',
-            '  "use strict";',
-            `  window.CORTEX_BASE_URL = ${JSON.stringify(CORTEX_BASE_URL)};`,
-            `  window.CORTEX_SESSION_ID = ${JSON.stringify(RULO_SESSION_ID)};`,
-            '}());',
-            ''
-        ].join('\n');
-        const currentBaseUrlCode = fs.existsSync(baseUrlOverridePath) ? fs.readFileSync(baseUrlOverridePath, 'utf8') : '';
-        if (currentBaseUrlCode !== baseUrlCode) {
-            fs.writeFileSync(baseUrlOverridePath, baseUrlCode, 'utf8');
-            console.log(`[SSN Auto-Patcher] ✅ cortex-base-url.js generado (${CORTEX_BASE_URL}).`);
+        const status = applySsnPatches({
+            ssnDir: SSN_PATH,
+            moduleVersion: SPOTIFY_MODULE_VERSION,
+            cortexBaseUrl: CORTEX_BASE_URL,
+            ruloSessionId: RULO_SESSION_ID,
+            overrides: [
+                { id: 'stable-session', file: 'stable-ssn-session-id.js', source: path.resolve(__dirname, '../integrations/spotify-auto-music/stable-ssn-session-id.js') },
+                { id: 'spotify-auto-music', file: 'spotify-auto-music.js', source: path.resolve(__dirname, '../integrations/spotify-auto-music/spotify-auto-music.js') },
+                { id: 'spotify-relay', file: 'spotify-cortex-overlay-relay.js', source: path.resolve(__dirname, '../integrations/spotify-auto-music/spotify-cortex-overlay-relay.js') },
+                { id: 'rulo-chat-relay', file: 'rulo-chat-relay.js', source: path.resolve(WORKSPACE_ROOT, 'Rulo/rulo-chat-relay.js') }
+            ],
+            log: message => console.log('[SSN Auto-Patcher] ' + message)
+        });
+        status.steps.forEach(step => console.log(`[SSN Auto-Patcher] ${step.ok ? 'OK   ' : 'FALLA'} ${step.id}: ${step.detail}`));
+        status.warnings.forEach(warning => console.warn('[SSN Auto-Patcher] AVISO: ' + warning));
+        if (status.ok) {
+            console.log(`[SSN Auto-Patcher] Extension lista (SSN ${status.ssnVersion || '?'}): ${status.steps.length} verificaciones OK.`);
+        } else {
+            console.error('[SSN Auto-Patcher] REVISAR: hay pasos con problemas. Mirar /api/cortex-install-status o MIGRAR-SOCIALSTREAM.md');
         }
+        return status;
     } catch (error) {
-        console.error('[SSN Auto-Patcher] ❌ No se pudo generar cortex-base-url.js:', error);
+        console.error('[SSN Auto-Patcher] Error parcheando SocialStream Ninja:', error);
+        return { ok: false, steps: [], warnings: [error.message], generatedAt: Date.now() };
     }
-
-    const loaderPath = path.resolve(__dirname, '../../SocialStream Ninja/loader.js');
-    if (fs.existsSync(loaderPath)) {
-        const SPOTIFY_MODULE_VERSION = 24;
-        const autoMusicLoaderLine = `        './local-overrides/spotify-auto-music.js?v=${SPOTIFY_MODULE_VERSION}',`;
-        const cortexRelayLoaderLine = "        './local-overrides/spotify-cortex-overlay-relay.js?v=1',";
-        const stableSessionLoaderLine = "        './local-overrides/stable-ssn-session-id.js?v=1',";
-        const ruloChatRelayLoaderLine = "        './local-overrides/rulo-chat-relay.js?v=1',";
-        const baseUrlLoaderLine = "        './local-overrides/cortex-base-url.js?v=1',";
-        const oldAutoMusicLoaderLine = "        './custom/spotify-auto-music.js?v=1',";
-        let loaderCode = fs.readFileSync(loaderPath, 'utf8');
-        // Normaliza la version del modulo: si queda una linea vieja, el modulo
-        // se cargaria dos veces. Se reescribe cualquier ?v=NN por la actual.
-        const normalizedLoaderCode = loaderCode.replace(
-            /\.\/local-overrides\/spotify-auto-music\.js\?v=\d+/g,
-            `./local-overrides/spotify-auto-music.js?v=${SPOTIFY_MODULE_VERSION}`
-        );
-        if (normalizedLoaderCode !== loaderCode) {
-            loaderCode = normalizedLoaderCode;
-            console.log(`[SSN Auto-Patcher] ✅ Version del modulo de Spotify normalizada a v${SPOTIFY_MODULE_VERSION}.`);
-        }
-        if (loaderCode.includes(oldAutoMusicLoaderLine)) {
-            loaderCode = loaderCode.replace(oldAutoMusicLoaderLine, autoMusicLoaderLine);
-        }
-        if (!loaderCode.includes(autoMusicLoaderLine)) {
-            loaderCode = loaderCode.replace(
-                "        './spotify.js?v=1',",
-                "        './spotify.js?v=1',\n" + autoMusicLoaderLine
-            );
-            console.log('[SSN Auto-Patcher] ✅ Loader de Spotify auto music inyectado.');
-        }
-        if (!loaderCode.includes(baseUrlLoaderLine)) {
-            loaderCode = loaderCode.replace(
-                autoMusicLoaderLine,
-                baseUrlLoaderLine + "\n" + autoMusicLoaderLine
-            );
-            console.log('[SSN Auto-Patcher] ✅ Loader de cortex-base-url inyectado.');
-        }
-        if (!loaderCode.includes(cortexRelayLoaderLine)) {
-            loaderCode = loaderCode.replace(
-                autoMusicLoaderLine,
-                autoMusicLoaderLine + "\n" + cortexRelayLoaderLine
-            );
-            console.log('[SSN Auto-Patcher] ✅ Loader de Spotify Cortex relay inyectado.');
-        }
-        if (!loaderCode.includes(stableSessionLoaderLine)) {
-            loaderCode = loaderCode.replace(
-                "        './background.js?v=5',",
-                stableSessionLoaderLine + "\n        './background.js?v=5',"
-            );
-            console.log('[SSN Auto-Patcher] ✅ Loader de Session ID estable inyectado.');
-        }
-        if (!loaderCode.includes(ruloChatRelayLoaderLine)) {
-            loaderCode = loaderCode.replace(
-                cortexRelayLoaderLine,
-                cortexRelayLoaderLine + "\n" + ruloChatRelayLoaderLine
-            );
-            console.log('[SSN Auto-Patcher] ✅ Loader de Rulo chat relay inyectado.');
-        }
-        // Mantener una sola carga del override aunque una actualización previa
-        // haya dejado líneas duplicadas en el loader.
-        let autoMusicLineSeen = false;
-        let baseUrlLineSeen = false;
-        loaderCode = loaderCode.split(/\r?\n/).filter(line => {
-            if (line.includes("'./local-overrides/spotify-auto-music.js?v=")) {
-                if (autoMusicLineSeen) return false;
-                autoMusicLineSeen = true;
-            }
-            if (line.includes("'./local-overrides/cortex-base-url.js?v=")) {
-                if (baseUrlLineSeen) return false;
-                baseUrlLineSeen = true;
-            }
-            return true;
-        }).join('\n');
-        fs.writeFileSync(loaderPath, loaderCode, 'utf8');
-    }
-} catch (error) {
-    console.error('[SSN Auto-Patcher] ❌ Error parcheando manifest:', error);
-}
+})();
 // ------------------------
 
 if (fs.existsSync(SSN_PATH)) {

@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Rulo | Entrenamiento del bot</title>
+  <style>
+    :root { --accent:#9fd50b; --bg:#101318; --panel:#191e26; --panel-alt:#151a21; --line:#303845; --text:#f4f6f8; --muted:#aab4c0; --danger:#ff7d7d; --spotify:#1db954; --warn:#e6c34a; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:15px "Segoe UI",Arial,sans-serif; }
+    main { width:min(1100px,100%); margin:0 auto; padding:26px 20px 60px; }
+    header { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; margin-bottom:18px; border-bottom:1px solid var(--line); padding-bottom:16px; }
+    h1 { margin:0; font-size:1.7rem; } h1 span { color:var(--accent); }
+    header p { margin:5px 0 0; color:var(--muted); max-width:62ch; }
+    nav { display:flex; gap:8px; }
+    header a { color:#111; background:var(--accent); border-radius:5px; padding:9px 12px; font-weight:800; text-decoration:none; white-space:nowrap; }
+    header a.link-secondary { color:var(--text); background:var(--line); }
+    .status { color:var(--muted); font-size:.85rem; text-align:right; }
+    h2 { margin:26px 0 4px; font-size:1.05rem; }
+    h2 small, .hint { color:var(--muted); font-weight:400; font-size:.85rem; }
+    .hint { display:block; margin:6px 0 10px; line-height:1.4; }
+    .chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+    .chip { border:1px solid var(--line); border-radius:999px; padding:7px 12px; background:var(--panel); font-size:.85rem; color:var(--muted); }
+    .chip strong { color:var(--text); }
+    .chip.is-ok { border-color:var(--spotify); } .chip.is-ok strong { color:var(--spotify); }
+    .chip.is-warn { border-color:var(--warn); } .chip.is-warn strong { color:var(--warn); }
+    .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+    .card { padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+    .card.wide { grid-column:1/-1; }
+    .card h3 { margin:0 0 4px; font-size:.98rem; }
+    textarea, input[type=text], input[type=number], select { width:100%; border:1px solid #465160; border-radius:5px; background:#0e1116; color:var(--text); padding:9px; font:inherit; }
+    textarea { min-height:110px; resize:vertical; font-family:Consolas,monospace; font-size:.86rem; line-height:1.5; }
+    input[type=checkbox] { accent-color:var(--accent); transform:scale(1.15); margin-right:8px; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .row input[type=text] { flex:1; min-width:140px; }
+    button { border:0; border-radius:5px; padding:10px 15px; color:#111; background:var(--accent); font-weight:800; cursor:pointer; font:inherit; font-weight:800; }
+    button.secondary { color:var(--text); background:var(--line); }
+    button.small { padding:7px 11px; font-size:.85rem; }
+    .table { display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+    .table .line { display:grid; grid-template-columns:1fr 190px auto; gap:8px; align-items:center; }
+    .table .line.swap { grid-template-columns:1fr 1fr auto; }
+    .table .head { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
+    pre.result { margin:10px 0 0; padding:12px; border:1px solid var(--line); border-radius:8px; background:var(--panel-alt); font-family:Consolas,monospace; font-size:.86rem; white-space:pre-wrap; min-height:3.2em; }
+    pre.result.ok { border-color:var(--spotify); } pre.result.fail { border-color:var(--danger); } pre.result.pending { border-color:var(--warn); }
+    #notice { min-height:1.3em; color:var(--accent); font-weight:700; }
+    .footer-bar { position:sticky; bottom:0; margin-top:20px; padding:12px 14px; border:1px solid var(--line); border-radius:8px; background:rgba(16,19,24,.94); display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+    code { background:#0e1116; border:1px solid var(--line); border-radius:4px; padding:1px 5px; }
+    @media(max-width:760px){ .grid{grid-template-columns:1fr;} .card.wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} nav{margin-top:10px;flex-wrap:wrap;} .table .line, .table .line.swap{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1><span>Rulo</span> · Entrenamiento del bot</h1>
+        <p>Todo lo que el bot entiende cuando alguien pide música: las palabras clave, los verbos, los géneros y las correcciones. Se guarda en <code>Rulo/Spotify/spotify-vocabulary.json</code> y la extensión lo toma en vivo.</p>
+      </div>
+      <nav>
+        <a href="/rulo-spotify.html" id="backLink" class="link-secondary">Ajustes</a>
+        <a class="link-secondary" href="/rulo-spotify-bot.html" id="botLink">Bot / Rulo</a>
+        <a class="link-secondary" href="/rulo-chat-historial.html">Historial</a>
+      </nav>
+      <div class="status" id="status">Cargando...</div>
+    </header>
+
+    <h2>Cómo está entrenado ahora</h2>
+    <div class="chips">
+      <span class="chip" id="chMusic">Palabras de música: <strong>…</strong></span>
+      <span class="chip" id="chVerbs">Verbos de pedido: <strong>…</strong></span>
+      <span class="chip" id="chNoise">Saludos + muletillas: <strong>…</strong></span>
+      <span class="chip" id="chGenres">Géneros: <strong>…</strong></span>
+      <span class="chip" id="chCommands">Comandos: <strong>…</strong></span>
+      <span class="chip" id="chAliases">Correcciones aprendidas: <strong>…</strong></span>
+      <span class="chip" id="chAi">Cerebro (IA): <strong>…</strong></span>
+      <span class="chip" id="chClient">Extensión: <strong>…</strong></span>
+    </div>
+
+    <h2>Palabras clave <small>(una por línea; se comparan sin acentos y en minúsculas)</small></h2>
+    <span class="hint">Son las palabras que hacen que un comentario se lea como pedido de música. Agregá sinónimos que use tu chat («temita», «rolita», «cancioncita»…) y probá con el analizador de abajo.</span>
+    <div class="grid">
+      <div class="card">
+        <h3>Palabras de música</h3>
+        <textarea data-list="musicWords" spellcheck="false"></textarea>
+        <span class="hint" id="countMusicWords"></span>
+      </div>
+      <div class="card">
+        <h3>Verbos de pedido</h3>
+        <textarea data-list="requestVerbs" spellcheck="false"></textarea>
+        <span class="hint">Las frases largas van primero: si ponés «quiero» antes que «quiero escuchar», el bot se queda con la corta.</span>
+      </div>
+      <div class="card">
+        <h3>Saludos</h3>
+        <textarea data-list="greetings" spellcheck="false"></textarea>
+      </div>
+      <div class="card">
+        <h3>Muletillas</h3>
+        <textarea data-list="fillers" spellcheck="false"></textarea>
+      </div>
+      <div class="card">
+        <h3>Artículos</h3>
+        <textarea data-list="articles" spellcheck="false"></textarea>
+        <span class="hint">Se usan para separar «un tema de X», detectar el artículo pegado («laberiso» → «la beriso») y descartar palabras al buscar.</span>
+      </div>
+      <div class="card">
+        <h3>Comandos</h3>
+        <textarea data-list="commands" spellcheck="false"></textarea>
+        <span class="hint">Con estos el pedido es directo y saltea el resto del análisis.</span>
+      </div>
+    </div>
+
+    <h2>Géneros <small>(qué palabra del chat corresponde a qué género de Spotify)</small></h2>
+    <span class="hint">La columna derecha es el género tal como lo entiende Spotify (<code>genre:rock</code>). Ejemplos: folklore → folk, electrónica → electronic.</span>
+    <div class="card">
+      <div class="table" id="genresTable"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="small" id="btnAddGenre" type="button">Agregar género</button>
+      </div>
+    </div>
+
+    <h2>Errores de escritura que se corrigen al buscar</h2>
+    <span class="hint">Si la búsqueda no encuentra nada, se prueban estos cambios sobre la palabra escrita (letra → letra). Después, cuando uno funciona, la corrección queda guardada sola en el panel de Spotify.</span>
+    <div class="card">
+      <div class="table" id="swapsTable"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="small" id="btnAddSwap" type="button">Agregar cambio</button>
+      </div>
+    </div>
+
+    <h2>Búsqueda</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Intentos máximos por pedido</h3>
+        <input type="number" id="maxAttempts" min="1" max="12" step="1">
+        <span class="hint">Cuántas variantes distintas se prueban antes de decir «no encontré».</span>
+      </div>
+      <div class="card">
+        <h3>Variantes por palabra</h3>
+        <input type="number" id="variantLimit" min="1" max="16" step="1">
+        <span class="hint">Tope de combinaciones por término para no castigar la API.</span>
+      </div>
+    </div>
+
+    <h2 id="cerebro">Cerebro (IA) <small>(opcional, para lo que las reglas no entienden)</small></h2>
+    <span class="hint">Si lo activás, cuando el comentario no se entiende con las reglas de arriba, Cortex le pregunta a la IA y espera un JSON con el pedido. La clave <strong>no</strong> se guarda acá: se lee de <code>Control Cortex/backend/.env</code> como <code>SPOTIFY_AI_API_KEY</code>. Sin clave también funciona si tu endpoint no la pide.</span>
+    <div class="card">
+      <div class="row">
+        <label class="row"><input type="checkbox" id="aiEnabled"> Activar el cerebro</label>
+        <span class="chip" id="aiKeyChip">Clave en .env: <strong>…</strong></span>
+      </div>
+      <div class="grid" style="margin-top:12px">
+        <div>
+          <h3>Endpoint (compatible con OpenAI o propio)</h3>
+          <input type="text" id="aiEndpoint" placeholder="https://api.openai.com/v1/chat/completions">
+          <span class="hint">Si la URL contiene <code>/chat/completions</code> se manda el formato de chat; si no, se manda <code>{comment, genres, instructions}</code> y se espera el JSON del pedido.</span>
+        </div>
+        <div>
+          <h3>Modelo</h3>
+          <input type="text" id="aiModel" placeholder="gpt-4o-mini">
+          <h3 style="margin-top:12px">Espera máxima (ms)</h3>
+          <input type="number" id="aiTimeout" min="1000" max="60000" step="500">
+        </div>
+        <div class="card wide" style="background:var(--panel-alt)">
+          <h3>Instrucciones propias para la IA</h3>
+          <textarea id="aiInstructions" placeholder="Ej: en mi stream la gente pide mucho cumbia; si dicen «lo del tano» se refieren a Amar Azul."></textarea>
+        </div>
+        <div class="row">
+          <label class="row"><input type="checkbox" id="aiRequireSignal"> Solo si el comentario tiene alguna palabra de las listas</label>
+        </div>
+        <div class="row">
+          <label class="row"><input type="checkbox" id="aiOnlyNotUnderstood"> Solo cuando las reglas no lo entienden</label>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <input type="text" id="aiTestComment" placeholder="Comentario para probar la IA: ej: pasame lo del tano">
+        <button class="small secondary" id="btnAiTest" type="button">Probar interpretación</button>
+      </div>
+      <pre class="result" id="aiResult"></pre>
+    </div>
+
+    <h2>Estado de la instalación <small>(SocialStream Ninja)</small></h2>
+    <span class="hint">Revisa que los módulos de Cortex estén aplicados dentro de la extensión. Si actualizás SocialStream Ninja, acá ves si quedó algo pendiente: se arregla con <code>Control Cortex\SSN 1 - Estado.bat</code> y reiniciando el backend (hay guía en <code>Control Cortex\MIGRAR-SOCIALSTREAM.md</code>).</span>
+    <div class="chips" style="margin-bottom:10px">
+      <span class="chip" id="inSsn">SSN: <strong>…</strong></span>
+      <span class="chip" id="inPatch">Parcheo: <strong>…</strong></span>
+      <span class="chip" id="inModule">Módulo: <strong>…</strong></span>
+      <span class="chip" id="inBase">Cortex: <strong>…</strong></span>
+    </div>
+    <div class="card">
+      <div class="devices" id="installSteps"><span class="empty">Consultando…</span></div>
+      <div class="row" style="margin-top:10px">
+        <button class="small secondary" id="btnInstall" type="button">Verificar ahora</button>
+      </div>
+    </div>
+
+    <h2>Analizador en vivo</h2>
+    <span class="hint">Escribe un comentario tal como lo pondría alguien del chat: el bot lo analiza con las reglas guardadas y te dice qué entendió, sin reproducir nada.</span>
+    <div class="card">
+      <div class="row">
+        <input type="text" id="probeComment" placeholder="Ej: Un tema de laberiso">
+        <button id="btnProbe" type="button">Analizar</button>
+      </div>
+      <pre class="result" id="probeResult"></pre>
+    </div>
+
+    <div class="footer-bar">
+      <button id="btnSave" type="button">Guardar ahora</button>
+      <button class="secondary" id="btnReload" type="button">Recargar del servidor</button>
+      <button class="secondary" id="btnReset" type="button">Restaurar valores por defecto</button>
+      <span id="notice"></span>
+    </div>
+  </main>
+  <script>
+    (function () {
+      "use strict";
+      const LIST_KEYS = ["musicWords", "requestVerbs", "greetings", "fillers", "articles", "commands"];
+      const el = id => document.getElementById(id);
+      const notice = el('notice');
+      const status = el('status');
+      let state = { vocabulary: null, aliases: {}, client: {}, stamp: null, externalPending: false };
+      let saveTimer = null;
+      let probeTimer = null;
+
+      // ¿Hay ediciones sin guardar o el foco en un campo? Entonces no se pisa el
+      // formulario con lo que venga del servidor.
+      function formIsBusy() {
+        if (saveTimer) return true;
+        const active = document.activeElement;
+        if (!active) return false;
+        return active.tagName === 'TEXTAREA' || active.tagName === 'INPUT' || active.tagName === 'SELECT';
+      }
+
+      function esc(value) {
+        return String(value === undefined || value === null ? '' : value)
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      }
+      function showNotice(text, error) {
+        notice.textContent = text || '';
+        notice.style.color = error ? 'var(--danger)' : 'var(--accent)';
+        setTimeout(() => { if (notice.textContent === text) notice.textContent = ''; }, 3000);
+      }
+      function listToText(list) { return (Array.isArray(list) ? list : []).join('\n'); }
+      function textToList(value) {
+        return String(value || '').split(/[\n,]+/).map(item => item.trim()).filter(Boolean);
+      }
+
+      function renderChips(vocabulary, extra) {
+        const count = list => (Array.isArray(list) ? list.length : 0);
+        el('chMusic').innerHTML = 'Palabras de música: <strong>' + count(vocabulary.musicWords) + '</strong>';
+        el('chVerbs').innerHTML = 'Verbos de pedido: <strong>' + count(vocabulary.requestVerbs) + '</strong>';
+        el('chNoise').innerHTML = 'Saludos + muletillas: <strong>' + (count(vocabulary.greetings) + count(vocabulary.fillers)) + '</strong>';
+        el('chGenres').innerHTML = 'Géneros: <strong>' + count(vocabulary.genres) + '</strong>';
+        el('chCommands').innerHTML = 'Comandos: <strong>' + count(vocabulary.commands) + '</strong>';
+        el('chAliases').innerHTML = 'Correcciones aprendidas: <strong>' + (extra && extra.aliases ? Object.keys(extra.aliases).length : 0) + '</strong>';
+        const ai = vocabulary.ai || {};
+        el('chAi').className = 'chip' + (ai.enabled ? ' is-ok' : '');
+        el('chAi').innerHTML = 'Cerebro (IA): <strong>' + (ai.enabled ? 'activado' : 'apagado') + '</strong>';
+        el('aiKeyChip').className = 'chip' + (extra && extra.aiKeyPresent ? ' is-ok' : ' is-warn');
+        el('aiKeyChip').innerHTML = 'Clave en .env: <strong>' + (extra && extra.aiKeyPresent ? 'presente' : 'no configurada') + '</strong>';
+        if (extra && extra.client) {
+          const client = extra.client;
+          el('chClient').className = 'chip' + (client.connected ? (client.push ? ' is-ok' : ' is-warn') : '');
+          el('chClient').innerHTML = 'Extensión: <strong>' + (client.connected ? 'conectada' + (client.version ? ' v' + client.version : '') : 'sin conexión') + '</strong>';
+        }
+        el('countMusicWords').textContent = count(vocabulary.musicWords) + ' palabras cargadas.';
+      }
+
+      function renderInstall(data) {
+        const install = (data && data.install) || {};
+        const steps = Array.isArray(install.steps) ? install.steps : [];
+        const ssnVersion = install.ssnVersion || (data && data.ssn && data.ssn.version) || '';
+        el('inSsn').className = 'chip' + (ssnVersion ? ' is-ok' : '');
+        el('inSsn').innerHTML = 'SSN: <strong>' + (ssnVersion ? 'v' + ssnVersion : 'sin dato') + '</strong>';
+        el('inPatch').className = 'chip' + (install.ok ? ' is-ok' : ' is-warn');
+        el('inPatch').innerHTML = 'Parcheo: <strong>' + (install.ok ? 'aplicado' : 'revisar') + '</strong>';
+        el('inModule').innerHTML = 'Módulo: <strong>v' + ((data && data.moduleVersion) || '?') + '</strong>';
+        const client = (data && data.extension) || {};
+        el('inBase').className = 'chip' + (client.connected ? ' is-ok' : ' is-warn');
+        el('inBase').innerHTML = 'Extensión: <strong>' + (client.connected ? 'conectada' + (client.version ? ' v' + client.version : '') : 'sin conexión') + '</strong>';
+
+        const rows = steps.map(step =>
+          '<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line)">' +
+            '<span style="color:' + (step.ok ? 'var(--spotify)' : 'var(--warn)') + ';font-weight:800;min-width:46px">' + (step.ok ? 'OK' : 'FALLA') + '</span>' +
+            '<span style="min-width:190px">' + esc(step.label || step.id) + '</span>' +
+            '<span class="hint" style="margin:0;flex:1">' + esc(step.detail || '') + '</span>' +
+          '</div>'
+        );
+        (install.warnings || []).forEach(warning => rows.push('<div style="padding:5px 0;color:var(--warn)">Aviso: ' + esc(warning) + '</div>'));
+        if (install.ssnWarning) rows.push('<div style="padding:5px 0;color:var(--warn)">Aviso: ' + esc(install.ssnWarning) + '</div>');
+        el('installSteps').innerHTML = rows.length ? rows.join('') : '<span class="hint" style="margin:0">Sin datos: reiniciá el backend para que aplique el parcheo.</span>';
+        if (!install.ok && steps.length) {
+          showNotice('Ojo: falta re-aplicar el parcheo. Reiniciá el backend o usá "Control Cortex\\SSN 1 - Estado.bat".', true);
+        }
+      }
+
+      function refreshInstall() {
+        return fetch('/api/cortex-install-status', { cache: 'no-store' })
+          .then(response => response.json())
+          .then(renderInstall)
+          .catch(() => { el('installSteps').innerHTML = '<span class="hint" style="margin:0">Sin conexión con Control Cortex (puerto 4000).</span>'; });
+      }
+
+      function renderGenres(genres) {
+        const table = el('genresTable');
+        const rows = ['<div class="line head"><span>Palabras que escribe la gente (separadas por coma)</span><span>Género en Spotify</span><span></span></div>'];
+        (genres || []).forEach((entry, index) => {
+          rows.push(
+            '<div class="line">' +
+            '<input type="text" data-genre-words="' + index + '" value="' + esc((entry.words || []).join(', ')) + '">' +
+            '<input type="text" data-genre-spotify="' + index + '" value="' + esc(entry.spotify || '') + '">' +
+            '<button class="small secondary" type="button" data-genre-remove="' + index + '">Quitar</button>' +
+            '</div>'
+          );
+        });
+        if (!(genres || []).length) rows.push('<div class="line"><span class="hint">Sin géneros cargados.</span></div>');
+        table.innerHTML = rows.join('');
+        table.querySelectorAll('[data-genre-words]').forEach(input => {
+          input.addEventListener('input', () => {
+            const index = Number(input.getAttribute('data-genre-words'));
+            state.vocabulary.genres[index].words = textToList(input.value);
+            scheduleSave();
+          });
+        });
+        table.querySelectorAll('[data-genre-spotify]').forEach(input => {
+          input.addEventListener('input', () => {
+            const index = Number(input.getAttribute('data-genre-spotify'));
+            state.vocabulary.genres[index].spotify = input.value.trim();
+            state.vocabulary.genres[index].id = input.value.trim() || state.vocabulary.genres[index].id;
+            scheduleSave();
+          });
+        });
+        table.querySelectorAll('[data-genre-remove]').forEach(button => {
+          button.addEventListener('click', () => {
+            state.vocabulary.genres.splice(Number(button.getAttribute('data-genre-remove')), 1);
+            renderGenres(state.vocabulary.genres);
+            scheduleSave();
+          });
+        });
+      }
+
+      function renderSwaps(swaps) {
+        const table = el('swapsTable');
+        const rows = ['<div class="line swap head"><span>Se escribe</span><span>Se prueba como</span><span></span></div>'];
+        (swaps || []).forEach((pair, index) => {
+          rows.push(
+            '<div class="line swap">' +
+            '<input type="text" data-swap-from="' + index + '" value="' + esc(pair[0]) + '">' +
+            '<input type="text" data-swap-to="' + index + '" value="' + esc(pair[1] === undefined ? '' : pair[1]) + '">' +
+            '<button class="small secondary" type="button" data-swap-remove="' + index + '">Quitar</button>' +
+            '</div>'
+          );
+        });
+        table.innerHTML = rows.join('');
+        const bind = (attr, position) => {
+          table.querySelectorAll('[data-swap-' + attr + ']').forEach(input => {
+            input.addEventListener('input', () => {
+              const index = Number(input.getAttribute('data-swap-' + attr));
+              state.vocabulary.typoSwaps[index][position] = input.value;
+              scheduleSave();
+            });
+          });
+        };
+        bind('from', 0);
+        bind('to', 1);
+        table.querySelectorAll('[data-swap-remove]').forEach(button => {
+          button.addEventListener('click', () => {
+            state.vocabulary.typoSwaps.splice(Number(button.getAttribute('data-swap-remove')), 1);
+            renderSwaps(state.vocabulary.typoSwaps);
+            scheduleSave();
+          });
+        });
+      }
+
+      function fillForm(vocabulary, extra) {
+        LIST_KEYS.forEach(key => {
+          const node = document.querySelector('[data-list="' + key + '"]');
+          if (node) node.value = listToText(vocabulary[key]);
+        });
+        el('maxAttempts').value = (vocabulary.search && vocabulary.search.maxAttempts) || 7;
+        el('variantLimit').value = (vocabulary.search && vocabulary.search.variantLimit) || 8;
+        const ai = vocabulary.ai || {};
+        el('aiEnabled').checked = ai.enabled === true;
+        el('aiEndpoint').value = ai.endpoint || '';
+        el('aiModel').value = ai.model || '';
+        el('aiTimeout').value = ai.timeoutMs || 8000;
+        el('aiInstructions').value = ai.instructions || '';
+        el('aiRequireSignal').checked = ai.requireSignal !== false;
+        el('aiOnlyNotUnderstood').checked = ai.onlyWhenNotUnderstood !== false;
+        renderGenres(vocabulary.genres);
+        renderSwaps(vocabulary.typoSwaps);
+        renderChips(vocabulary, extra || {});
+      }
+
+      function readForm() {
+        const vocabulary = JSON.parse(JSON.stringify(state.vocabulary));
+        LIST_KEYS.forEach(key => {
+          const node = document.querySelector('[data-list="' + key + '"]');
+          if (node) vocabulary[key] = textToList(node.value);
+        });
+        vocabulary.search = {
+          maxAttempts: Number(el('maxAttempts').value) || 7,
+          variantLimit: Number(el('variantLimit').value) || 8
+        };
+        vocabulary.ai = {
+          enabled: el('aiEnabled').checked,
+          endpoint: el('aiEndpoint').value.trim(),
+          model: el('aiModel').value.trim(),
+          instructions: el('aiInstructions').value.trim(),
+          onlyWhenNotUnderstood: el('aiOnlyNotUnderstood').checked,
+          requireSignal: el('aiRequireSignal').checked,
+          timeoutMs: Number(el('aiTimeout').value) || 8000
+        };
+        return vocabulary;
+      }
+
+      function save() {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        const vocabulary = readForm();
+        return fetch('/api/spotify-vocabulary', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ vocabulary: vocabulary })
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (!data || data.ok !== true) throw new Error('rechazado');
+            state.vocabulary = data.vocabulary;
+            // El sello pasa a ser el del archivo que acabamos de escribir: este
+            // cambio es nuestro, no una edicion externa.
+            if (data.stamps && data.stamps.vocabulary) state.stamp = data.stamps.vocabulary;
+            state.externalPending = false;
+            fillForm(data.vocabulary, { aliases: state.aliases, aiKeyPresent: data.aiKeyPresent, client: state.client });
+            showNotice('Vocabulario guardado: la extensión ya lo tiene');
+            return data;
+          })
+          .catch(() => { showNotice('No se pudo guardar el vocabulario', true); return null; });
+      }
+
+      function scheduleSave() {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(save, 600);
+      }
+
+      function refresh() {
+        return fetch('/api/spotify-status', { cache: 'no-store' })
+          .then(response => response.json())
+          .then(data => {
+            state.aliases = data.aliases || {};
+            state.client = data.client || {};
+            const stamp = (data.stamps && data.stamps.vocabulary) || null;
+            if (!state.vocabulary) {
+              state.vocabulary = data.vocabulary;
+              state.stamp = stamp;
+              fillForm(data.vocabulary, { aliases: state.aliases, aiKeyPresent: data.aiKeyPresent, client: state.client });
+            } else {
+              renderChips(data.vocabulary || state.vocabulary, { aliases: state.aliases, aiKeyPresent: data.aiKeyPresent, client: state.client });
+              // El archivo cambio afuera (lo edito una IA, otra pestana o el editor):
+              // se recarga solo, salvo que estes escribiendo en este momento.
+              if (stamp && state.stamp && stamp !== state.stamp) {
+                if (formIsBusy()) {
+                  if (!state.externalPending) {
+                    state.externalPending = true;
+                    showNotice('El vocabulario cambió en el archivo. Terminá de editar y apretá "Recargar del servidor" para no pisar nada.', true);
+                  }
+                } else {
+                  state.stamp = stamp;
+                  state.externalPending = false;
+                  state.vocabulary = data.vocabulary;
+                  fillForm(data.vocabulary, { aliases: state.aliases, aiKeyPresent: data.aiKeyPresent, client: state.client });
+                  showNotice('Vocabulario recargado: el archivo cambió afuera.');
+                }
+              }
+            }
+            status.textContent = 'Actualizado ' + new Date().toLocaleTimeString();
+            return data;
+          })
+          .catch(() => { status.textContent = 'Sin conexión con Control Cortex (puerto 4000)'; return null; });
+      }
+
+      function reloadFromServer() {
+        return fetch('/api/spotify-vocabulary', { cache: 'no-store' })
+          .then(response => response.json())
+          .then(data => {
+            state.vocabulary = data.vocabulary;
+            state.aliases = state.aliases || {};
+            if (data.stamps && data.stamps.vocabulary) state.stamp = data.stamps.vocabulary;
+            state.externalPending = false;
+            fillForm(data.vocabulary, { aliases: state.aliases, aiKeyPresent: data.aiKeyPresent, client: state.client });
+            showNotice('Vocabulario recargado del servidor');
+          })
+          .catch(() => showNotice('No se pudo recargar', true));
+      }
+
+      // Analizador: manda el comentario al bot (que corre en la extensión) y
+      // muestra qué entendió, sin reproducir nada.
+      function probe(comment) {
+        const box = el('probeResult');
+        box.className = 'result pending';
+        box.textContent = 'Analizando «' + comment + '»…';
+        return fetch('/api/spotify-simulate-comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: comment, requester: 'Entrenamiento', parseOnly: true })
+        })
+          .then(response => response.json())
+          .then(() => {
+            const since = Date.now();
+            let elapsed = 0;
+            clearInterval(probeTimer);
+            probeTimer = setInterval(() => {
+              elapsed += 700;
+              fetch('/api/spotify-status', { cache: 'no-store' })
+                .then(response => response.json())
+                .then(data => {
+                  const entry = (data.log || []).find(item => (item.timestamp || 0) >= since && /analisis/.test(item.message || ''));
+                  if (entry) {
+                    clearInterval(probeTimer);
+                    box.className = 'result ' + (entry.ok ? 'ok' : 'fail');
+                    box.textContent = comment + '\n→ ' + entry.message.replace(' (solo analisis)', '');
+                    return;
+                  }
+                  if (elapsed > 12000) {
+                    clearInterval(probeTimer);
+                    box.className = 'result fail';
+                    box.textContent = 'Sin respuesta: revisá que la extensión esté conectada (chip de arriba).';
+                  }
+                })
+                .catch(() => {});
+            }, 700);
+          })
+          .catch(() => { box.className = 'result fail'; box.textContent = 'No se pudo pedir el análisis.'; });
+      }
+
+      LIST_KEYS.forEach(key => {
+        const node = document.querySelector('[data-list="' + key + '"]');
+        if (node) node.addEventListener('input', scheduleSave);
+      });
+      ['maxAttempts', 'variantLimit', 'aiEndpoint', 'aiModel', 'aiTimeout', 'aiInstructions'].forEach(id => {
+        el(id).addEventListener('input', scheduleSave);
+      });
+      ['aiEnabled', 'aiRequireSignal', 'aiOnlyNotUnderstood'].forEach(id => {
+        el(id).addEventListener('change', scheduleSave);
+      });
+
+      el('btnSave').addEventListener('click', save);
+      el('btnReload').addEventListener('click', reloadFromServer);
+      el('btnReset').addEventListener('click', () => {
+        fetch('/api/spotify-vocabulary-reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+          .then(response => response.json())
+          .then(data => {
+            if (!data || data.ok !== true) throw new Error('rechazado');
+            state.vocabulary = data.vocabulary;
+            fillForm(data.vocabulary, { aliases: state.aliases, aiKeyPresent: true, client: state.client });
+            showNotice('Vocabulario restaurado a los valores por defecto');
+          })
+          .catch(() => showNotice('No se pudo restaurar', true));
+      });
+
+      el('btnAddGenre').addEventListener('click', () => {
+        state.vocabulary.genres = (state.vocabulary.genres || []).concat([{ id: 'nuevo', spotify: 'nuevo', words: [] }]);
+        renderGenres(state.vocabulary.genres);
+        scheduleSave();
+      });
+      el('btnAddSwap').addEventListener('click', () => {
+        state.vocabulary.typoSwaps = (state.vocabulary.typoSwaps || []).concat([['', '']]);
+        renderSwaps(state.vocabulary.typoSwaps);
+        scheduleSave();
+      });
+
+      el('btnInstall').addEventListener('click', refreshInstall);
+      el('btnProbe').addEventListener('click', () => {
+        const comment = el('probeComment').value.trim();
+        if (comment.length < 2) return showNotice('Escribí un comentario para analizar', true);
+        probe(comment);
+      });
+
+      el('btnAiTest').addEventListener('click', () => {
+        const comment = el('aiTestComment').value.trim();
+        const box = el('aiResult');
+        if (comment.length < 2) return showNotice('Escribí un comentario para la IA', true);
+        box.className = 'result pending';
+        box.textContent = 'Consultando la IA…';
+        fetch('/api/spotify-ai-interpret', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ comment: comment, requester: 'Entrenamiento' })
+        })
+          .then(response => response.json())
+          .then(data => {
+            if (!data || data.ok !== true) {
+              box.className = 'result fail';
+              box.textContent = (data && data.error) || 'La IA no respondió.';
+              return;
+            }
+            const i = data.interpretation;
+            box.className = 'result ok';
+            box.textContent = 'Acción: ' + i.action +
+              (i.artist ? '\nArtista: ' + i.artist : '') +
+              (i.title ? '\nTema: ' + i.title : '') +
+              (i.genre ? '\nGénero: ' + i.genre : '') +
+              (i.query ? '\nBúsqueda: ' + i.query : '') +
+              (i.confidence !== null ? '\nSeguridad: ' + i.confidence : '');
+          })
+          .catch(() => { box.className = 'result fail'; box.textContent = 'No se pudo consultar la IA.'; });
+      });
+
+      el('probeComment').addEventListener('keydown', event => {
+        if (event.key === 'Enter') el('btnProbe').click();
+      });
+
+      refresh();
+      refreshInstall();
+      setInterval(refresh, 4000);
+    }());
+  </script>
+</body>
+</html>

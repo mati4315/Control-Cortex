@@ -11,6 +11,7 @@ Espacio independiente para las funciones y overlays propios del bot. Todo lo nue
 | Historial | `http://192.168.4.100:4000/rulo-chat-historial.html?session=XJ9hQ2JDHH` | Comentarios de audiencia + respuestas, con filtros y limpieza. |
 | Prototipo de mascota | `http://192.168.4.100:4000/rulo-mascota.html?session=XJ9hQ2JDHH` | Direcciones visuales de los 6 estados (no va a OBS). |
 | Dashboard de Spotify | `http://192.168.4.100:4000/rulo-spotify.html` | Ajustes del cambio automático de música: esperas, modo prueba sin esperas, dispositivo, pruebas y registro. |
+| Entrenamiento del bot | `http://192.168.4.100:4000/rulo-spotify-training.html` | Vocabulario (palabras clave, verbos, géneros, correcciones) con analizador en vivo y el cerebro (IA) opcional. |
 | Redirección legada | `http://192.168.4.100:4000/rulo-chat-dock.html` | 302 a `rulo-chat-historial.html` para no romper enlaces viejos. |
 
 La URL base ya no está escrita a mano en varios archivos: el backend la detecta (`GET /api/cortex-base-url`) y genera `SocialStream Ninja/local-overrides/cortex-base-url.js` en cada arranque. Si cambia la IP LAN, se actualiza sola (los overrides la consumen con respaldo).
@@ -74,12 +75,12 @@ Eventos WebSocket: `rulo_bot_message`, `rulo_chat_item`, `rulo_chat_cleared`, `r
 | `rulo-config.json` | Configuración persistente de Rulo. |
 | `rulo-chat-history.json` | Historial persistente (generado). |
 | `assets/` | `states.json` + `README.md` de la mascota (sin arte todavía). |
-| `Spotify/` | `spotify-dashboard.html` (la interfaz), `spotify-settings.json` (ajustes), `spotify-request-log.json` y `spotify-devices.json` (generados) + su `README.md`. |
+| `Spotify/` | `spotify-dashboard.html` (ajustes), `spotify-training.html` (entrenamiento del bot), `spotify-settings.json` + `spotify-vocabulary.json` + `spotify-aliases.json` (datos editables) y los generados (`spotify-request-log.json`, `spotify-devices.json`) + su `README.md`. |
 
 ## Ajustes de música (Spotify)
 
 La fuente única de verdad de los pedidos de música es `Rulo/Spotify/spotify-settings.json`, controlada
-desde `/rulo-spotify.html`. El módulo de la extensión (`spotify-auto-music.js`, v24) consulta
+desde `/rulo-spotify.html`. El módulo de la extensión (`spotify-auto-music.js`, v26) consulta
 `GET /api/spotify-client-state` cada 4 s: recibe los ajustes en vivo y ejecuta los comandos que
 encola el dashboard (probar tema, simular comentario, pausa/siguiente/anterior). Detalle completo en
 `Rulo/Spotify/README.md`.

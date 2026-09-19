@@ -1,576 +1,622 @@
 [
   {
-    "id": "1789727267428-in0l6y",
+    "id": "1789733128191-gwoeqt",
     "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "Damas gratis",
-    "ok": true,
-    "message": "Reproduciendo: Costumbres - Vivo - Damas Gratis, Ke Personajes",
-    "track": {
-      "name": "Costumbres - Vivo",
-      "artist": "Damas Gratis, Ke Personajes",
-      "uri": "spotify:track:6HT88WDVwEJiHEbPuQ5XcB"
-    },
-    "timestamp": 1789727267428
-  },
-  {
-    "id": "1789727326408-zjx9tr",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "Damas gratis",
-    "ok": true,
-    "message": "Reproduciendo: Costumbres - Vivo - Damas Gratis, Ke Personajes",
-    "track": {
-      "name": "Costumbres - Vivo",
-      "artist": "Damas Gratis, Ke Personajes",
-      "uri": "spotify:track:6HT88WDVwEJiHEbPuQ5XcB"
-    },
-    "timestamp": 1789727326408
-  },
-  {
-    "id": "1789727388398-o5o7jd",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "Damas gratis",
-    "ok": true,
-    "message": "Reproduciendo: Costumbres - Vivo - Damas Gratis, Ke Personajes",
-    "track": {
-      "name": "Costumbres - Vivo",
-      "artist": "Damas Gratis, Ke Personajes",
-      "uri": "spotify:track:6HT88WDVwEJiHEbPuQ5XcB"
-    },
-    "timestamp": 1789727388398
-  },
-  {
-    "id": "1789727412376-3q3fz1",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:el polaco",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: Deja De Llorar - El Polaco",
-    "track": {
-      "name": "Deja De Llorar",
-      "artist": "El Polaco",
-      "uri": "spotify:track:3tddzXTgneWrkV2cYNUBZe"
-    },
-    "timestamp": 1789727412376
-  },
-  {
-    "id": "1789727433411-j1uzz4",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:ke personajes",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: OJITOS ROJOS - Grupo Frontera, Ke Personajes",
-    "track": {
-      "name": "OJITOS ROJOS",
-      "artist": "Grupo Frontera, Ke Personajes",
-      "uri": "spotify:track:5X7ICocxhlxRiLRgr7wdJj"
-    },
-    "timestamp": 1789727433411
-  },
-  {
-    "id": "1789727447389-5jwqgk",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "ke personajes",
-    "ok": true,
-    "message": "Reproduciendo: Adiós Amor / Oye Mujer - Ke Personajes",
-    "track": {
-      "name": "Adiós Amor / Oye Mujer",
-      "artist": "Ke Personajes",
-      "uri": "spotify:track:6YWOdPcjEbK6PmYcC7gQtL"
-    },
-    "timestamp": 1789727447389
-  },
-  {
-    "id": "1789727456408-7wye6h",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:el polaco",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: Deja De Llorar - El Polaco",
-    "track": {
-      "name": "Deja De Llorar",
-      "artist": "El Polaco",
-      "uri": "spotify:track:3tddzXTgneWrkV2cYNUBZe"
-    },
-    "timestamp": 1789727456408
-  },
-  {
-    "id": "1789727474409-wned0n",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:el polaco",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: Deja De Llorar - El Polaco",
-    "track": {
-      "name": "Deja De Llorar",
-      "artist": "El Polaco",
-      "uri": "spotify:track:3tddzXTgneWrkV2cYNUBZe"
-    },
-    "timestamp": 1789727474409
-  },
-  {
-    "id": "1789727506426-bcagtn",
-    "source": "dashboard",
-    "requester": "lucas",
-    "query": "artist:el polaco",
-    "ok": true,
-    "message": "Listo lucas, ya se esta reproduciendo: Deja De Llorar - El Polaco",
-    "track": {
-      "name": "Deja De Llorar",
-      "artist": "El Polaco",
-      "uri": "spotify:track:3tddzXTgneWrkV2cYNUBZe"
-    },
-    "timestamp": 1789727506426
-  },
-  {
-    "id": "1789727566399-bokw16",
-    "source": "dashboard",
-    "requester": "adsa",
-    "query": "artist:el polaco",
-    "ok": true,
-    "message": "Listo adsa, ya se esta reproduciendo: Deja De Llorar - El Polaco",
-    "track": {
-      "name": "Deja De Llorar",
-      "artist": "El Polaco",
-      "uri": "spotify:track:3tddzXTgneWrkV2cYNUBZe"
-    },
-    "timestamp": 1789727566399
-  },
-  {
-    "id": "1789727585425-huwauw",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:damas gratis",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: Costumbres - Vivo - Damas Gratis, Ke Personajes",
-    "track": {
-      "name": "Costumbres - Vivo",
-      "artist": "Damas Gratis, Ke Personajes",
-      "uri": "spotify:track:6HT88WDVwEJiHEbPuQ5XcB"
-    },
-    "timestamp": 1789727585425
-  },
-  {
-    "id": "1789727627504-davgpa",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "parana",
-    "ok": true,
-    "message": "Reproduciendo: Paranavigar - Jarina De Marco",
-    "track": {
-      "name": "Paranavigar",
-      "artist": "Jarina De Marco",
-      "uri": "spotify:track:77Nq3oiFKPbT3rYEBKSlYA"
-    },
-    "timestamp": 1789727627504
-  },
-  {
-    "id": "1789727673428-t7u7ty",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:el oso",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: سطلانة - من فيلم بعد الشر - Abd El Basset Hamouda, Mahmoud El Leithy, Hamdy Batshan, Ali Rabee, Osos, Hassan El Kholaey",
-    "track": {
-      "name": "سطلانة - من فيلم بعد الشر",
-      "artist": "Abd El Basset Hamouda, Mahmoud El Leithy, Hamdy Batshan, Ali Rabee, Osos, Hassan El Kholaey",
-      "uri": "spotify:track:3q62BnB25iCCFCFGEIF2mW"
-    },
-    "timestamp": 1789727673428
-  },
-  {
-    "id": "1789727702515-9tducr",
-    "source": "chat",
-    "requester": "Matias Moreira",
-    "query": "artist:las locas",
-    "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: Yo Quiero - R2B, Las Viejas Locas, TAPE",
-    "track": {
-      "name": "Yo Quiero",
-      "artist": "R2B, Las Viejas Locas, TAPE",
-      "uri": "spotify:track:2dzLaOv5Ec964qDSc4D37m"
-    },
-    "timestamp": 1789727702515
-  },
-  {
-    "id": "1789727806390-b2ihpw",
-    "source": "dashboard",
-    "requester": "locomania",
-    "query": "artist:ke personajes",
-    "ok": true,
-    "message": "Listo locomania, ya se esta reproduciendo: OJITOS ROJOS - Grupo Frontera, Ke Personajes",
-    "track": {
-      "name": "OJITOS ROJOS",
-      "artist": "Grupo Frontera, Ke Personajes",
-      "uri": "spotify:track:5X7ICocxhlxRiLRgr7wdJj"
-    },
-    "timestamp": 1789727806390
-  },
-  {
-    "id": "1789727867417-gch768",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "Amar azul",
-    "ok": true,
-    "message": "Reproduciendo: Yo Tomo - Amar Azul",
-    "track": {
-      "name": "Yo Tomo",
-      "artist": "Amar Azul",
-      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
-    },
-    "timestamp": 1789727867417
-  },
-  {
-    "id": "1789727985094-m9mfqz",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:next",
-    "ok": true,
-    "message": "Comando \"next\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789727985094
-  },
-  {
-    "id": "1789728044617-1gb4ek",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:pause",
-    "ok": true,
-    "message": "Comando \"pause\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789728044617
-  },
-  {
-    "id": "1789728404386-rjqjis",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "!spotifydevices",
-    "ok": true,
-    "message": "1 dispositivo(s) detectado(s): Web Player (Chrome)",
-    "track": null,
-    "timestamp": 1789728404386
-  },
-  {
-    "id": "1789728464371-leqem0",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "!spotifydevices",
-    "ok": true,
-    "message": "1 dispositivo(s) detectado(s): Web Player (Chrome)",
-    "track": null,
-    "timestamp": 1789728464371
-  },
-  {
-    "id": "1789728524393-ezgw8p",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "!spotifydevices",
-    "ok": true,
-    "message": "1 dispositivo(s) detectado(s): Web Player (Chrome)",
-    "track": null,
-    "timestamp": 1789728524393
-  },
-  {
-    "id": "1789728584376-bm0asr",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "!spotifydevices",
-    "ok": true,
-    "message": "1 dispositivo(s) detectado(s): Web Player (Chrome)",
-    "track": null,
-    "timestamp": 1789728584376
-  },
-  {
-    "id": "1789728644394-q98dtj",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "!spotifydevices",
-    "ok": true,
-    "message": "1 dispositivo(s) detectado(s): Web Player (Chrome)",
-    "track": null,
-    "timestamp": 1789728644394
-  },
-  {
-    "id": "1789728887449-95o74u",
-    "source": "dashboard",
-    "requester": "Prueba de latencia",
-    "query": "Damas Gratis",
-    "ok": true,
-    "message": "Reproduciendo: Costumbres - Vivo - Damas Gratis, Ke Personajes",
-    "track": {
-      "name": "Costumbres - Vivo",
-      "artist": "Damas Gratis, Ke Personajes",
-      "uri": "spotify:track:6HT88WDVwEJiHEbPuQ5XcB"
-    },
-    "timestamp": 1789728887449
-  },
-  {
-    "id": "1789729109576-cp0e38",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:pause",
-    "ok": true,
-    "message": "Comando \"pause\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729109576
-  },
-  {
-    "id": "1789729110451-52yuec",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:pause",
-    "ok": true,
-    "message": "Comando \"pause\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729110451
-  },
-  {
-    "id": "1789729112070-wl0cpk",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:pause",
-    "ok": true,
-    "message": "Comando \"pause\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729112070
-  },
-  {
-    "id": "1789729112439-s4ssym",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:pause",
-    "ok": true,
-    "message": "Comando \"pause\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729112439
-  },
-  {
-    "id": "1789729114616-gk6mqk",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:resume",
-    "ok": true,
-    "message": "Comando \"resume\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729114616
-  },
-  {
-    "id": "1789729116433-dsc5rj",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:resume",
-    "ok": true,
-    "message": "Comando \"resume\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729116433
-  },
-  {
-    "id": "1789729116600-zuakmd",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:next",
-    "ok": true,
-    "message": "Comando \"next\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729116600
-  },
-  {
-    "id": "1789729118458-315d94",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "transporte:next",
-    "ok": true,
-    "message": "Comando \"next\" enviado a Spotify.",
-    "track": null,
-    "timestamp": 1789729118458
-  },
-  {
-    "id": "1789729124188-lvj3jy",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "amar azul",
+    "requester": "aaaa",
+    "query": "artist:gladis la bomba tucumana",
     "ok": false,
-    "message": "Ya estoy procesando un pedido musical. Espera un momento.",
+    "message": "aaaa, ya estoy procesando un pedido musical. Espera un momento.",
     "track": null,
-    "timestamp": 1789729124188
+    "timestamp": 1789733128191
   },
   {
-    "id": "1789729126397-zi8ini",
+    "id": "1789733128647-yin45b",
     "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "amar azul",
+    "requester": "aaaa",
+    "query": "artist:gladis la bomba tucumana",
     "ok": true,
-    "message": "Reproduciendo: Yo Tomo - Amar Azul",
+    "message": "Listo aaaa, ya se esta reproduciendo: La Pollera Amarilla - Gladys \"La bomba tucumana\"",
     "track": {
-      "name": "Yo Tomo",
-      "artist": "Amar Azul",
-      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
+      "name": "La Pollera Amarilla",
+      "artist": "Gladys \"La bomba tucumana\"",
+      "uri": "spotify:track:03G43mO3a34IGIsyDd4sj5"
     },
-    "timestamp": 1789729126397
+    "timestamp": 1789733128647
   },
   {
-    "id": "1789729140183-mxfb89",
+    "id": "1789735345191-zgqaqb",
     "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "la casa blanca",
+    "requester": "juan",
+    "query": "artist:la beriso",
     "ok": false,
-    "message": "Ya estoy procesando un pedido musical. Espera un momento.",
+    "message": "Aguantame juan que estoy poniendo otro tema.",
     "track": null,
-    "timestamp": 1789729140183
+    "timestamp": 1789735345191
   },
   {
-    "id": "1789729141440-97i3qf",
+    "id": "1789735349434-zgwu4o",
     "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "la casa blanca",
-    "ok": true,
-    "message": "Reproduciendo: La Casa Blanca - Matando Gratix, La Polla Records, Gatillazo",
-    "track": {
-      "name": "La Casa Blanca",
-      "artist": "Matando Gratix, La Polla Records, Gatillazo",
-      "uri": "spotify:track:1CsBB0qvQ9sUV6FzM9qZ66"
-    },
-    "timestamp": 1789729141440
-  },
-  {
-    "id": "1789729160175-62cugm",
-    "source": "dashboard",
-    "requester": "el loco",
-    "query": "artist:rata blanca",
-    "ok": false,
-    "message": "el, ya estoy procesando un pedido musical. Espera un momento.",
-    "track": null,
-    "timestamp": 1789729160175
-  },
-  {
-    "id": "1789729161374-0yogoc",
-    "source": "dashboard",
-    "requester": "el loco",
-    "query": "artist:rata blanca",
-    "ok": true,
-    "message": "Listo el, ya se esta reproduciendo: Mujer Amante - Rata Blanca",
-    "track": {
-      "name": "Mujer Amante",
-      "artist": "Rata Blanca",
-      "uri": "spotify:track:4eCrF1FgVL4se3AkHOnLDL"
-    },
-    "timestamp": 1789729161374
-  },
-  {
-    "id": "1789729221384-furqrj",
-    "source": "chat",
-    "requester": "Matias Moreira",
+    "requester": "juan",
     "query": "artist:la beriso",
     "ok": true,
-    "message": "Listo Matias, ya se esta reproduciendo: Traicionero - La Beriso",
+    "message": "Anotado juan: ahora suena Traicionero - La Beriso",
     "track": {
       "name": "Traicionero",
       "artist": "La Beriso",
       "uri": "spotify:track:0sOpGWXWkxNDev51Dst3fQ"
     },
-    "timestamp": 1789729221384
+    "timestamp": 1789735349434
   },
   {
-    "id": "1789729980404-n4s0a1",
+    "id": "1789735383706-9bx9ha",
     "source": "dashboard",
-    "requester": "Prueba escritura",
-    "query": "laberiso",
-    "ok": true,
-    "message": "Encontre: Como Olvidarme - La Beriso (no reproduje)",
-    "track": {
-      "name": "Como Olvidarme",
-      "artist": "La Beriso",
-      "uri": "spotify:track:4BoHTlFIrDSrPNp768Tyek"
-    },
-    "timestamp": 1789729980404
-  },
-  {
-    "id": "1789729981184-g6w17r",
-    "source": "dashboard",
-    "requester": "Prueba escritura",
-    "query": "laberiso",
-    "ok": true,
-    "message": "Encontre: Como Olvidarme - La Beriso (no reproduje)",
-    "track": {
-      "name": "Como Olvidarme",
-      "artist": "La Beriso",
-      "uri": "spotify:track:4BoHTlFIrDSrPNp768Tyek"
-    },
-    "timestamp": 1789729981184
-  },
-  {
-    "id": "1789729982156-28g51w",
-    "source": "dashboard",
-    "requester": "Prueba escritura",
-    "query": "gladis la bomba tucumana",
-    "ok": true,
-    "message": "Encontre: La Pollera Amarilla - Gladys \"La bomba tucumana\" (no reproduje)",
-    "track": {
-      "name": "La Pollera Amarilla",
-      "artist": "Gladys \"La bomba tucumana\"",
-      "uri": "spotify:track:03G43mO3a34IGIsyDd4sj5"
-    },
-    "timestamp": 1789729982156
-  },
-  {
-    "id": "1789729983185-wo7fuv",
-    "source": "dashboard",
-    "requester": "Prueba escritura",
-    "query": "gladis la bomba tucumana",
-    "ok": true,
-    "message": "Encontre: La Pollera Amarilla - Gladys \"La bomba tucumana\" (no reproduje)",
-    "track": {
-      "name": "La Pollera Amarilla",
-      "artist": "Gladys \"La bomba tucumana\"",
-      "uri": "spotify:track:03G43mO3a34IGIsyDd4sj5"
-    },
-    "timestamp": 1789729983185
-  },
-  {
-    "id": "1789730371177-1x1zon",
-    "source": "dashboard",
-    "requester": "222",
-    "query": "artist:laberiso",
+    "requester": "juan",
+    "query": "dame otro de la beriso",
     "ok": false,
-    "message": "222, ya estoy procesando un pedido musical. Espera un momento.",
+    "message": "El comentario simulado no se leyo como pedido de musica.",
     "track": null,
-    "timestamp": 1789730371177
+    "timestamp": 1789735383706
   },
   {
-    "id": "1789730375384-l81eaz",
+    "id": "1789735385185-l4iski",
     "source": "dashboard",
-    "requester": "222",
-    "query": "artist:laberiso",
+    "requester": "juan",
+    "query": "dame otro de la beriso",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789735385185
+  },
+  {
+    "id": "1789735397425-wj5xrx",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "artist:la beriso",
     "ok": true,
-    "message": "Listo 222, ya se esta reproduciendo: Traicionero - La Beriso",
+    "message": "Ahi va juan: Traicionero - La Beriso",
     "track": {
       "name": "Traicionero",
       "artist": "La Beriso",
       "uri": "spotify:track:0sOpGWXWkxNDev51Dst3fQ"
     },
-    "timestamp": 1789730375384
+    "timestamp": 1789735397425
   },
   {
-    "id": "1789730377234-q1onia",
+    "id": "1789735403412-sj2dul",
     "source": "dashboard",
-    "requester": "222",
-    "query": "Un tema de laberiso aasda",
+    "requester": "juan",
+    "query": "artist:la beriso",
     "ok": true,
-    "message": "Entendi: artista/tema de laberiso aasda (solo analisis)",
-    "track": null,
-    "timestamp": 1789730377234
+    "message": "juan ya esta sonando: Traicionero - La Beriso",
+    "track": {
+      "name": "Traicionero",
+      "artist": "La Beriso",
+      "uri": "spotify:track:0sOpGWXWkxNDev51Dst3fQ"
+    },
+    "timestamp": 1789735403412
   },
   {
-    "id": "1789730379174-e14m4c",
+    "id": "1789736394381-onwphi",
     "source": "dashboard",
-    "requester": "222",
-    "query": "Un tema de laberiso aasda",
+    "requester": "jose",
+    "query": "track:algun del 2000 artist:cumbia",
     "ok": true,
-    "message": "Entendi: artista/tema de laberiso aasda (solo analisis)",
+    "message": "Va jose: Cumbia Morena 2000 - Cumbia Sonidera",
+    "track": {
+      "name": "Cumbia Morena 2000",
+      "artist": "Cumbia Sonidera",
+      "uri": "spotify:track:6qEE6kBqZYoOJrZgERlWyz"
+    },
+    "timestamp": 1789736394381
+  },
+  {
+    "id": "1789736399377-496tr7",
+    "source": "dashboard",
+    "requester": "jose",
+    "query": "track:algun del 2000 artist:cumbia",
+    "ok": true,
+    "message": "Dale jose, te pongo Cumbia Morena 2000 - Cumbia Sonidera",
+    "track": {
+      "name": "Cumbia Morena 2000",
+      "artist": "Cumbia Sonidera",
+      "uri": "spotify:track:6qEE6kBqZYoOJrZgERlWyz"
+    },
+    "timestamp": 1789736399377
+  },
+  {
+    "id": "1789736418827-qy7115",
+    "source": "chat",
+    "requester": "Mati",
+    "query": "artist:la beriso",
+    "ok": true,
+    "message": "Listo Mati, ya se esta reproduciendo: Como Olvidarme - La Beriso",
+    "track": {
+      "name": "Como Olvidarme",
+      "artist": "La Beriso",
+      "uri": "spotify:track:abc"
+    },
+    "timestamp": 1789736418827
+  },
+  {
+    "id": "1789736418839-kzd064",
+    "source": "chat",
+    "requester": "Sofi",
+    "query": "palmeras soy sabalero",
+    "ok": false,
+    "message": "No me aparece \"un tema de los palmeras\" en Spotify...",
     "track": null,
-    "timestamp": 1789730379174
+    "timestamp": 1789736418839
+  },
+  {
+    "id": "1789736418843-4r261v",
+    "source": "chat",
+    "requester": "Leo",
+    "query": "artist:el tano",
+    "ok": true,
+    "message": "Toma Leo, ahi te lo puse: Yo Tomo Licor - Amar Azul",
+    "track": {
+      "name": "Yo Tomo Licor",
+      "artist": "Amar Azul",
+      "uri": "spotify:track:xyz"
+    },
+    "timestamp": 1789736418843
+  },
+  {
+    "id": "1789736447551-sp8u5i",
+    "source": "dashboard",
+    "requester": "jose",
+    "query": "artist:pato viganoniii",
+    "ok": true,
+    "message": "jose ya te puse el tema, es: Pa'to Lo Lao - Neon Grit",
+    "track": {
+      "name": "Pa'to Lo Lao",
+      "artist": "Neon Grit",
+      "uri": "spotify:track:3entJrq3zpTQKaHtlPeFGj"
+    },
+    "timestamp": 1789736447551
+  },
+  {
+    "id": "1789736451389-i3gdrn",
+    "source": "dashboard",
+    "requester": "jose",
+    "query": "artist:pato viganoniii",
+    "ok": true,
+    "message": "jose pedido, ahora suena Pa'to Lo Lao - Neon Grit",
+    "track": {
+      "name": "Pa'to Lo Lao",
+      "artist": "Neon Grit",
+      "uri": "spotify:track:3entJrq3zpTQKaHtlPeFGj"
+    },
+    "timestamp": 1789736451389
+  },
+  {
+    "id": "1789736458424-6a66ku",
+    "source": "dashboard",
+    "requester": "jose",
+    "query": "artist:pato viganoni",
+    "ok": true,
+    "message": "Bueno jose, ahi va el tema que pediste: eterno amor - El Pato Viganoni",
+    "track": {
+      "name": "eterno amor",
+      "artist": "El Pato Viganoni",
+      "uri": "spotify:track:2FhRnQqUOovO2NHuDSXzyK"
+    },
+    "timestamp": 1789736458424
+  },
+  {
+    "id": "1789736461494-ev4ine",
+    "source": "dashboard",
+    "requester": "jose",
+    "query": "artist:pato viganoni",
+    "ok": true,
+    "message": "Ya está jose, te lo puse: eterno amor - El Pato Viganoni",
+    "track": {
+      "name": "eterno amor",
+      "artist": "El Pato Viganoni",
+      "uri": "spotify:track:2FhRnQqUOovO2NHuDSXzyK"
+    },
+    "timestamp": 1789736461494
+  },
+  {
+    "id": "1789737165433-yth55y",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "artist:que mas te guste a vos rulo",
+    "ok": true,
+    "message": "Toma juan, ahi te lo puse: La Guitarra - Los Auténticos Decadentes",
+    "track": {
+      "name": "La Guitarra",
+      "artist": "Los Auténticos Decadentes",
+      "uri": "spotify:track:6aPoVnA9UDncMyKgTAicsO"
+    },
+    "timestamp": 1789737165433
+  },
+  {
+    "id": "1789737167384-srh40h",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "artist:que mas te guste a vos rulo",
+    "ok": true,
+    "message": "Anotado juan: ahora suena La Guitarra - Los Auténticos Decadentes",
+    "track": {
+      "name": "La Guitarra",
+      "artist": "Los Auténticos Decadentes",
+      "uri": "spotify:track:6aPoVnA9UDncMyKgTAicsO"
+    },
+    "timestamp": 1789737167384
+  },
+  {
+    "id": "1789737232225-tztof9",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "vamos con el programaAA!! es de lo mejor",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789737232225
+  },
+  {
+    "id": "1789737239177-r02hhl",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "vamos con el programaAA!! es de lo mejor",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789737239177
+  },
+  {
+    "id": "1789737249272-irzvyw",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "el lunes voy a estar de vuelta!",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789737249272
+  },
+  {
+    "id": "1789737255175-yk6z1s",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "el lunes voy a estar de vuelta!",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789737255175
+  },
+  {
+    "id": "1789737263188-lm0u55",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "track:uno artist:la cumbia villera",
+    "ok": false,
+    "message": "Pará la mano juan, todavía estoy con otro pedido, no me atropelles.",
+    "track": null,
+    "timestamp": 1789737263188
+  },
+  {
+    "id": "1789737263587-vdzaf1",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "track:uno artist:la cumbia villera",
+    "ok": false,
+    "message": "Che juan, no hay caso, no encuentro track:uno artist:la cumbia villera.",
+    "track": null,
+    "timestamp": 1789737263587
+  },
+  {
+    "id": "1789737347250-m3b5mn",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "asd asdasd asd",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789737347250
+  },
+  {
+    "id": "1789737351172-vupyth",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "asd asdasd asd",
+    "ok": false,
+    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "track": null,
+    "timestamp": 1789737351172
+  },
+  {
+    "id": "1789737415704-fp6f63",
+    "source": "chat",
+    "requester": "Mati",
+    "query": "artist:la beriso",
+    "ok": true,
+    "message": "",
+    "track": {
+      "name": "Como Olvidarme",
+      "artist": "La Beriso",
+      "uri": "spotify:track:1"
+    },
+    "timestamp": 1789737415704
+  },
+  {
+    "id": "1789737415713-4ka7di",
+    "source": "auto",
+    "requester": "Rulo",
+    "query": "Otra Parecida",
+    "ok": true,
+    "message": "",
+    "track": {
+      "name": "Otra Parecida",
+      "artist": "La Beriso",
+      "uri": "spotify:track:2"
+    },
+    "timestamp": 1789737415713
+  },
+  {
+    "id": "1789737415717-bhueya",
+    "source": "dashboard",
+    "requester": "Matias",
+    "query": "transporte:next",
+    "ok": true,
+    "message": "",
+    "track": {
+      "name": "Como Olvidarme",
+      "artist": "La Beriso",
+      "uri": "spotify:track:1"
+    },
+    "timestamp": 1789737415717
+  },
+  {
+    "id": "1789737415802-0p90su",
+    "source": "chat",
+    "requester": "Sofi",
+    "query": "",
+    "ok": false,
+    "message": "",
+    "track": null,
+    "timestamp": 1789737415802
+  },
+  {
+    "id": "1789737447014-98p5wi",
+    "source": "dashboard",
+    "requester": "Matias",
+    "query": "transporte:next",
+    "ok": true,
+    "message": "",
+    "track": {
+      "name": "Como Olvidarme",
+      "artist": "La Beriso",
+      "uri": "spotify:track:1"
+    },
+    "timestamp": 1789737447014
+  },
+  {
+    "id": "1789737490196-yidgor",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "track:uno artist:la cumbia del 200",
+    "ok": false,
+    "message": "No me apures juan, que estoy laburando en otro tema.",
+    "track": null,
+    "timestamp": 1789737490196
+  },
+  {
+    "id": "1789737491390-9siu56",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "track:uno artist:la cumbia del 200",
+    "ok": false,
+    "message": "Dejate de joder juan, track:uno artist:la cumbia del 200 no existe en Spotify.",
+    "track": null,
+    "timestamp": 1789737491390
+  },
+  {
+    "id": "1789737506185-3g66nb",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "track:uno artist:la cumbia del 2000",
+    "ok": false,
+    "message": "Esperá juan, no ves que estoy con otro pedido.",
+    "track": null,
+    "timestamp": 1789737506185
+  },
+  {
+    "id": "1789737507721-k05dp0",
+    "source": "dashboard",
+    "requester": "juan",
+    "query": "track:uno artist:la cumbia del 2000",
+    "ok": false,
+    "message": "No me aparece \"track:uno artist:la cumbia del 2000\" en Spotify juan, proba con el nombre exacto.",
+    "track": null,
+    "timestamp": 1789737507721
+  },
+  {
+    "id": "1789737535445-la08z6",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno cumbia",
+    "ok": true,
+    "message": "Listo juancho, ya se esta reproduciendo: Sakate Uno - Santaferia",
+    "track": {
+      "name": "Sakate Uno",
+      "artist": "Santaferia",
+      "uri": "spotify:track:06fawjV5hKobNhHF82dKMl"
+    },
+    "timestamp": 1789737535445
+  },
+  {
+    "id": "1789737540398-epwm3u",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno cumbia",
+    "ok": true,
+    "message": "Tomá juancho, suena Sakate Uno - Santaferia",
+    "track": {
+      "name": "Sakate Uno",
+      "artist": "Santaferia",
+      "uri": "spotify:track:06fawjV5hKobNhHF82dKMl"
+    },
+    "timestamp": 1789737540398
+  },
+  {
+    "id": "1789737551467-d0tw4v",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno ke personaje",
+    "ok": true,
+    "message": "juancho pedido, ahora suena Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
+    "track": {
+      "name": "Uno Nunca Sabe",
+      "artist": "Ke Personajes, Ulises Eyherabide",
+      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
+    },
+    "timestamp": 1789737551467
+  },
+  {
+    "id": "1789737558634-pv6cwq",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno ke personaje",
+    "ok": true,
+    "message": "juancho ya esta sonando: Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
+    "track": {
+      "name": "Uno Nunca Sabe",
+      "artist": "Ke Personajes, Ulises Eyherabide",
+      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
+    },
+    "timestamp": 1789737558634
+  },
+  {
+    "id": "1789737565408-7yo423",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno ke personaje",
+    "ok": true,
+    "message": "Bueno juancho, ahi va el tema que pediste: Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
+    "track": {
+      "name": "Uno Nunca Sabe",
+      "artist": "Ke Personajes, Ulises Eyherabide",
+      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
+    },
+    "timestamp": 1789737565408
+  },
+  {
+    "id": "1789737566321-pti6av",
+    "source": "dashboard",
+    "requester": "Dashboard",
+    "query": "ke personaje",
+    "ok": false,
+    "message": "Un pedido a la vez Dashboard, ya casi termino.",
+    "track": null,
+    "timestamp": 1789737566321
+  },
+  {
+    "id": "1789737568804-p6nfed",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno ke personaje",
+    "ok": true,
+    "message": "Va juancho: Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
+    "track": {
+      "name": "Uno Nunca Sabe",
+      "artist": "Ke Personajes, Ulises Eyherabide",
+      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
+    },
+    "timestamp": 1789737568804
+  },
+  {
+    "id": "1789737577646-tiws0a",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno amar azul",
+    "ok": false,
+    "message": "Tranquilo juancho, estoy con otro tema y ya te lo pongo.",
+    "track": null,
+    "timestamp": 1789737577646
+  },
+  {
+    "id": "1789737579379-elz1if",
+    "source": "dashboard",
+    "requester": "Dashboard",
+    "query": "ke personaje",
+    "ok": true,
+    "message": "Dashboard ya te puse el tema, es: Un Finde | CROSSOVER #2 - Big One, FMK, Ke Personajes",
+    "track": {
+      "name": "Un Finde | CROSSOVER #2",
+      "artist": "Big One, FMK, Ke Personajes",
+      "uri": "spotify:track:3tiJUOfAEqIrLFRQgGgdoY"
+    },
+    "timestamp": 1789737579379
+  },
+  {
+    "id": "1789737584414-co74pl",
+    "source": "dashboard",
+    "requester": "Dashboard",
+    "query": "ke personaje",
+    "ok": true,
+    "message": "Dale Dashboard, te pongo Un Finde | CROSSOVER #2 - Big One, FMK, Ke Personajes",
+    "track": {
+      "name": "Un Finde | CROSSOVER #2",
+      "artist": "Big One, FMK, Ke Personajes",
+      "uri": "spotify:track:3tiJUOfAEqIrLFRQgGgdoY"
+    },
+    "timestamp": 1789737584414
+  },
+  {
+    "id": "1789737590382-91n22r",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno amar azul",
+    "ok": true,
+    "message": "Toma juancho, ahi te lo puse: Yo Tomo - Amar Azul",
+    "track": {
+      "name": "Yo Tomo",
+      "artist": "Amar Azul",
+      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
+    },
+    "timestamp": 1789737590382
+  },
+  {
+    "id": "1789737592422-rt3orq",
+    "source": "dashboard",
+    "requester": "Dashboard",
+    "query": "ke personaje",
+    "ok": true,
+    "message": "Dashboard pedido, ahora suena Un Finde | CROSSOVER #2 - Big One, FMK, Ke Personajes",
+    "track": {
+      "name": "Un Finde | CROSSOVER #2",
+      "artist": "Big One, FMK, Ke Personajes",
+      "uri": "spotify:track:3tiJUOfAEqIrLFRQgGgdoY"
+    },
+    "timestamp": 1789737592422
+  },
+  {
+    "id": "1789737596428-cp75qf",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno amar azul",
+    "ok": true,
+    "message": "Listo juancho, ya se esta reproduciendo: Yo Tomo - Amar Azul",
+    "track": {
+      "name": "Yo Tomo",
+      "artist": "Amar Azul",
+      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
+    },
+    "timestamp": 1789737596428
+  },
+  {
+    "id": "1789737602646-vrauo3",
+    "source": "dashboard",
+    "requester": "juancho",
+    "query": "uno amar azul",
+    "ok": true,
+    "message": "Tomá juancho, suena Yo Tomo - Amar Azul",
+    "track": {
+      "name": "Yo Tomo",
+      "artist": "Amar Azul",
+      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
+    },
+    "timestamp": 1789737602646
   }
 ]

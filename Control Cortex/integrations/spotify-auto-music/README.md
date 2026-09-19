@@ -49,6 +49,16 @@ Si actualizas SocialStream Ninja y se borra el cambio, inicia Control Cortex par
 - la linea `./local-overrides/spotify-auto-music.js?v=1` en `SocialStream Ninja\loader.js`
 - la `key` fija del `manifest.json`
 
+## Vocabulario editable (entrenamiento)
+
+El parser ya no tiene las listas escritas en el codigo: las recibe de Cortex
+(`Rulo/Spotify/spotify-vocabulary.json`) y se editan desde `/rulo-spotify-training.html`. El modulo las
+toma por el poll (`vocabulary`) y por WebSocket (`spotify_vocabulary`) y las compila a regex en caliente.
+Si Cortex nunca respondio, usa el respaldo `DEFAULT_VOCABULARY` de este archivo.
+
+Con el cerebro activado (`vocabulary.ai.enabled`), los comentarios que las reglas no entienden se
+consultan a `POST /api/spotify-ai-interpret` (la clave vive en el `.env` del backend, no en la extension).
+
 ## Tolerancia a errores de escritura
 
 El parser acepta saludos, muletillas, "temita/temazo" como sinonimo de "tema" y pedidos sin la palabra
@@ -65,13 +75,13 @@ largo mínimo del comentario, solo comandos, respuestas personalizadas, avisos e
 continuidad automática, salto inicial y dispositivo destino. También permite probar un tema al instante,
 simular un comentario real, mover el transporte (pausa/siguiente/anterior) y ver el registro de pedidos.
 
-Este módulo (v24) usa dos caminos para recibir lo que pasa en el dashboard:
+Este módulo (v26) usa dos caminos para recibir lo que pasa en el dashboard:
 
 1. **WebSocket** `ws://<cortex>/api/spotify-ws`: enlace instantáneo (~10-30 ms). Recibe
    `spotify_settings` cuando guardás un ajuste y `spotify_command` cuando probás algo desde el
    dashboard. Existe porque Brave/Chrome estrangula los timers de las páginas de fondo a 1 vez por
    minuto: con solo el poll, los comandos llegaban cada 60 s.
-2. **Respaldo por consulta**: `GET /api/spotify-client-state?alive=1&version=24&token=<0|1>` cada
+2. **Respaldo por consulta**: `GET /api/spotify-client-state?alive=1&version=26&token=<0|1>` cada
    `pollSeconds` segundos (1-15, ajustable en el dashboard). Devuelve los ajustes y los comandos
    pendientes **en lote** (se ejecutan en orden). El dashboard usa esta llamada para saber si la
    extensión está conectada.
