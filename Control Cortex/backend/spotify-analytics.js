@@ -125,10 +125,12 @@ function createAnalytics(options) {
     };
   }
 
-  let db = null;
+  let db = config.db || null;
   try {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    db = new DatabaseSync(filePath);
+    if (!db) {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      db = new DatabaseSync(filePath);
+    }
     db.exec('PRAGMA journal_mode = WAL;');
     db.exec(SCHEMA);
     // Migracion: si la base ya existia sin las columnas nuevas, se agregan.

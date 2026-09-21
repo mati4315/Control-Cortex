@@ -113,6 +113,34 @@
         <small>Encola un tema similar cuando termina el pedido, para que no quede silencio.</small>
       </div>
 
+      <h2 class="wide" style="margin:6px 0 0">Biblioteca local</h2>
+      <label class="card wide">Carpeta de música: <input type="text" data-key="musicLibraryPath" id="bibCarpeta" placeholder="Ej: D:\musica" style="width:100%;margin-top:6px">
+        <small class="hint" style="display:block;margin-top:4px">Vacío = sin biblioteca. El scanner lee esa carpeta (y sus subcarpetas) y arma la lista de canciones.</small>
+      </label>
+      <label class="card"><input type="checkbox" data-key="autoBiblioteca"> Modo automático: cuando no hay pedidos, Rulo pone temas de la biblioteca (sin repetir en el día)</label>
+      <label class="card">Arrancar el automático después de <input type="number" data-key="autoEsperaSegundos" min="30" max="3600" step="30" style="width:90px;display:inline-block"> segundos sin pedidos</label>
+      <label class="card"><input type="checkbox" data-key="spotifyLocalLyrics"> Leer letras de la caché local de Spotify (experimental, apagado)</label>
+
+      <div class="card wide" id="bibPanel">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="small" id="btnBibScan" type="button">Escanear carpeta</button>
+          <button class="small" id="btnBibAnalizar" type="button">Analizar 10 (inicio/final)</button>
+          <button class="small" id="btnBibElegir" type="button">Probar: elegir al azar</button>
+          <span class="hint" id="bibAviso" style="margin-left:4px"></span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <span class="chip">Canciones: <strong id="bibTracks">—</strong></span>
+          <span class="chip">Con archivo: <strong id="bibOffline">—</strong></span>
+          <span class="chip">Sin Spotify ID: <strong id="bibSinId">—</strong></span>
+          <span class="chip">Sin analizar: <strong id="bibSinAnalizar">—</strong></span>
+          <span class="chip">Con letras: <strong id="bibConLetras">—</strong></span>
+          <span class="chip">Sonaron hoy: <strong id="bibHoy">—</strong></span>
+          <span class="chip">Candidatas hoy: <strong id="bibCandidatas">—</strong></span>
+          <span class="chip" id="bibCiclo">Ciclo: <strong>—</strong></span>
+        </div>
+        <div class="test-result" id="bibResultado" style="display:none"></div>
+      </div>
+
       <h2 class="wide" style="margin:6px 0 0">Variedad de temas</h2>
       <label class="card"><input type="checkbox" data-key="artistVariety"> Si piden <em>un tema de un artista</em> (o de un género) sin decir cuál, elegir uno al azar en vez de poner siempre el mismo</label>
       <label class="card">Cuántos resultados mirar para elegir: <input type="number" data-key="artistVarietyPool" min="5" max="50" step="5" style="width:80px;display:inline-block"> <small class="hint" style="margin:0">(5 a 50)</small></label>
@@ -261,7 +289,7 @@
   <script>
     (function () {
       "use strict";
-      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","pollSeconds","artistVariety","artistVarietyPool","deviceTargetName"];
+      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","pollSeconds","artistVariety","artistVarietyPool","musicLibraryPath","autoBiblioteca","autoEsperaSegundos","spotifyLocalLyrics","deviceTargetName"];
       const el = id => document.getElementById(id);
       const status = el('status');
       const notice = el('notice');
@@ -803,6 +831,94 @@
 
       el('btnAn').addEventListener('click', cargarAnalisis);
       el('anDias').addEventListener('change', cargarAnalisis);
+
+      // --- Biblioteca local (scanner + analisis + modo automatico) ---
+      function bibChip(id, valor) {
+        const node = el(id);
+        if (node) node.textContent = (valor === undefined || valor === null) ? '—' : valor;
+      }
+
+      function bibAviso(texto, esError) {
+        const node = el('bibAviso');
+        if (!node) return;
+        node.textContent = texto || '';
+        node.style.color = esError ? '#ff6b6b' : '';
+        if (texto) setTimeout(() => { if (node.textContent === texto) node.textContent = ''; }, 4000);
+      }
+
+      function bibResultado(texto, clase) {
+        const node = el('bibResultado');
+        if (!node) return;
+        node.style.display = texto ? 'block' : 'none';
+        node.className = 'test-result ' + (clase || '');
+        node.textContent = texto || '';
+      }
+
+      function pintarBiblioteca(datos) {
+        if (!datos) return;
+        const r = datos.resumen || {};
+        bibChip('bibTracks', r.tracks);
+        bibChip('bibOffline', r.offline);
+        bibChip('bibSinId', r.sin_spotify_id);
+        bibChip('bibSinAnalizar', r.sin_analizar);
+        bibChip('bibConLetras', r.con_letras);
+        bibChip('bibHoy', r.reproducidas_hoy);
+        bibChip('bibCandidatas', r.candidatas_hoy);
+        bibChip('bibCiclo', datos.auto && datos.auto.ciclo);
+      }
+
+      function cargarBiblioteca() {
+        return fetch('api/biblioteca').then(r => r.json()).then(datos => {
+          pintarBiblioteca(datos);
+          return datos;
+        }).catch(() => null);
+      }
+
+      el('btnBibScan').addEventListener('click', () => {
+        bibAviso('Escaneando la carpeta…');
+        post('/api/biblioteca-scan', {}).then(datos => {
+          if (!datos || datos.ok !== true) {
+            bibAviso((datos && datos.error) || 'No se pudo escanear', true);
+            bibResultado('✖ ' + ((datos && datos.error) || 'No se pudo escanear'), 'fail');
+            return;
+          }
+          const s2 = datos.scan || {};
+          bibAviso('Listo');
+          pintarBiblioteca({ resumen: datos.resumen });
+          bibResultado('✔ ' + s2.vistos + ' archivos: ' + s2.nuevos + ' nuevos, ' + s2.actualizados +
+            ' actualizados, ' + s2.adoptados + ' adoptados, ' + s2.saltados + ' sin cambios en ' + s2.ms + ' ms', 'ok');
+          cargarBiblioteca();
+        });
+      });
+
+      el('btnBibAnalizar').addEventListener('click', () => {
+        bibAviso('Analizando…');
+        post('/api/biblioteca-analizar', { cantidad: 10 }).then(datos => {
+          if (!datos || datos.ok !== true) {
+            bibAviso((datos && datos.error) || 'No se pudo analizar', true);
+            return;
+          }
+          const l = datos.lote || {};
+          bibAviso('Listo');
+          bibResultado('✔ analizadas ' + l.ok + ' de ' + l.procesados + ' (' + l.ms + ' ms). Pendientes: ' + l.pendientes, 'ok');
+          cargarBiblioteca();
+        });
+      });
+
+      el('btnBibElegir').addEventListener('click', () => {
+        post('/api/biblioteca-auto', { accion: 'elegir' }).then(datos => {
+          if (!datos || datos.ok !== true) return bibResultado('✖ No se pudo elegir', 'fail');
+          const e = datos.eleccion || {};
+          pintarBiblioteca({ auto: datos.estado });
+          if (!e.tema) return bibResultado('Sin candidatas: ' + (e.motivo || 'la biblioteca está vacía'), 'fail');
+          bibResultado('✔ ' + e.tema.titulo + ' — ' + e.tema.artista + ' | ' + e.tema.uri +
+            ' | start ' + (e.tema.startAt === null || e.tema.startAt === undefined ? '0' : e.tema.startAt) +
+            ' | end ' + (e.tema.endAt === null || e.tema.endAt === undefined ? 'fin' : e.tema.endAt) +
+            ' | ciclo ' + e.ciclo + ' (' + e.quedan + ' por salir)', 'ok');
+        });
+      });
+
+      cargarBiblioteca();
       el('btnAnCsv').addEventListener('click', () => {
         const dias = el('anDias').value || '7';
         window.open('/api/spotify-analytics.csv?dias=' + encodeURIComponent(dias), '_blank');

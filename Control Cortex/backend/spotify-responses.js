@@ -92,6 +92,29 @@ const RESPONSE_CONTEXTS = [
     ]
   },
   {
+    id: 'throttled',
+    label: 'Spotify freno las consultas (limite)',
+    mood: 'warning',
+    placeholders: ['segundos', 'nombre', 'pedido'],
+    variants: [
+      'Spotify me esta frenando {nombre}: proba de nuevo en {segundos}s.',
+      'Uy {nombre}, Spotify no me deja buscar ahora. Espera {segundos}s y pedimelo otra vez.',
+      'Me cortaron el chorro {nombre}: en {segundos}s te lo busco de nuevo.',
+      'Spotify me pidio que baje un cambio: en {segundos}s volve a pedir {pedido}.'
+    ]
+  },
+  {
+    id: 'sinRespuesta',
+    label: 'Spotify no respondio (app colgada)',
+    mood: 'error',
+    placeholders: ['nombre', 'pedido'],
+    variants: [
+      'Spotify no me respondio {nombre}: parece que la app se colgo. Proba de nuevo en unos segundos.',
+      'Uy {nombre}, Spotify no contesta. Fijate si la app sigue viva y pedimelo otra vez.',
+      'La app de Spotify no me dio bola {nombre}: proba en un rato.'
+    ]
+  },
+  {
     id: 'noToken',
     label: 'Spotify sin conectar',
     mood: 'error',

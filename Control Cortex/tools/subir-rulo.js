@@ -27,9 +27,9 @@ const EXCLUIDOS = [
   'rulo-chat-history.json',
   'Spotify/spotify-request-log.json',
   'Spotify/spotify-devices.json',
-  'Spotify/spotify-analytics.db',
-  'Spotify/spotify-analytics.db-wal',
-  'Spotify/spotify-analytics.db-shm',
+  // La base de analisis y TODOS sus derivados (backups, -wal, -shm): tiene los
+  // comentarios y nombres del chat, no se publica nunca.
+  'Spotify/spotify-analytics.db*',
   '.env',
   '*.env'
 ];
@@ -48,8 +48,18 @@ function estaExcluido(relativo) {
   return EXCLUIDOS.some(item => {
     const objetivo = item.split(path.sep).join('/');
     if (objetivo.indexOf('*') !== -1) {
-      const sufijo = objetivo.replace('*', '');
-      return normal.endsWith(sufijo) || normal.indexOf('/' + sufijo) !== -1 || normal.indexOf(sufijo) === 0;
+      const partes = objetivo.split('*');
+      const prefijo = partes[0];
+      const sufijo = partes[1] || '';
+      // "*.env": cualquier archivo con esa terminacion, en cualquier carpeta.
+      if (!prefijo) return normal.endsWith(sufijo);
+      // "Spotify/spotify-analytics.db*": el archivo y todos sus derivados.
+      if (!sufijo) {
+        return normal.indexOf(prefijo) === 0 ||
+          normal.endsWith('/' + prefijo) ||
+          normal.indexOf('/' + prefijo) !== -1;
+      }
+      return normal.indexOf(prefijo) !== -1 && normal.endsWith(sufijo);
     }
     return normal === objetivo || normal.indexOf(objetivo + '/') === 0 || normal.endsWith('/' + objetivo);
   });
@@ -64,6 +74,12 @@ if (!fs.existsSync(path.join(CLON, '.git'))) {
 } else {
   execFileSync('git', ['-C', CLON, 'pull', '--ff-only', 'origin', 'main'], { encoding: 'utf8' });
 }
+
+// Deja el clon limpio antes de copiar: sin esto, un archivo que se excluye hoy
+// (o que se borro de Rulo) sigue staged de una corrida anterior y se sube igual.
+// Con esto, lo que se sube es EXACTAMENTE el Rulo de hoy menos las exclusiones.
+execFileSync('git', ['-C', CLON, 'reset', '--hard', '-q'], { encoding: 'utf8' });
+execFileSync('git', ['-C', CLON, 'clean', '-fdxq'], { encoding: 'utf8' });
 
 // Copia la carpeta Rulo encima del clon, respetando las exclusiones.
 let copiados = 0;

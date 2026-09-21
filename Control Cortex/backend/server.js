@@ -134,6 +134,7 @@ const SPOTIFY_PLAYBACK_OFFSET_PATH = path.join(__dirname, 'spotify-playback-offs
 const WORKSPACE_ROOT = path.resolve(__dirname, '..', '..');
 const RULO_CONFIG_PATH = path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-config.json');
 const RULO_HISTORY_PATH = path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-chat-history.json');
+const RULO_UNIFIED_CONFIG_PATH = path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-unified-config.json');
 const DEFAULT_RULO_CONFIG = {
   botName: 'Rulo',
   accent: '#9fd50b',
@@ -155,6 +156,37 @@ try {
   }
 } catch (error) {
   console.warn('[Rulo] No se pudo leer la configuracion:', error.message);
+}
+
+// Config del overlay unificado (Now Playing + letra + comentarios). Vive en
+// Rulo/rulo-unified-config.json y se edita desde rulo-unified-dashboard.html.
+const DEFAULT_RULO_UNIFIED_CONFIG = {
+  showComments: true,      // habilitar comentarios en el overlay
+  maxComments: 2,          // cuantos comentarios se muestran a la vez
+  commentDurationSec: 0,   // segundos que dura cada comentario (0 = se queda)
+  commentPosition: 'bottom-right', // ancla vertical de los comentarios
+  commentWidth: 320,       // ancho maximo de cada burbuja
+  commentTextLines: 4,     // maximo de renglones del comentario (mas largo = scroll lento)
+  commentBottom: 8,        // separacion vertical del borde (px)
+  commentScale: 1,         // escala del comentario: avatar, letra y relleno
+  commentScrollPauseSec: 3, // segundos de pausa antes de repetir el scroll del comentario largo
+  showLyrics: true,        // linea de letra sincronizada
+  showArt: true,           // portada del album
+  showProgress: true,      // barra de progreso
+  showStatus: true,        // etiqueta de marca/estado
+  accent: '#ffdd00',       // color principal
+  fontSize: 1,             // escala de letra (0.8 - 2)
+  overlayWidth: 720,       // ancho maximo del overlay
+  cardHeight: 0,           // alto de la tarjeta (0 = auto); el espacio extra va entre artist y progress
+  brand: 'Anormalia 22'    // texto de la etiqueta de estado
+};
+let ruloUnifiedConfig = { ...DEFAULT_RULO_UNIFIED_CONFIG };
+try {
+  if (fs.existsSync(RULO_UNIFIED_CONFIG_PATH)) {
+    ruloUnifiedConfig = { ...DEFAULT_RULO_UNIFIED_CONFIG, ...JSON.parse(fs.readFileSync(RULO_UNIFIED_CONFIG_PATH, 'utf8')) };
+  }
+} catch (error) {
+  console.warn('[Rulo] No se pudo leer la config del overlay unificado:', error.message);
 }
 
 // Historial de Rulo: sobrevive a los reinicios del backend.
@@ -215,6 +247,10 @@ const DEFAULT_SPOTIFY_SETTINGS = {
   pollSeconds: 4,            // cada cuanto consulta la extension los comandos del dashboard
   artistVariety: true,       // "un tema de X" -> uno al azar, no siempre el mismo
   artistVarietyPool: 20,     // cuantos resultados mira para elegir al azar (5-50)
+  musicLibraryPath: '',      // carpeta de la biblioteca local (vacio = sin biblioteca)
+  autoBiblioteca: false,     // modo automatico con canciones de la biblioteca
+  autoEsperaSegundos: 240,   // cuanto silencio (sin pedidos) para arrancar el automatico
+  spotifyLocalLyrics: false, // leer letras de la cache local de Spotify (opcional)
   deviceTargetName: ''       // vacio = dispositivo automatico
 };
 
@@ -242,6 +278,10 @@ function normalizeSpotifySettings(raw) {
     pollSeconds: clampSpotifyNumber(pick('pollSeconds', 4), 4, 1, 15),
     artistVariety: pick('artistVariety', true) !== false,
     artistVarietyPool: clampSpotifyNumber(pick('artistVarietyPool', 20), 20, 5, 50),
+    musicLibraryPath: String(pick('musicLibraryPath', '') || '').trim().slice(0, 300),
+    autoBiblioteca: pick('autoBiblioteca', false) === true,
+    autoEsperaSegundos: clampSpotifyNumber(pick('autoEsperaSegundos', 240), 240, 30, 3600),
+    spotifyLocalLyrics: pick('spotifyLocalLyrics', false) === true,
     deviceTargetName: String(pick('deviceTargetName', '') || '').trim().slice(0, 120)
   };
 }
@@ -525,7 +565,12 @@ function spotifyAiKey() {
   return String(process.env.SPOTIFY_AI_API_KEY || process.env.SPOTIFY_AI_KEY || '').trim();
 }
 
+// Se completa cuando la biblioteca esta creada (mas abajo). Sirve para avisarle
+// al modo automatico que hubo actividad de una persona.
+let avisarActividad = () => {};
+
 function queueSpotifyCommand(command) {
+  if (!command || command.auto !== true) avisarActividad();
   const entry = {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     createdAt: Date.now(),
@@ -744,6 +789,47 @@ app.get('/rulo-chat-historial.html', (req, res, next) => {
 
 app.get('/rulo-chat-dock.html', (req, res) => {
   res.redirect(302, '/rulo-chat-historial.html' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
+});
+
+// Overlay de chat de audiencia: copia local editable del sampleoverlay.html de SSN.
+// Vive en Rulo/ para que no lo pise una actualizacion de SocialStream Ninja.
+app.get('/rulo-chat-overlay.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-chat-overlay.html'), error => {
+    if (error) next(error);
+  });
+});
+
+// Overlay unificado: Now Playing + letra + comentarios (Rulo).
+app.get('/rulo-unified-overlay.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-unified-overlay.html'), error => {
+    if (error) next(error);
+  });
+});
+
+// Dashboard del overlay unificado.
+app.get('/rulo-unified-dashboard.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-unified-dashboard.html'), error => {
+    if (error) next(error);
+  });
+});
+
+// Overlay de mensajes destacados: copia local editable de featured-modern.html.
+app.get('/rulo-featured.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-featured.html'), error => {
+    if (error) next(error);
+  });
 });
 
 app.get('/rulo-mascota.html', (req, res, next) => {
@@ -1211,14 +1297,194 @@ app.post('/api/spotify-ai-replies', async (req, res) => {
 });
 
 // --- Analisis (SQLite): todo lo que pasa con los pedidos, para buscar mejoras ---
+// Una sola conexion para todo el backend (biblioteca, letras, historial y analitica).
+const cortexDb = require('./db');
+cortexDb.abrir({ log: mensaje => console.warn('[Cortex base] ' + mensaje) });
 const spotifyAnalytics = createAnalytics({
+  db: cortexDb.conexion(),
   filePath: path.join(SPOTIFY_DIR, 'spotify-analytics.db'),
   session: RULO_SESSION_ID,
   log: mensaje => console.warn('[Spotify analisis] ' + mensaje)
 });
 if (spotifyAnalytics.enabled) {
-  console.log('[Spotify] Historial de analisis listo: Rulo/Spotify/spotify-analytics.db');
+  const estadoBase = cortexDb.estado();
+  console.log('[Spotify] Base unica lista: Rulo/Spotify/spotify-analytics.db' + (estadoBase.disponible ? '' : ' (sin SQLite)'));
 }
+
+// --- Biblioteca local + letras + modo automatico (Fases 2 a 5 de la guia) ---
+const { createBiblioteca } = require('./biblioteca/scanner');
+const { createAnalisis } = require('./biblioteca/analisis');
+const { createLetras } = require('./biblioteca/letras');
+const { createAuto } = require('./biblioteca/auto');
+
+const biblioteca = createBiblioteca({ db: cortexDb.conexion(), log: mensaje => console.warn('[Biblioteca] ' + mensaje) });
+const analisis = createAnalisis({ db: cortexDb.conexion(), log: mensaje => console.warn('[Analisis audio] ' + mensaje) });
+const letras = createLetras({ db: cortexDb.conexion(), log: mensaje => console.warn('[Letras] ' + mensaje) });
+const auto = createAuto({ db: cortexDb.conexion(), log: mensaje => console.warn('[Automatico] ' + mensaje) });
+
+// La carpeta y los interruptores salen de los ajustes en vivo (se recargan solos).
+function ajustesBiblioteca() {
+  const ajustes = spotifySettings || {};
+  return {
+    carpeta: String(ajustes.musicLibraryPath || '').trim(),
+    automatico: ajustes.autoBiblioteca === true,
+    letrasLocales: ajustes.spotifyLocalLyrics === true
+  };
+}
+
+app.get('/api/biblioteca', (req, res) => {
+  const ajustes = ajustesBiblioteca();
+  res.json({
+    ok: true,
+    base: cortexDb.estado(),
+    carpeta: ajustes.carpeta,
+    automatico: ajustes.automatico,
+    resumen: biblioteca.resumen(),
+    analisis: analisis.estado(),
+    letras: letras.estado(),
+    auto: auto.estado()
+  });
+});
+
+app.get('/api/biblioteca-tracks', (req, res) => {
+  res.json({
+    ok: true,
+    tracks: biblioteca.listar({
+      offline: req.query?.offline === '1',
+      buscar: String(req.query?.buscar || '').slice(0, 80),
+      limite: req.query?.limite
+    })
+  });
+});
+
+app.post('/api/biblioteca-scan', async (req, res) => {
+  const ajustes = ajustesBiblioteca();
+  const carpeta = String(req.body?.carpeta || ajustes.carpeta || '').trim() || ajustes.carpeta;
+  if (!carpeta) return res.status(400).json({ ok: false, error: 'Falta la carpeta de musica (Ajustes -> Biblioteca).' });
+  try {
+    const resultado = await biblioteca.escanear({ carpeta, forzar: req.body?.forzar === true });
+    res.json({ ok: true, scan: resultado, resumen: biblioteca.resumen() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: String(error.message || error) });
+  }
+});
+
+app.post('/api/biblioteca-analizar', async (req, res) => {
+  try {
+    const encolados = analisis.encolarPendientes();
+    const lote = await analisis.procesarLote(req.body?.cantidad || 10);
+    res.json({ ok: true, encolados, lote, resumen: biblioteca.resumen(), analisis: analisis.estado() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: String(error.message || error) });
+  }
+});
+
+app.post('/api/biblioteca-track', (req, res) => {
+  const id = Number(req.body?.id);
+  if (!Number.isFinite(id)) return res.status(400).json({ ok: false, error: 'Falta el id de la cancion.' });
+  const cambios = req.body?.cambios && typeof req.body.cambios === 'object' ? { ...req.body.cambios } : {};
+  // Si definis start_at/end_at a mano, el analizador no lo vuelve a tocar.
+  if (cambios.start_at !== undefined || cambios.end_at !== undefined) cambios.analysis_status = 'manual';
+  const guardado = biblioteca.actualizar(id, cambios);
+  res.json({ ok: guardado, track: biblioteca.listar({ limite: 1 }).filter(t => t.id === id)[0] || null });
+});
+
+app.post('/api/biblioteca-auto', (req, res) => {
+  const accion = String(req.body?.accion || 'estado');
+  if (accion === 'elegir') return res.json({ ok: true, eleccion: auto.elegir(), estado: auto.estado() });
+  if (accion === 'recargar') return res.json({ ok: true, carga: auto.recargar(), estado: auto.estado() });
+  res.json({ ok: true, estado: auto.estado() });
+});
+
+// Letras: lo usa el overlay (y el dashboard). Nunca falla hacia afuera.
+app.get('/api/letras', async (req, res) => {
+  const tema = {
+    spotifyId: String(req.query?.track || '').replace('spotify:track:', '') || null,
+    titulo: String(req.query?.title || req.query?.titulo || '').slice(0, 200),
+    artista: String(req.query?.artist || req.query?.artista || '').slice(0, 200),
+    album: String(req.query?.album || '').slice(0, 200),
+    duracionMs: Number(req.query?.duration || req.query?.duracion || 0) || 0
+  };
+  if (!tema.titulo && !tema.spotifyId) return res.status(400).json({ ok: false, error: 'Falta el titulo o el id de la cancion.' });
+  try {
+    const letra = await letras.resolver(tema, { forzar: req.query?.forzar === '1' });
+    if (!letra) return res.json({ ok: true, letra: null, motivo: 'sin-letra' });
+    res.json({
+      ok: true,
+      letra: {
+        source: letra.source,
+        provider: letra.provider,
+        language: letra.language,
+        synced: letra.synced === true,
+        instrumental: letra.instrumental === true,
+        lines: letra.lines
+      }
+    });
+  } catch (error) {
+    console.warn('[Letras] ' + (error && error.message));
+    res.json({ ok: true, letra: null, motivo: 'error' });
+  }
+});
+
+// El modulo avisa cuando una cancion llego a su final logico (end_at): asi la
+// siguiente entra sin el hueco completo.
+app.post('/api/biblioteca-auto-termino', (req, res) => {
+  auto.adelantarSiguiente(5000);
+  res.json({ ok: true, proximoEnMs: Math.max(0, auto.estado() ? auto.estado().proximoEnMs : 0) });
+});
+
+app.get('/api/letras-estado', (req, res) => res.json({ ok: true, letras: letras.estado() }));
+
+app.post('/api/letras-traer', async (req, res) => {
+  try {
+    const traidas = await letras.traerFaltantes(req.body?.cantidad || 5);
+    res.json({ ok: true, traidas, estado: letras.estado() });
+  } catch (error) {
+    res.status(500).json({ ok: false, error: String(error.message || error) });
+  }
+});
+
+// --- Planificador del modo automatico ---------------------------------------
+// Cada 20 s revisa si corresponde poner musica de la biblioteca: tiene que estar
+// encendido, no haber pedidos hace rato y no haber nada sonando de la biblioteca.
+avisarActividad = () => auto.marcarActividad();
+auto.configurar({ habilitado: false });
+
+const AUTO_REVISION_MS = 20000;
+const autoTimer = setInterval(() => {
+  try {
+    const ajustes = spotifySettings || {};
+    auto.configurar({
+      habilitado: ajustes.autoBiblioteca === true,
+      esperaSegundos: ajustes.autoEsperaSegundos
+    });
+    const permiso = auto.puedeElegir();
+    if (!permiso.si) return;
+    const eleccion = auto.elegir();
+    if (!eleccion.tema) return;
+    queueSpotifyCommand({
+      type: 'play',
+      uri: eleccion.tema.uri,
+      query: eleccion.tema.uri,
+      startAt: eleccion.tema.startAt,
+      endAt: eleccion.tema.endAt,
+      auto: true,
+      requester: 'Rulo'
+    });
+    auto.registrar(eleccion.tema.id, {
+      modo: 'auto',
+      origen: 'spotify',
+      startAt: eleccion.tema.startAt,
+      endAt: eleccion.tema.endAt
+    });
+    auto.programarSiguiente(eleccion.tema.durationMs);
+    console.log('[Automatico] encolado: ' + eleccion.tema.titulo + ' - ' + eleccion.tema.artista +
+      ' (ciclo ' + eleccion.ciclo + ', quedan ' + eleccion.quedan + ')');
+  } catch (error) {
+    console.warn('[Automatico] no se pudo programar: ' + (error && error.message));
+  }
+}, AUTO_REVISION_MS);
+if (autoTimer.unref) autoTimer.unref();
 
 app.get('/api/spotify-analytics', (req, res) => {
   const stats = spotifyAnalytics.stats(req.query?.dias);
@@ -1371,6 +1637,9 @@ app.post('/api/spotify-transport', (req, res) => {
 
 app.post('/api/spotify-request-log', (req, res) => {
   const body = req.body || {};
+  // Un pedido de una persona (chat o prueba del dashboard) cuenta como actividad:
+  // reinicia el reloj del modo automatico. Los del automatico no.
+  if (String(body.source || 'chat') !== 'auto') avisarActividad();
   const track = body.track && typeof body.track === 'object'
     ? {
         name: String(body.track.name || '').slice(0, 200),
@@ -2145,6 +2414,60 @@ app.post('/api/rulo-config', (req, res) => {
   }
 });
 
+// API: Config del overlay unificado (Now Playing + letra + comentarios).
+app.get('/api/rulo-unified-config', (req, res) => {
+  res.json({ success: true, config: ruloUnifiedConfig, defaults: DEFAULT_RULO_UNIFIED_CONFIG });
+});
+
+app.post('/api/rulo-unified-config', (req, res) => {
+  const body = req.body || {};
+  // Ojo: no usar "||" aca. Valores como 0 son validos (0 = se queda / auto /
+  // pegado al borde) y con "||" se caian al fallback y no se podian guardar.
+  const clamp = (v, min, max, fallback) => {
+    const n = Number(v);
+    const base = Number.isFinite(n) ? n : Number(fallback);
+    const safe = Number.isFinite(base) ? base : min;
+    return Math.min(max, Math.max(min, safe));
+  };
+  const asBool = (v, current) => v === undefined ? current : v === true;
+  const next = {
+    ...ruloUnifiedConfig,
+    showComments: asBool(body.showComments, ruloUnifiedConfig.showComments),
+    maxComments: Math.round(clamp(body.maxComments, 1, 6, ruloUnifiedConfig.maxComments)),
+    commentDurationSec: Math.round(clamp(body.commentDurationSec, 0, 300, ruloUnifiedConfig.commentDurationSec)),
+    commentPosition: ['bottom-right', 'top-right'].includes(String(body.commentPosition))
+      ? String(body.commentPosition) : ruloUnifiedConfig.commentPosition,
+    commentWidth: Math.round(clamp(body.commentWidth, 180, 900, ruloUnifiedConfig.commentWidth)),
+    commentTextLines: Math.round(clamp(body.commentTextLines, 1, 30, ruloUnifiedConfig.commentTextLines)),
+    commentBottom: Math.round(clamp(body.commentBottom, 0, 600, ruloUnifiedConfig.commentBottom)),
+    commentScale: Math.min(2.5, Math.max(0.8, Number(body.commentScale ?? ruloUnifiedConfig.commentScale) || 1)),
+    commentScrollPauseSec: Math.round(clamp(body.commentScrollPauseSec, 0, 60, ruloUnifiedConfig.commentScrollPauseSec)),
+    showLyrics: asBool(body.showLyrics, ruloUnifiedConfig.showLyrics),
+    showArt: asBool(body.showArt, ruloUnifiedConfig.showArt),
+    showProgress: asBool(body.showProgress, ruloUnifiedConfig.showProgress),
+    showStatus: asBool(body.showStatus, ruloUnifiedConfig.showStatus),
+    accent: /^#[0-9a-f]{6}$/i.test(String(body.accent || '')) ? String(body.accent) : ruloUnifiedConfig.accent,
+    fontSize: Math.min(2, Math.max(0.8, Number(body.fontSize ?? ruloUnifiedConfig.fontSize) || 1)),
+    overlayWidth: Math.round(clamp(body.overlayWidth, 320, 1920, ruloUnifiedConfig.overlayWidth)),
+    cardHeight: Math.round(clamp(body.cardHeight, 0, 600, ruloUnifiedConfig.cardHeight)),
+    brand: String(body.brand ?? ruloUnifiedConfig.brand).trim().slice(0, 40) || 'Anormalia 22'
+  };
+  ruloUnifiedConfig = next;
+  // Campos viejos que ya no se usan: se limpian para que no queden en el JSON.
+  delete ruloUnifiedConfig.commentTextHeight;   // reemplazado por commentTextLines
+  delete ruloUnifiedConfig.commentDurationMs;   // reemplazado por commentDurationSec
+  delete ruloUnifiedConfig.commentScrollPauseMs; // reemplazado por commentScrollPauseSec
+  try {
+    fs.mkdirSync(path.dirname(RULO_UNIFIED_CONFIG_PATH), { recursive: true });
+    fs.writeFileSync(RULO_UNIFIED_CONFIG_PATH, JSON.stringify(ruloUnifiedConfig, null, 2), 'utf8');
+    broadcast({ type: 'rulo_unified_config_updated', config: ruloUnifiedConfig });
+    res.json({ success: true, config: ruloUnifiedConfig });
+  } catch (error) {
+    console.error('[Rulo] No se pudo guardar la config del overlay unificado:', error);
+    res.status(500).json({ success: false, error: 'No se pudo guardar la configuracion del overlay unificado.' });
+  }
+});
+
 // API: URL base de Cortex — fuente unica para panel, overrides y OBS.
 app.get('/api/cortex-base-url', (req, res) => {
   res.json({
@@ -2311,6 +2634,10 @@ wss.on('connection', (ws, request) => {
 
   try {
     ws.send(JSON.stringify({ type: 'rulo_config_updated', config: ruloConfig }));
+  } catch (_) {}
+
+  try {
+    ws.send(JSON.stringify({ type: 'rulo_unified_config_updated', config: ruloUnifiedConfig }));
   } catch (_) {}
 
   ws.on('close', () => {

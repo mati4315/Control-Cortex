@@ -41,6 +41,7 @@
     .url-line input { flex:1; min-width:0; }
     .url-line button { white-space:nowrap; }
     .url-extra { margin-top:10px; }
+    .url-box small a { color:var(--accent); font-weight:700; }
     @media(max-width:640px){ form{grid-template-columns:1fr;} .wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} }
   </style>
 </head>
@@ -48,7 +49,7 @@
   <main>
     <header>
       <div><h1><span>Rulo</span> Dashboard</h1><p>Configuración del overlay de respuestas del bot <strong id="brandName">Rulo</strong>.</p></div>
-      <nav><a id="historyLink" href="#">Abrir historial</a> <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Spotify</a> <a id="mascotLink" class="link-secondary" href="#">Mascota</a></nav>
+      <nav><a id="historyLink" href="#">Abrir historial</a> <a id="chatLink" class="link-secondary" href="#">Chat</a> <a id="unifiedLink" class="link-secondary" href="#">Unificado</a> <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Spotify</a> <a id="mascotLink" class="link-secondary" href="#">Mascota</a></nav>
       <div class="status" id="status">Cargando configuración...</div>
     </header>
     <section class="url-box">
@@ -57,6 +58,12 @@
       <small>Usá esta dirección como fuente Navegador en OBS. Se actualiza con el Session ID indicado.</small>
       <div class="url-line url-extra"><input id="dockUrl" readonly><button id="copyDock" type="button">Copiar dock</button><button id="openDock" class="secondary" type="button">Abrir</button></div>
       <small>Dock propio: comentarios a la izquierda y respuestas de <span class="brandName">Rulo</span> a la derecha.</small>
+      <div class="url-line url-extra"><input id="chatUrl" readonly><button id="copyChat" type="button">Copiar chat</button><button id="openChat" class="secondary" type="button">Abrir</button></div>
+      <small>Overlay de chat de audiencia. Va con <code>showtime=0</code> para que los mensajes no se borren solos. Es una copia editable en <code>Rulo/rulo-chat-overlay.html</code>.</small>
+      <div class="url-line url-extra"><input id="unifiedOverlayUrl" readonly><button id="copyUnifiedOverlay" type="button">Copiar unificado</button><button id="openUnifiedOverlay" class="secondary" type="button">Abrir</button></div>
+      <small>Overlay unificado: canción + letra + comentarios en una sola fuente. Se ajusta desde <a id="unifiedDashLink" href="#">su dashboard</a>.</small>
+      <div class="url-line url-extra"><input id="featuredUrl" readonly><button id="copyFeatured" type="button">Copiar destacados</button><button id="openFeatured" class="secondary" type="button">Abrir</button></div>
+      <small>Mensajes destacados: aparece al hacer clic en un comentario del historial. Estilo art-forest con canguro local editable.</small>
     </section>
     <form id="configForm">
       <div class="field"><label for="botName">Nombre visible</label><input id="botName" maxlength="80"><small>Fuente única de verdad: el nombre del overlay y del historial sale de acá. Las respuestas del módulo de Spotify ya no lo pisan.</small></div>
@@ -100,13 +107,29 @@
       const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
       const overlayUrl = location.origin + '/rulo-bot-overlay.html?session=' + encodeURIComponent(session);
       const dockUrl = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+      const chatUrl = location.origin + '/rulo-chat-overlay.html?session=' + encodeURIComponent(session) + '&showtime=0';
+      const unifiedOverlayUrl = location.origin + '/rulo-unified-overlay.html?session=' + encodeURIComponent(session);
+      const unifiedDashUrl = location.origin + '/rulo-unified-dashboard.html?session=' + encodeURIComponent(session);
+      const featuredUrl = location.origin + '/rulo-featured.html?session=' + encodeURIComponent(session) + '&style=art-forest&mascot=mi-canguro.png';
       form('historyLink').href = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+      form('chatLink').href = chatUrl;
+      form('unifiedLink').href = unifiedDashUrl;
+      form('unifiedDashLink').href = unifiedDashUrl;
       form('overlayUrl').value = overlayUrl;
       form('dockUrl').value = dockUrl;
+      form('chatUrl').value = chatUrl;
+      form('unifiedOverlayUrl').value = unifiedOverlayUrl;
+      form('copyUnifiedOverlay').onclick = () => navigator.clipboard.writeText(unifiedOverlayUrl).then(() => showNotice('URL del overlay unificado copiada')).catch(() => showNotice('No se pudo copiar', true));
+      form('openUnifiedOverlay').onclick = () => window.open(unifiedOverlayUrl, '_blank', 'noopener');
+      form('featuredUrl').value = featuredUrl;
+      form('copyFeatured').onclick = () => navigator.clipboard.writeText(featuredUrl).then(() => showNotice('URL de destacados copiada')).catch(() => showNotice('No se pudo copiar', true));
+      form('openFeatured').onclick = () => window.open(featuredUrl, '_blank', 'noopener');
       form('copyUrl').onclick = () => navigator.clipboard.writeText(overlayUrl).then(() => showNotice('URL copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openUrl').onclick = () => window.open(overlayUrl, '_blank', 'noopener');
       form('copyDock').onclick = () => navigator.clipboard.writeText(dockUrl).then(() => showNotice('URL del dock copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openDock').onclick = () => window.open(dockUrl, '_blank', 'noopener');
+      form('copyChat').onclick = () => navigator.clipboard.writeText(chatUrl).then(() => showNotice('URL del chat copiada')).catch(() => showNotice('No se pudo copiar', true));
+      form('openChat').onclick = () => window.open(chatUrl, '_blank', 'noopener');
       function fill(data) { config = data; ids.forEach(id => { if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = data[id]; }); }
       function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Number(value.visibleMs); value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
       function showNotice(text, error) { notice.textContent=text; notice.style.color=error?'#ff7d7d':'var(--accent)'; setTimeout(() => notice.textContent='',3000); }

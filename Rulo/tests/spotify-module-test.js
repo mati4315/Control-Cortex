@@ -60,7 +60,12 @@ function loadModule(options) {
     vocabulary: opts.vocabulary || null,
     aiInterpretation: opts.aiInterpretation || null,
     lastSearch: [],
-    lastLimits: []
+    artistSearches: [],
+    lastLimits: [],
+    lastTrackById: [],
+    nextCalls: 0,
+    player: null,
+    currentTrack: null
   };
 
   const dom = new JSDOM('<!doctype html><html><body></body></html>', {
@@ -116,30 +121,110 @@ function loadModule(options) {
     }
 
     // --- Spotify Web API simulada ---
+    if (target.indexOf('/v1/search') !== -1 && target.indexOf('type=artist') !== -1) {
+      const q = decodeURIComponent((target.split('q=')[1] || '').split('&')[0]);
+      state.artistSearches.push(q);
+      if (opts.artistStatus) {
+        return Promise.resolve({ ok: false, status: opts.artistStatus, headers: { get: () => null }, json: () => Promise.resolve({ error: { status: opts.artistStatus } }) });
+      }
+      const artistas = opts.artists === undefined ? [{ id: 'a1', name: 'El Polaco' }] : opts.artists;
+      return jsonResponse({ artists: { items: artistas } });
+    }
     if (target.indexOf('/v1/search') !== -1) {
       const q = decodeURIComponent((target.split('q=')[1] || '').split('&')[0]);
       const limite = Number((target.split('limit=')[1] || '3').split('&')[0]) || 3;
       state.lastSearch.push(q);
       state.lastLimits.push(limite);
+      // Una app colgada: la respuesta nunca llega (o llega tarde). Con hangSegundos
+      // se simula eso mismo, respetando la senal de cancelacion del modulo.
+      if (opts.hangSegundos) {
+        return new Promise((resolve, reject) => {
+          const reloj = setTimeout(() => resolve(jsonResponse({ tracks: { items: [TRACK] } })), opts.hangSegundos * 1000);
+          const senal = config.signal;
+          if (senal) {
+            if (senal.aborted) { clearTimeout(reloj); reject(Object.assign(new Error('abortado'), { name: 'AbortError' })); return; }
+            senal.addEventListener('abort', () => { clearTimeout(reloj); reject(Object.assign(new Error('abortado'), { name: 'AbortError' })); });
+          }
+        });
+      }
+      // Spotify puede frenar las consultas (429). Con search429Primero solo la
+      // primera respuesta se frena: sirve para ver que despues se recupera.
+      if (opts.searchStatus && !(opts.search429Primero && state.frenazos)) {
+        state.frenazos = (state.frenazos || 0) + 1;
+        const status = opts.searchStatus;
+        return Promise.resolve({
+          ok: false,
+          status,
+          headers: { get: nombre => (String(nombre).toLowerCase() === 'retry-after' ? String(opts.retryAfter || 5) : null) },
+          json: () => Promise.resolve({ error: { status, message: 'Too many requests' } })
+        });
+      }
       const resolver = opts.search;
       const found = typeof resolver === 'function' ? resolver(q) : TRACK;
       // El resolver puede devolver un tema, una lista de temas o nada.
       const items = Array.isArray(found) ? found.slice(0, limite) : (found ? [found] : []);
       return jsonResponse({ tracks: { items } });
     }
+    if (target.indexOf('/v1/artists/') !== -1 && target.indexOf('/top-tracks') !== -1) {
+      state.topTracksCalls = (state.topTracksCalls || 0) + 1;
+      if (opts.topTracksStatus) {
+        return Promise.resolve({ ok: false, status: opts.topTracksStatus, headers: { get: () => null }, json: () => Promise.resolve({ error: { status: opts.topTracksStatus } }) });
+      }
+      return jsonResponse({ tracks: opts.topTracks || [] });
+    }
     if (target.indexOf('/me/player/devices') !== -1) {
-      return jsonResponse({ devices: [DEVICE] });
+      const dispositivo = opts.deviceActive === false ? Object.assign({}, DEVICE, { is_active: false }) : DEVICE;
+      return jsonResponse({ devices: [dispositivo] });
+    }
+    // Traspaso de reproduccion (PUT /me/player sin /play): el modulo lo usa para
+    // "despertar" el dispositivo cuando quedo inactivo.
+    if (target.indexOf('/me/player') !== -1 && (config.method || '').toUpperCase() === 'PUT' && target.indexOf('/player/play') === -1 && target.indexOf('/pause') === -1) {
+      state.transfers = (state.transfers || 0) + 1;
+      state.transferBodies = state.transferBodies || [];
+      state.transferBodies.push(body);
+      if (opts.transferStatus) {
+        return Promise.resolve({ ok: false, status: opts.transferStatus, headers: { get: () => null }, json: () => Promise.resolve({ error: { status: opts.transferStatus } }) });
+      }
+      return emptyResponse(204);
+    }
+    if (target.indexOf('/v1/tracks/') !== -1) {
+      const id = decodeURIComponent(target.split('/v1/tracks/')[1].split('?')[0]);
+      state.lastTrackById.push(id);
+      const encontrado = (opts.tracks || {})[id];
+      return encontrado ? jsonResponse(encontrado) : emptyResponse(404);
+    }
+    if (target.indexOf('/me/player/pause') !== -1) {
+      state.pauseCalls = (state.pauseCalls || 0) + 1;
+      state.pauseUrls = state.pauseUrls || [];
+      state.pauseUrls.push(target);
+      const conDispositivo = target.indexOf('device_id=') !== -1;
+      const conEstado = opts.pauseStatus && (!opts.pauseStatusSoloSinDispositivo || !conDispositivo);
+      if (conEstado) {
+        const status = opts.pauseStatus;
+        return Promise.resolve({
+          ok: false,
+          status,
+          headers: { get: () => null },
+          json: () => Promise.resolve({ error: { status, message: 'Player command failed: ' + (status === 403 ? 'Restriction violated' : 'No active device found'), reason: 'UNKNOWN' } })
+        });
+      }
+      return emptyResponse(204);
     }
     if (target.indexOf('/me/player/play') !== -1) {
-      state.lastPlayedUri = TRACK.uri;
+      if (opts.playStatus) {
+        const mensaje = opts.playStatus === 403 ? 'Player command failed: Restriction violated' : 'Player command failed';
+        return Promise.resolve({ ok: false, status: opts.playStatus, headers: { get: () => null }, json: () => Promise.resolve({ error: { status: opts.playStatus, message: mensaje, reason: 'UNKNOWN' } }) });
+      }
+      state.lastPlayedUri = (body && Array.isArray(body.uris) && body.uris[0]) || TRACK.uri;
       state.lastPlayBody = body;
       return emptyResponse(204);
     }
     if (target.indexOf('/me/player/queue') !== -1) return emptyResponse(204);
     if (target.indexOf('/me/player/seek') !== -1) return emptyResponse(204);
-    if (target.indexOf('/me/player/next') !== -1) return emptyResponse(204);
+    if (target.indexOf('/me/player/next') !== -1) { state.nextCalls += 1; return emptyResponse(204); }
     if (target.indexOf('/recommendations') !== -1) return jsonResponse({ tracks: [CONTINUATION] });
     if (target.indexOf('/me/player') !== -1) {
+      if (state.player) return jsonResponse(state.player);     // estado a medida para las pruebas
       return jsonResponse({
         is_playing: true,
         progress_ms: 12000,
@@ -158,7 +243,7 @@ function loadModule(options) {
     }
     async initialize() { return true; }
     async handleCommand() { return null; }
-    async getCurrentTrack() { return null; }
+    async getCurrentTrack() { return state.currentTrack || null; }
     async skip() { state.skipCalls += 1; return { success: true }; }
     async previous() { return { success: true }; }
     async pause() { return { success: true }; }
@@ -714,7 +799,9 @@ async function waitFor(predicate, timeoutMs, stepMs) {
 
     const salidas = [];
     for (let i = 0; i < 8; i += 1) {
-      const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:ke personajes', requester: 'Prueba' });
+      // Pedido puntual (no de artista): la rotacion de respuestas no depende de eso
+      // y asi la prueba no choca con el filtro "solo temas del artista pedido".
+      const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Prueba' });
       salidas.push(r && r.message);
     }
     check('respuestas: no repite la anterior aunque la ventana cubra todas', (() => { for (let i = 1; i < salidas.length; i += 1) { if (salidas[i] === salidas[i - 1]) return false; } return true; })(), JSON.stringify(salidas));
@@ -786,6 +873,308 @@ async function waitFor(predicate, timeoutMs, stepMs) {
     // haber menos frescos. La garantia es la misma: no repite seguido.
     check('variedad: tambien en los pedidos de genero', new Set(generos).size >= 2, JSON.stringify(generos));
     check('variedad: en genero tampoco repite dos veces seguidas', (() => { for (let i = 1; i < generos.length; i += 1) { if (generos[i] === generos[i - 1]) return false; } return true; })(), JSON.stringify(generos));
+    dom.window.close();
+  }
+
+  // ---------- S) modo automatico de la biblioteca (uri + start_at/end_at) ----------
+  {
+    const CANCION = {
+      id: 'AAAABBBBCCCCDDDDEEEE01',
+      uri: 'spotify:track:AAAABBBBCCCCDDDDEEEE01',
+      name: 'Cumbia De La Biblioteca',
+      duration_ms: 200000,
+      artists: [{ name: 'Los Test' }],
+      album: { name: 'Album', images: [] }
+    };
+    const { dom, integration, state } = loadModule({ tracks: { [CANCION.id]: CANCION } });
+    await integration.syncSpotifySettings();
+    state.settings = { ...state.settings, testMode: true, skipEnabled: false, skipSeconds: 10, pollSeconds: 4 };
+    await integration.syncSpotifySettings();
+    await integration.initialize();   // arranca la consulta periodica del estado
+
+    const resultado = await integration.runDashboardSpotifyCommand({
+      type: 'play', uri: CANCION.uri, query: CANCION.uri,
+      startAt: 8.2, endAt: 190, auto: true, requester: 'Rulo'
+    });
+    check('auto: reproduce la cancion por su uri', resultado && resultado.success === true && state.lastTrackById[0] === CANCION.id, JSON.stringify(state.lastTrackById));
+    check('auto: no pasa por el buscador de texto', state.lastSearch.length === 0, JSON.stringify(state.lastSearch));
+    check('auto: arranca en el start_at de la biblioteca', state.lastPlayBody && state.lastPlayBody.position_ms === 8200, JSON.stringify(state.lastPlayBody));
+    check('auto: avisa al backend que fue automatico', (() => {
+      const registro = cortexCall(state, '/api/spotify-request-log').map(c => c.body).pop();
+      return registro && registro.source === 'auto';
+    })(), JSON.stringify(cortexCall(state, '/api/spotify-request-log').map(c => c.body.source)));
+
+    // El corte del final: calculo puro
+    const corte = integration.__cortexCorteDeCierre({ endAt: 190 }, 200000, 10000);
+    check('auto: el corte del final sale del end_at (10 s)', corte === 10000, String(corte));
+    check('auto: sin end_at se usa el salto de siempre', integration.__cortexCorteDeCierre(null, 200000, 10000) === 10000);
+    check('auto: los limites quedaron guardados por uri', (integration.__cortexLimites().get(CANCION.uri) || {}).endAt === 190);
+
+    // Y el corte de verdad: cuando la reproduccion llega cerca del final logico,
+    // el modulo pasa al siguiente tema y avisa al backend.
+    // Asi lo llama SocialStream: cada consulta del tema pasa por la regla. La
+    // primera registra que el tema ya arranco, la segunda evalua el final logico.
+    state.player = { is_playing: true, progress_ms: 186000, item: { uri: CANCION.uri, duration_ms: 200000 }, device: { id: 'dev1' } };
+    state.currentTrack = { uri: CANCION.uri, name: CANCION.name, artist: 'Los Test', duration: 200000, progress: 186000, isPlaying: true };
+    await integration.getCurrentTrack();
+    await wait(150);
+    await integration.getCurrentTrack();
+    await wait(150);
+    check('auto: al llegar al final logico pasa al siguiente', state.nextCalls >= 1, 'next: ' + state.nextCalls);
+    check('auto: y le avisa al backend para que encole la proxima', cortexCall(state, '/api/biblioteca-auto-termino').length >= 1, JSON.stringify(cortexCall(state, '/api/biblioteca-auto-termino').length));
+    dom.window.close();
+  }
+
+  // ---------- H) Spotify frena las consultas (429): hay que decirlo, no mentir ----------
+  {
+    const { dom, integration, state } = loadModule({ searchStatus: 429, retryAfter: 5 });
+    await integration.initialize();
+    await wait(250);
+
+    const primero = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Mati' });
+    check('frenazo: avisa que Spotify frena (no miente con "no lo encontre")',
+      primero && primero.success === false && /frenando las consultas/i.test(String(primero.message)) && !/no encontre|no aparece|no existe/i.test(String(primero.message)),
+      JSON.stringify(primero && primero.message));
+    const registro = cortexCall(state, '/api/spotify-request-log').map(c => c.body).pop();
+    check('frenazo: queda registrado con el estado throttled', registro && registro.status === 'throttled', JSON.stringify(registro && registro.status));
+
+    // Mientras dura el frenazo no se vuelve a golpear la API de Spotify.
+    const antes = state.lastSearch.length;
+    const segundo = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Otro Tema Cualquiera', requester: 'Mati' });
+    check('frenazo: no insiste con otra busqueda', state.lastSearch.length === antes, JSON.stringify(state.lastSearch.slice(antes)));
+    check('frenazo: el segundo pedido tambien lo dice', segundo && segundo.success === false && /frenando las consultas/i.test(String(segundo.message)), JSON.stringify(segundo && segundo.message));
+
+    const buscar = await integration.runDashboardSpotifyCommand({ type: 'search', query: 'cualquier cosa' });
+    check('frenazo: el buscador del dashboard tambien avisa', buscar && buscar.success === false && /frenando las consultas/i.test(String(buscar.message)), JSON.stringify(buscar && buscar.message));
+    dom.window.close();
+  }
+
+  // ---------- I) cuando el frenazo se vence, el bot vuelve a andar ----------
+  {
+    const { dom, integration, state } = loadModule({ searchStatus: 429, retryAfter: 1, search429Primero: true });
+    await integration.initialize();
+    await wait(200);
+    const frenado = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul', requester: 'Mati' });
+    check('frenazo: el primer pedido avisa el frenazo', frenado && frenado.success === false && /frenando las consultas/i.test(String(frenado.message)), JSON.stringify(frenado && frenado.message));
+
+    await wait(1300);   // se vence el Retry-After de 1 segundo
+    const despues = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Damas Gratis', requester: 'Mati' });
+    check('frenazo: vencido el plazo, vuelve a reproducir', despues && despues.success === true, JSON.stringify(despues && despues.message));
+    check('frenazo: el frenazo quedo limpio', !integration.spotifyFrenadoHasta || integration.spotifyFrenadoHasta <= Date.now(), String(integration.spotifyFrenadoHasta));
+    dom.window.close();
+  }
+
+  // ---------- J) la app colgada no puede trabar al bot ----------
+  {
+    const { dom, integration, state } = loadModule({ hangSegundos: 30, remote: { pollSeconds: 1 } });
+    integration.spotifyTimeoutMs = 400;      // para la prueba: 0,4 s en vez de 12 s
+    await integration.initialize();
+    await wait(200);
+
+    const arranque = Date.now();
+    const pedido = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Mati' });
+    const tardo = Date.now() - arranque;
+    check('app colgada: el pedido no se queda esperando para siempre', tardo < 4000, tardo + 'ms');
+    check('app colgada: avisa que Spotify no responde (no miente)', pedido && pedido.success === false && /no me respondio|no contesta|no me dio bola/i.test(String(pedido.message)), JSON.stringify(pedido && pedido.message));
+    const registro = cortexCall(state, '/api/spotify-request-log').map(c => c.body).pop();
+    check('app colgada: queda registrado como no_response', registro && registro.status === 'no_response', JSON.stringify(registro && registro.status));
+
+    // Y el bot sigue vivo: el pedido siguiente no queda "ocupado" para siempre.
+    const siguiente = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Otra Cosa', requester: 'Mati' });
+    check('app colgada: el bot no queda trabado en ocupado', siguiente && siguiente.blockedByCooldown !== true, JSON.stringify(siguiente && siguiente.message));
+    dom.window.close();
+  }
+
+  // ---------- K) pausa y reanudar: codigo propio, con dispositivo y con motivo ----------
+  {
+    // Como pasa en la app de la Store: sin indicar dispositivo falla (404),
+    // indicando la PC anda. El modulo tiene que lograr la pausa igual.
+    const { dom, integration, state } = loadModule({ pauseStatus: 404, pauseStatusSoloSinDispositivo: true });
+    await integration.initialize();
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'pause', requester: 'Mati' });
+    check('transporte: la pausa se logra indicando el dispositivo', r && r.success === true, JSON.stringify(r && r.message));
+    check('transporte: la pausa se pidio con device_id', (state.pauseUrls || []).some(u => u.indexOf('device_id=') !== -1), JSON.stringify(state.pauseUrls));
+
+    // Y si Spotify responde 403 en todas las variantes, el registro guarda el motivo real.
+    const segunda = loadModule({ pauseStatus: 403 });
+    await segunda.integration.initialize();
+    await wait(200);
+    const fallo = await segunda.integration.runDashboardSpotifyCommand({ type: 'pause', requester: 'Mati' });
+    check('transporte: si falla todo, avisa que fallo', fallo && fallo.success === false, JSON.stringify(fallo && fallo.message));
+    const registro = cortexCall(segunda.state, '/api/spotify-request-log').map(c => c.body).pop();
+    check('transporte: el registro guarda el motivo HTTP 403', registro && /HTTP 403/.test(String(registro.message)), JSON.stringify(registro && registro.message));
+    check('transporte: probo las variantes (dispositivo, sin cuerpo)', /con el dispositivo/.test(String(registro && registro.message)) && /sin cuerpo/.test(String(registro && registro.message)), JSON.stringify(registro && registro.message));
+    check('transporte: tambien probo activando la PC primero', (segunda.state.pauseCalls || 0) >= 4, String(segunda.state.pauseCalls));
+    dom.window.close();
+    segunda.dom.window.close();
+  }
+
+  // ---------- L) reproducir con el dispositivo inactivo y con motivo real ----------
+  {
+    const { dom, integration, state } = loadModule({ deviceActive: false });
+    await integration.initialize();
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Mati' });
+    check('reproducir: con el dispositivo inactivo se traspasa antes', (state.transfers || 0) >= 1, String(state.transfers));
+    check('reproducir: y aun asi el tema suena', r && r.success === true, JSON.stringify(r && r.message));
+    check('reproducir: el traspaso no arranca la musica (play:false)', ((state.transferBodies || [])[0] || {}).play === false, JSON.stringify(state.transferBodies));
+    dom.window.close();
+  }
+  {
+    const { dom, integration, state } = loadModule({ playStatus: 404 });
+    await integration.initialize();
+    // El reproductor esta en otro tema: el fallo no se puede confundir con "ya suena".
+    state.player = { is_playing: false, item: { uri: 'spotify:track:otro' }, device: { id: DEVICE.id } };
+    await wait(200);
+    const f = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Damas Gratis', requester: 'Mati' });
+    check('reproducir: si falla avisa', f && f.success === false, JSON.stringify(f && f.message));
+    const registro = cortexCall(state, '/api/spotify-request-log').map(c => c.body).pop();
+    check('reproducir: el registro guarda el motivo HTTP 404', registro && /HTTP 404/.test(String(registro.message)), JSON.stringify(registro && registro.message));
+    dom.window.close();
+  }
+
+  // ---------- M) el 403 "Restriction violated" no es un error: es "ya estaba" ----------
+  {
+    // Pausar cuando ya esta pausado: Spotify contesta 403 y el estado lo confirma.
+    const { dom, integration, state } = loadModule({ pauseStatus: 403 });
+    await integration.initialize();
+    state.player = { is_playing: false, item: { uri: TRACK.uri }, device: { id: DEVICE.id } };
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'pause', requester: 'Mati' });
+    check('restringido: pausar algo ya pausado cuenta como exito', r && r.success === true, JSON.stringify(r && r.message));
+    const registro = cortexCall(state, '/api/spotify-request-log').map(c => c.body).pop();
+    check('restringido: queda registrado como transporte ok', registro && registro.ok === true && registro.query === 'transporte:pause', JSON.stringify(registro && registro.query) + ' ok=' + JSON.stringify(registro && registro.ok));
+    dom.window.close();
+  }
+  {
+    // Reanudar cuando ya esta sonando: mismo caso con /play.
+    const { dom, integration, state } = loadModule({ playStatus: 403 });
+    await integration.initialize();
+    state.player = { is_playing: true, item: { uri: TRACK.uri }, device: { id: DEVICE.id } };
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'resume', requester: 'Mati' });
+    check('restringido: reanudar algo que ya suena cuenta como exito', r && r.success === true, JSON.stringify(r && r.message));
+    dom.window.close();
+  }
+  {
+    // Pero si el estado NO coincide, el 403 si es un fallo (y queda el motivo).
+    const { dom, integration, state } = loadModule({ pauseStatus: 403 });
+    await integration.initialize();
+    state.player = { is_playing: true, item: { uri: TRACK.uri }, device: { id: DEVICE.id } };
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'pause', requester: 'Mati' });
+    check('restringido: si el estado no coincide, sigue siendo fallo', r && r.success === false, JSON.stringify(r && r.message));
+    const registro = cortexCall(state, '/api/spotify-request-log').map(c => c.body).pop();
+    check('restringido: y queda el motivo con el 403', registro && /restriction violated/i.test(String(registro.message)), JSON.stringify(registro && registro.message).slice(0, 120));
+    dom.window.close();
+  }
+  {
+    // Reproducir un tema que ya suena: 403 en el play, pero el estado lo confirma.
+    const { dom, integration, state } = loadModule({ playStatus: 403 });
+    await integration.initialize();
+    state.player = { is_playing: true, item: { uri: TRACK.uri }, device: { id: DEVICE.id } };
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Mati' });
+    check('restringido: pedir el tema que ya suena cuenta como exito', r && r.success === true, JSON.stringify(r && r.message));
+    dom.window.close();
+  }
+
+  // ---------- N) pedido de artista: catalogo real, filtro y fallos transitorios ----------
+  {
+    // El caso reportado: "un tema del polaco" devolvia "Beautiful - Tan Bionica".
+    // El catalogo del artista resuelto tiene que ganar siempre.
+    const EL_POLACO = { id: 'p1', uri: 'spotify:track:p1', name: 'Vengo de la casa de ella', duration_ms: 200000, artists: [{ name: 'El Polaco' }] };
+    const BASURA = { id: 'b1', uri: 'spotify:track:b1', name: 'Beautiful', duration_ms: 200000, artists: [{ name: 'Tan Bionica' }] };
+    const { dom, integration, state } = loadModule({
+      artists: [{ id: 'a1', name: 'El Polaco' }],
+      topTracks: [EL_POLACO],
+      search: () => [BASURA]
+    });
+    await integration.initialize();
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:polaco', requester: 'Mati' });
+    check('artista: resuelve el nombre real con la busqueda de artistas', state.artistSearches.length >= 1, JSON.stringify(state.artistSearches));
+    check('artista: usa el catalogo real del artista', (state.topTracksCalls || 0) >= 1, String(state.topTracksCalls));
+    check('artista: elige un tema del artista pedido', r && r.success === true && /El Polaco/.test(String(r.track && r.track.artist)), JSON.stringify(r && r.track));
+    check('artista: nunca elige basura de otro artista', !/Tan Bionica/.test(String(r.track && r.track.artist)), JSON.stringify(r && r.track));
+    dom.window.close();
+  }
+  {
+    // Si todo lo que devuelve Spotify es de otros artistas, NO se reproduce: mejor
+    // decir que no se encontro que poner una cancion que nadie pidio.
+    const BASURA = { id: 'b1', uri: 'spotify:track:b1', name: 'Beautiful', duration_ms: 200000, artists: [{ name: 'Tan Bionica' }] };
+    const { dom, integration, state } = loadModule({
+      artists: [{ id: 'a1', name: 'El Polaco' }],
+      topTracks: [],
+      search: () => [BASURA]
+    });
+    await integration.initialize();
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:polaco', requester: 'Mati' });
+    check('artista: con solo basura no reproduce nada (avisa)', r && r.success === false, JSON.stringify(r && r.message));
+    check('artista: y no eligio la basura', !/Tan Bionica/.test(JSON.stringify(r && r.track)), JSON.stringify(r && r.track));
+    dom.window.close();
+  }
+  {
+    // Un fallo del buscador de artistas es transitorio: NO se cachea, el proximo
+    // pedido lo vuelve a intentar (era el bug: quedaba roto toda la sesion).
+    const TEMA = { id: 'z1', uri: 'spotify:track:z1', name: 'Un Tema', duration_ms: 200000, artists: [{ name: 'Alguien' }] };
+    const { dom, integration, state } = loadModule({ artistStatus: 500, artists: [{ id: 'a1', name: 'El Polaco' }], search: () => [TEMA] });
+    await integration.initialize();
+    await wait(200);
+    await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:polaco', requester: 'Mati' });
+    const primeraVez = state.artistSearches.length;
+    await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:polaco', requester: 'Mati' });
+    check('artista: un fallo transitorio no se cachea (se reintenta)', state.artistSearches.length > primeraVez, 'antes ' + primeraVez + ', ahora ' + state.artistSearches.length);
+    dom.window.close();
+  }
+
+  {
+    // N) bis - El filtro del campo en la busqueda: MEDIDO CONTRA LA API REAL, Spotify
+    // devuelve 0 resultados para "artist:Ke Personajes" y para "genre:cumbia", y encuentra
+    // bien con el texto pelado. Por eso ningun intento puede llevar el prefijo, ni siquiera
+    // el respaldo cuando el catalogo real del artista no responde (era el bug: 32 pedidos
+    // de artista en la base, 0 reproducciones).
+    const KE = { id: 'k1', uri: 'spotify:track:k1', name: 'Pobre Corazon - En Vivo', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }] };
+    const { dom, integration, state } = loadModule({
+      artists: [{ id: 'a1', name: 'Ke Personajes' }],
+      topTracks: [],
+      search: q => (String(q).indexOf('artist:') === -1 ? [KE] : [])
+    });
+    await integration.initialize();
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:ke personajes', requester: 'Mati' });
+    check('campo: sin catalogo real igual encuentra al artista (busca el nombre, no "artist:")',
+      r && r.success === true && /Ke Personajes/.test(String(r.track && r.track.artist)),
+      JSON.stringify({ track: r && r.track, busquedas: state.lastSearch }));
+    check('campo: ninguna busqueda se apoya en "artist:" (Spotify lo ignora)',
+      state.lastSearch.length > 0 && state.lastSearch.every(q => String(q).indexOf('artist:') === -1),
+      JSON.stringify(state.lastSearch));
+    const r2 = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'genre:cumbia', requester: 'Mati' });
+    check('campo: tampoco el genero se busca con "genre:"',
+      state.lastSearch.every(q => String(q).indexOf('genre:') === -1),
+      JSON.stringify(state.lastSearch));
+    check('campo: y el genero encuentra tema', r2 && r2.success === true, JSON.stringify(r2 && r2.message));
+    dom.window.close();
+  }
+  {
+    // Con el vocabulario REAL del proyecto (el que edita el dashboard) el orden de intentos
+    // tiene que empezar por el texto pelado: si el vocabulario crece, las variantes no
+    // pueden empujar afuera al unico intento que funciona.
+    const VERO = JSON.parse(require('fs').readFileSync('D:/plugins para mi OBS/Rulo/Spotify/spotify-vocabulary.json', 'utf8'));
+    const KE = { id: 'k1', uri: 'spotify:track:k1', name: 'Pobre Corazon - En Vivo', duration_ms: 200000, artists: [{ name: 'Ke Personajes' }] };
+    const { dom, integration, state } = loadModule({
+      artists: [{ id: 'a1', name: 'Ke Personajes' }],
+      topTracks: [],
+      vocabulary: VERO,
+      search: q => (String(q).indexOf('artist:') === -1 ? [KE] : [])
+    });
+    await integration.initialize();
+    await wait(200);
+    const r = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'artist:ke personajes', requester: 'Mati' });
+    check('campo: con el vocabulario real tambien encuentra', r && r.success === true, JSON.stringify(state.lastSearch));
+    check('campo: y gasta una sola busqueda (no cuatro)', state.lastSearch.length <= 2, JSON.stringify(state.lastSearch));
     dom.window.close();
   }
 

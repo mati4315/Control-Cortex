@@ -326,9 +326,9 @@
     "variantLimit": 8
   },
   "ai": {
-    "enabled": false,
+    "enabled": true,
     "endpoint": "http://127.0.0.1:4201/v1/chat/completions",
-    "model": "prueba",
+    "model": "deepseek v4 flash",
     "instructions": "Entre riano Argentino, contesta muy informal, y corto, es un viejo al mal educado de aveces, sobre todo cuando lo hacen enojar",
     "onlyWhenNotUnderstood": true,
     "requireSignal": true,
@@ -444,6 +444,25 @@
           "Otra vez {nombre}? {pedido} no esta en Spotify, no jodas.",
           "Mirá {nombre}, {pedido} no está en Spotify, buscá otra cosa.",
           "Otra vez con {busqueda}, {nombre}? No lo tengo, dejate de joder."
+        ],
+        "aiVariants": []
+      },
+      "throttled": {
+        "label": "Spotify freno las consultas (limite)",
+        "variants": [
+          "Spotify me esta frenando {nombre}: proba de nuevo en {segundos}s.",
+          "Uy {nombre}, Spotify no me deja buscar ahora. Esperá {segundos}s y pedímelo otra vez.",
+          "Me cortaron el chorro {nombre}: en {segundos}s te lo busco de nuevo.",
+          "Spotify me pidió que baje un cambio: en {segundos}s volvé a pedir {pedido}."
+        ],
+        "aiVariants": []
+      },
+      "sinRespuesta": {
+        "label": "Spotify no respondio (app colgada)",
+        "variants": [
+          "Spotify no me respondió {nombre}: parece que la app se colgó. Probá de nuevo en unos segundos.",
+          "Uy {nombre}, Spotify no contesta. Fijate si la app sigue viva y pedímelo otra vez.",
+          "La app de Spotify no me dio bola {nombre}: probá en un rato."
         ],
         "aiVariants": []
       },

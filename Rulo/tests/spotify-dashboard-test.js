@@ -25,6 +25,10 @@ const SETTINGS = {
   pollSeconds: 4,
   artistVariety: true,
   artistVarietyPool: 20,
+  musicLibraryPath: 'D:/musica',
+  autoBiblioteca: true,
+  autoEsperaSegundos: 240,
+  spotifyLocalLyrics: false,
   deviceTargetName: 'NOTEBOOK-MATI',
   effectiveCooldownSeconds: 40,
   effectiveUserCooldownSeconds: 120
@@ -96,6 +100,22 @@ function makeDashboard(options) {
               { comentario: 'poneme un temita', problema: 'no conoce la palabra', tipo: 'palabra', de: 'temita', a: '', confianza: 0.6 }
             ]
           });
+        }
+        if (target.indexOf('api/biblioteca') !== -1) {
+          if (target.indexOf('-scan') !== -1) {
+            return respond({ ok: true, scan: { vistos: 120, nuevos: 5, actualizados: 1, adoptados: 2, saltados: 112, ms: 350, errores: [] },
+              resumen: { tracks: 125, offline: 120, sin_spotify_id: 3, sin_analizar: 40, con_letras: 25, reproducidas_hoy: 7, candidatas_hoy: 113 } });
+          }
+          if (target.indexOf('-analizar') !== -1) {
+            return respond({ ok: true, encolados: 40, lote: { procesados: 10, ok: 8, fallados: 2, pendientes: 30, ms: 7000 },
+              resumen: { tracks: 125, offline: 120, sin_spotify_id: 3, sin_analizar: 30, con_letras: 25, reproducidas_hoy: 7, candidatas_hoy: 113 } });
+          }
+          if (target.indexOf('-auto') !== -1) {
+            return respond({ ok: true, eleccion: { tema: { id: 5, uri: 'spotify:track:AAAABBBBCCCCDDDDEEEE01', titulo: 'Cumbia Test', artista: 'Los Test', startAt: 3.5, endAt: 196 }, reinicio: false, ciclo: 1, quedan: 112 },
+              estado: { ciclo: 1, enBiblioteca: 120, candidatas: 113, reproducidasHoy: 7 } });
+          }
+          return respond({ ok: true, resumen: { tracks: 125, offline: 120, sin_spotify_id: 3, sin_analizar: 40, con_letras: 25, reproducidas_hoy: 7, candidatas_hoy: 113 },
+            auto: { ciclo: 2 }, analisis: { trabajos: { pending: 30 } }, letras: { guardadas: 25, kb: 148 }, base: { disponible: true, abierto: true } });
         }
         if (target.indexOf('/api/spotify-status') !== -1) {
           return Promise.resolve({ ok: true, json: () => Promise.resolve({
@@ -362,6 +382,37 @@ const posts = (calls, fragment) => calls.filter(call => call.url.indexOf(fragmen
     doc.getElementById('btnAnSugerir').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
     await wait(300);
     check('analisis: avisa si el cerebro esta apagado', /cerebro/.test(doc.getElementById('anSugerencias').textContent), doc.getElementById('anSugerencias').textContent.slice(0, 90));
+    dom.window.close();
+  }
+
+  // ---------- R) biblioteca local: controles, numeros y acciones ----------
+  {
+    const { dom, doc, calls } = makeDashboard({});
+    await wait(400);
+    check('biblioteca: la carpeta de musica se carga en el formulario', doc.querySelector('[data-key="musicLibraryPath"]').value === 'D:/musica', doc.querySelector('[data-key="musicLibraryPath"]').value);
+    check('biblioteca: el modo automatico viene marcado', doc.querySelector('[data-key="autoBiblioteca"]').checked === true);
+    check('biblioteca: las letras locales vienen apagadas', doc.querySelector('[data-key="spotifyLocalLyrics"]').checked === false);
+    check('biblioteca: la espera del automatico se carga', doc.querySelector('[data-key="autoEsperaSegundos"]').value === '240', doc.querySelector('[data-key="autoEsperaSegundos"]').value);
+
+    check('biblioteca: pide el resumen al backend', calls.some(call => call.url.indexOf('api/biblioteca') !== -1 && call.method === 'GET'), 'no se pidio el resumen');
+    check('biblioteca: pinta las canciones', doc.getElementById('bibTracks').textContent === '125', doc.getElementById('bibTracks').textContent);
+    check('biblioteca: pinta las candidatas de hoy', doc.getElementById('bibCandidatas').textContent === '113', doc.getElementById('bibCandidatas').textContent);
+    check('biblioteca: pinta el ciclo', doc.getElementById('bibCiclo').textContent.indexOf('2') !== -1, doc.getElementById('bibCiclo').textContent);
+
+    doc.getElementById('btnBibScan').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    await wait(250);
+    check('biblioteca: el boton Escanear llama al backend', posts(calls, '/api/biblioteca-scan').length === 1, JSON.stringify(posts(calls, '/api/biblioteca-scan').length));
+    check('biblioteca: el escaneo informa lo que paso', /5 nuevos/.test(doc.getElementById('bibResultado').textContent) && /2 adoptados/.test(doc.getElementById('bibResultado').textContent), doc.getElementById('bibResultado').textContent);
+
+    doc.getElementById('btnBibAnalizar').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    await wait(250);
+    check('biblioteca: el boton Analizar llama al backend', posts(calls, '/api/biblioteca-analizar').length === 1 && posts(calls, '/api/biblioteca-analizar')[0].body.cantidad === 10, JSON.stringify(posts(calls, '/api/biblioteca-analizar')[0]));
+    check('biblioteca: el analisis informa cuantas quedaron', /8 de 10/.test(doc.getElementById('bibResultado').textContent), doc.getElementById('bibResultado').textContent);
+
+    doc.getElementById('btnBibElegir').dispatchEvent(new dom.window.Event('click', { bubbles: true }));
+    await wait(250);
+    check('biblioteca: probar la eleccion al azar llama al backend', posts(calls, '/api/biblioteca-auto').length === 1 && posts(calls, '/api/biblioteca-auto')[0].body.accion === 'elegir', JSON.stringify(posts(calls, '/api/biblioteca-auto')[0]));
+    check('biblioteca: la eleccion muestra el tema y el offset', /Cumbia Test/.test(doc.getElementById('bibResultado').textContent) && /start 3.5/.test(doc.getElementById('bibResultado').textContent), doc.getElementById('bibResultado').textContent);
     dom.window.close();
   }
 

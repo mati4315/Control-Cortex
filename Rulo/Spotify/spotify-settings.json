@@ -11,7 +11,11 @@
   "skipEnabled": false,
   "skipSeconds": 10,
   "pollSeconds": 7,
-  "artistVariety": true,
+  "artistVariety": false,
   "artistVarietyPool": 12,
-  "deviceTargetName": "Web Player (Chrome)"
+  "musicLibraryPath": "D:\\RADIO\\TEMAS Spotify",
+  "autoBiblioteca": true,
+  "autoEsperaSegundos": 240,
+  "spotifyLocalLyrics": false,
+  "deviceTargetName": "NOTEBOOK-MATI"
 }

@@ -326,7 +326,48 @@ body {
     }, 200);
   }
 
-  // Fetch from LRCLib
+  // 1) Cortex primero: tiene las letras guardadas en SQLite (una sola consulta a
+  //    internet por cancion, y si LRCLIB esta caido igual aparecen las ya guardadas).
+  // 2) Si Cortex no responde o no la tiene, se pide directo a LRCLIB (como antes).
+  async function pedirLetrasACortex(track){
+    var params=new URLSearchParams({title:track.name,artist:track.artist});
+    if(track.album) params.set('album',track.album);
+    if(track.duration) params.set('duration',track.duration);
+    if(track.uri) params.set('track',String(track.uri).replace('spotify:track:',''));
+    var res=await fetch('api/letras?'+params,{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data=await res.json();
+    if(!data||data.ok!==true||!data.letra) return null;
+    var letra=data.letra;
+    if(letra.instrumental) return {instrumental:true,lines:[]};
+    if(!letra.lines||!letra.lines.length) return null;
+    return {
+      instrumental:false,
+      lines:letra.lines.map(function(l){return{timeMs:l.startMs,text:l.text};})
+    };
+  }
+
+  async function pedirLetrasALrclib(track){
+    var params=new URLSearchParams({artist_name:track.artist,track_name:track.name});
+    if(track.album) params.set('album_name',track.album);
+    if(track.duration) params.set('duration',Math.round(track.duration/1000));
+    var res=await fetch('https://lrclib.net/api/get?'+params,{
+      headers:{'Lrclib-Client':'Social Stream Ninja Lyrics Overlay'}
+    });
+    if(res.status===404) return null;
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var data=await res.json();
+    if(data.instrumental) return {instrumental:true,lines:[]};
+    var synced=parseLRC(data.syncedLyrics);
+    if(synced.length>0) return {instrumental:false,lines:synced};
+    if(data.plainLyrics){
+      return {instrumental:false,lines:data.plainLyrics.split('\n').filter(function(l){return l.trim();})
+        .map(function(t,i){return{timeMs:i*3500,text:t};})};
+    }
+    return null;
+  }
+
+  // Fetch from Cortex (cache en SQLite) y si no, de LRCLib
   async function fetchLyrics(track) {
     if(!track||!track.name||!track.artist) return;
     var trackId = trackKey(track);
@@ -336,27 +377,22 @@ body {
     lyr.loading=true; lyr.instrumental=false;
     setLyricDisplay('Buscando letras…', true);
     try {
-      var params=new URLSearchParams({artist_name:track.artist,track_name:track.name});
-      if(track.album) params.set('album_name',track.album);
-      if(track.duration) params.set('duration',Math.round(track.duration/1000));
-      var res=await fetch('https://lrclib.net/api/get?'+params,{
-        headers:{'Lrclib-Client':'Social Stream Ninja Lyrics Overlay'}
-      });
-      if(requestToken!==lyr.requestToken) return;
-      if(res.status===404){setLyricDisplay('Sin letras',true);return;}
-      if(!res.ok) throw new Error('HTTP '+res.status);
-      var data=await res.json();
-      if(requestToken!==lyr.requestToken) return;
-      if(data.instrumental){lyr.instrumental=true;setLyricDisplay('🎸 Instrumental',true);return;}
-      var synced=parseLRC(data.syncedLyrics);
-      if(synced.length>0){
-        lyr.lines=synced;
-      } else if(data.plainLyrics){
-        lyr.lines=data.plainLyrics.split('\n').filter(function(l){return l.trim();})
-          .map(function(t,i){return{timeMs:i*3500,text:t};});
-      } else {
-        setLyricDisplay('Sin letras',true);
+      var letra=null;
+      try {
+        letra=await pedirLetrasACortex(track);
+      } catch(e){
+        console.warn('[Lyrics] Cortex no respondio, se pide directo a LRCLIB',e);
       }
+      if(requestToken!==lyr.requestToken) return;
+      if(!letra) letra=await pedirLetrasALrclib(track);
+      if(requestToken!==lyr.requestToken) return;
+      if(!letra){setLyricDisplay('Sin letras',true);return;}
+      if(letra.instrumental){
+        lyr.instrumental=true;
+        setLyricDisplay('🎸 Instrumental',true);
+        return;
+      }
+      lyr.lines=letra.lines;
     } catch(e){
       if(requestToken!==lyr.requestToken) return;
       console.warn('[Lyrics]',e);

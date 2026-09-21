@@ -14,6 +14,7 @@ function check(name, ok, detail) {
   check('respuestas: estan los contextos clave', ['ok', 'searching', 'notFound', 'waitGlobal', 'error'].every(id => ids.indexOf(id) !== -1), ids.join(','));
   check('respuestas: el ok tiene varias variantes de fabrica', RESP.DEFAULT_SPOTIFY_RESPONSES.contexts.ok.variants.length >= 8, RESP.DEFAULT_SPOTIFY_RESPONSES.contexts.ok.variants.length);
   check('respuestas: la primera variante del ok mantiene el texto historico', /^Listo \{nombre\}, ya se esta reproduciendo: \{tema\} - \{artista\}$/.test(RESP.DEFAULT_SPOTIFY_RESPONSES.contexts.ok.variants[0]), RESP.DEFAULT_SPOTIFY_RESPONSES.contexts.ok.variants[0]);
+  check('respuestas: el frenazo de Spotify trae sus variantes', (RESP.DEFAULT_SPOTIFY_RESPONSES.contexts.throttled || { variants: [] }).variants.length >= 3, JSON.stringify((RESP.DEFAULT_SPOTIFY_RESPONSES.contexts.throttled || {}).variants));
   check('respuestas: todos los contextos traen al menos una variante', RESP.RESPONSE_CONTEXTS.every(entry => entry.variants.length >= 1), 'falta alguna');
   const meta = RESP.RESPONSE_CONTEXT_META;
   check('respuestas: la meta no arrastra las variantes', meta.every(entry => entry.variants === undefined) && meta[0].label && meta[0].mood, JSON.stringify(meta[0]));

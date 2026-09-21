@@ -1,0 +1,20 @@
+{
+  "showComments": true,
+  "maxComments": 2,
+  "commentDurationSec": 18,
+  "commentPosition": "bottom-right",
+  "commentWidth": 520,
+  "commentTextLines": 4,
+  "commentBottom": 68,
+  "commentScale": 1.2,
+  "commentScrollPauseSec": 4,
+  "showLyrics": true,
+  "showArt": true,
+  "showProgress": true,
+  "showStatus": true,
+  "accent": "#ffdd00",
+  "fontSize": 1,
+  "overlayWidth": 720,
+  "cardHeight": 200,
+  "brand": "Anormalia 22"
+}

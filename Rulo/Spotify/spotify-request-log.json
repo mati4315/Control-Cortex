@@ -1,622 +1,502 @@
 [
   {
-    "id": "1789733128191-gwoeqt",
+    "id": "1789991378227-kgvldg",
     "source": "dashboard",
-    "requester": "aaaa",
-    "query": "artist:gladis la bomba tucumana",
+    "requester": "Dos",
+    "query": "comentario dos",
     "ok": false,
-    "message": "aaaa, ya estoy procesando un pedido musical. Espera un momento.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789733128191
+    "timestamp": 1789991378227
   },
   {
-    "id": "1789733128647-yin45b",
+    "id": "1789991392342-j75qzg",
     "source": "dashboard",
-    "requester": "aaaa",
-    "query": "artist:gladis la bomba tucumana",
-    "ok": true,
-    "message": "Listo aaaa, ya se esta reproduciendo: La Pollera Amarilla - Gladys \"La bomba tucumana\"",
-    "track": {
-      "name": "La Pollera Amarilla",
-      "artist": "Gladys \"La bomba tucumana\"",
-      "uri": "spotify:track:03G43mO3a34IGIsyDd4sj5"
-    },
-    "timestamp": 1789733128647
-  },
-  {
-    "id": "1789735345191-zgqaqb",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "artist:la beriso",
+    "requester": "Uno",
+    "query": "comentario uno",
     "ok": false,
-    "message": "Aguantame juan que estoy poniendo otro tema.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789735345191
+    "timestamp": 1789991392342
   },
   {
-    "id": "1789735349434-zgwu4o",
+    "id": "1789991393250-jshztp",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "artist:la beriso",
-    "ok": true,
-    "message": "Anotado juan: ahora suena Traicionero - La Beriso",
-    "track": {
-      "name": "Traicionero",
-      "artist": "La Beriso",
-      "uri": "spotify:track:0sOpGWXWkxNDev51Dst3fQ"
-    },
-    "timestamp": 1789735349434
-  },
-  {
-    "id": "1789735383706-9bx9ha",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "dame otro de la beriso",
+    "requester": "Dos",
+    "query": "comentario dos",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789735383706
+    "timestamp": 1789991393250
   },
   {
-    "id": "1789735385185-l4iski",
+    "id": "1789991394176-h5mz0e",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "dame otro de la beriso",
+    "requester": "Uno",
+    "query": "comentario uno",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789735385185
+    "timestamp": 1789991394176
   },
   {
-    "id": "1789735397425-wj5xrx",
+    "id": "1789991394188-nizm4r",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "artist:la beriso",
-    "ok": true,
-    "message": "Ahi va juan: Traicionero - La Beriso",
-    "track": {
-      "name": "Traicionero",
-      "artist": "La Beriso",
-      "uri": "spotify:track:0sOpGWXWkxNDev51Dst3fQ"
-    },
-    "timestamp": 1789735397425
-  },
-  {
-    "id": "1789735403412-sj2dul",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "artist:la beriso",
-    "ok": true,
-    "message": "juan ya esta sonando: Traicionero - La Beriso",
-    "track": {
-      "name": "Traicionero",
-      "artist": "La Beriso",
-      "uri": "spotify:track:0sOpGWXWkxNDev51Dst3fQ"
-    },
-    "timestamp": 1789735403412
-  },
-  {
-    "id": "1789736394381-onwphi",
-    "source": "dashboard",
-    "requester": "jose",
-    "query": "track:algun del 2000 artist:cumbia",
-    "ok": true,
-    "message": "Va jose: Cumbia Morena 2000 - Cumbia Sonidera",
-    "track": {
-      "name": "Cumbia Morena 2000",
-      "artist": "Cumbia Sonidera",
-      "uri": "spotify:track:6qEE6kBqZYoOJrZgERlWyz"
-    },
-    "timestamp": 1789736394381
-  },
-  {
-    "id": "1789736399377-496tr7",
-    "source": "dashboard",
-    "requester": "jose",
-    "query": "track:algun del 2000 artist:cumbia",
-    "ok": true,
-    "message": "Dale jose, te pongo Cumbia Morena 2000 - Cumbia Sonidera",
-    "track": {
-      "name": "Cumbia Morena 2000",
-      "artist": "Cumbia Sonidera",
-      "uri": "spotify:track:6qEE6kBqZYoOJrZgERlWyz"
-    },
-    "timestamp": 1789736399377
-  },
-  {
-    "id": "1789736418827-qy7115",
-    "source": "chat",
-    "requester": "Mati",
-    "query": "artist:la beriso",
-    "ok": true,
-    "message": "Listo Mati, ya se esta reproduciendo: Como Olvidarme - La Beriso",
-    "track": {
-      "name": "Como Olvidarme",
-      "artist": "La Beriso",
-      "uri": "spotify:track:abc"
-    },
-    "timestamp": 1789736418827
-  },
-  {
-    "id": "1789736418839-kzd064",
-    "source": "chat",
-    "requester": "Sofi",
-    "query": "palmeras soy sabalero",
+    "requester": "Dos",
+    "query": "comentario dos",
     "ok": false,
-    "message": "No me aparece \"un tema de los palmeras\" en Spotify...",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789736418839
+    "timestamp": 1789991394188
   },
   {
-    "id": "1789736418843-4r261v",
-    "source": "chat",
-    "requester": "Leo",
-    "query": "artist:el tano",
-    "ok": true,
-    "message": "Toma Leo, ahi te lo puse: Yo Tomo Licor - Amar Azul",
-    "track": {
-      "name": "Yo Tomo Licor",
-      "artist": "Amar Azul",
-      "uri": "spotify:track:xyz"
-    },
-    "timestamp": 1789736418843
-  },
-  {
-    "id": "1789736447551-sp8u5i",
+    "id": "1789991447981-2jqban",
     "source": "dashboard",
-    "requester": "jose",
-    "query": "artist:pato viganoniii",
-    "ok": true,
-    "message": "jose ya te puse el tema, es: Pa'to Lo Lao - Neon Grit",
-    "track": {
-      "name": "Pa'to Lo Lao",
-      "artist": "Neon Grit",
-      "uri": "spotify:track:3entJrq3zpTQKaHtlPeFGj"
-    },
-    "timestamp": 1789736447551
-  },
-  {
-    "id": "1789736451389-i3gdrn",
-    "source": "dashboard",
-    "requester": "jose",
-    "query": "artist:pato viganoniii",
-    "ok": true,
-    "message": "jose pedido, ahora suena Pa'to Lo Lao - Neon Grit",
-    "track": {
-      "name": "Pa'to Lo Lao",
-      "artist": "Neon Grit",
-      "uri": "spotify:track:3entJrq3zpTQKaHtlPeFGj"
-    },
-    "timestamp": 1789736451389
-  },
-  {
-    "id": "1789736458424-6a66ku",
-    "source": "dashboard",
-    "requester": "jose",
-    "query": "artist:pato viganoni",
-    "ok": true,
-    "message": "Bueno jose, ahi va el tema que pediste: eterno amor - El Pato Viganoni",
-    "track": {
-      "name": "eterno amor",
-      "artist": "El Pato Viganoni",
-      "uri": "spotify:track:2FhRnQqUOovO2NHuDSXzyK"
-    },
-    "timestamp": 1789736458424
-  },
-  {
-    "id": "1789736461494-ev4ine",
-    "source": "dashboard",
-    "requester": "jose",
-    "query": "artist:pato viganoni",
-    "ok": true,
-    "message": "Ya está jose, te lo puse: eterno amor - El Pato Viganoni",
-    "track": {
-      "name": "eterno amor",
-      "artist": "El Pato Viganoni",
-      "uri": "spotify:track:2FhRnQqUOovO2NHuDSXzyK"
-    },
-    "timestamp": 1789736461494
-  },
-  {
-    "id": "1789737165433-yth55y",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "artist:que mas te guste a vos rulo",
-    "ok": true,
-    "message": "Toma juan, ahi te lo puse: La Guitarra - Los Auténticos Decadentes",
-    "track": {
-      "name": "La Guitarra",
-      "artist": "Los Auténticos Decadentes",
-      "uri": "spotify:track:6aPoVnA9UDncMyKgTAicsO"
-    },
-    "timestamp": 1789737165433
-  },
-  {
-    "id": "1789737167384-srh40h",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "artist:que mas te guste a vos rulo",
-    "ok": true,
-    "message": "Anotado juan: ahora suena La Guitarra - Los Auténticos Decadentes",
-    "track": {
-      "name": "La Guitarra",
-      "artist": "Los Auténticos Decadentes",
-      "uri": "spotify:track:6aPoVnA9UDncMyKgTAicsO"
-    },
-    "timestamp": 1789737167384
-  },
-  {
-    "id": "1789737232225-tztof9",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "vamos con el programaAA!! es de lo mejor",
+    "requester": "Uno",
+    "query": "uno",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737232225
+    "timestamp": 1789991447981
   },
   {
-    "id": "1789737239177-r02hhl",
+    "id": "1789991448799-3p98a3",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "vamos con el programaAA!! es de lo mejor",
+    "requester": "Dos",
+    "query": "dos",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737239177
+    "timestamp": 1789991448799
   },
   {
-    "id": "1789737249272-irzvyw",
+    "id": "1789991449604-rigqcx",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "el lunes voy a estar de vuelta!",
+    "requester": "Tres",
+    "query": "tres",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737249272
+    "timestamp": 1789991449604
   },
   {
-    "id": "1789737255175-yk6z1s",
+    "id": "1789991450172-uu792v",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "el lunes voy a estar de vuelta!",
+    "requester": "Uno",
+    "query": "uno",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737255175
+    "timestamp": 1789991450172
   },
   {
-    "id": "1789737263188-lm0u55",
+    "id": "1789991450346-yym2q4",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "track:uno artist:la cumbia villera",
+    "requester": "Dos",
+    "query": "dos",
     "ok": false,
-    "message": "Pará la mano juan, todavía estoy con otro pedido, no me atropelles.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737263188
+    "timestamp": 1789991450346
   },
   {
-    "id": "1789737263587-vdzaf1",
+    "id": "1789991450351-faxm6d",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "track:uno artist:la cumbia villera",
+    "requester": "Tres",
+    "query": "tres",
     "ok": false,
-    "message": "Che juan, no hay caso, no encuentro track:uno artist:la cumbia villera.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737263587
+    "timestamp": 1789991450351
   },
   {
-    "id": "1789737347250-m3b5mn",
+    "id": "1789991500818-yl96ud",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "asd asdasd asd",
+    "requester": "Uno",
+    "query": "uno",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737347250
+    "timestamp": 1789991500818
   },
   {
-    "id": "1789737351172-vupyth",
+    "id": "1789991501631-2l4f9g",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "asd asdasd asd",
+    "requester": "Dos",
+    "query": "dos",
     "ok": false,
-    "message": "El comentario simulado no se leyo como pedido de musica.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737351172
+    "timestamp": 1789991501631
   },
   {
-    "id": "1789737415704-fp6f63",
-    "source": "chat",
-    "requester": "Mati",
-    "query": "artist:la beriso",
-    "ok": true,
-    "message": "",
-    "track": {
-      "name": "Como Olvidarme",
-      "artist": "La Beriso",
-      "uri": "spotify:track:1"
-    },
-    "timestamp": 1789737415704
+    "id": "1789991502438-4fbfx2",
+    "source": "dashboard",
+    "requester": "Tres",
+    "query": "tres",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991502438
   },
   {
-    "id": "1789737415713-4ka7di",
-    "source": "auto",
-    "requester": "Rulo",
-    "query": "Otra Parecida",
-    "ok": true,
-    "message": "",
-    "track": {
-      "name": "Otra Parecida",
-      "artist": "La Beriso",
-      "uri": "spotify:track:2"
-    },
-    "timestamp": 1789737415713
+    "id": "1789991506171-f3dpyl",
+    "source": "dashboard",
+    "requester": "Uno",
+    "query": "uno",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991506171
   },
   {
-    "id": "1789737415717-bhueya",
+    "id": "1789991506184-m95rgm",
+    "source": "dashboard",
+    "requester": "Dos",
+    "query": "dos",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991506184
+  },
+  {
+    "id": "1789991506190-nji4on",
+    "source": "dashboard",
+    "requester": "Tres",
+    "query": "tres",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991506190
+  },
+  {
+    "id": "1789991529438-ntk65a",
+    "source": "dashboard",
+    "requester": "Uno",
+    "query": "uno",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991529438
+  },
+  {
+    "id": "1789991530143-teld58",
+    "source": "dashboard",
+    "requester": "Dos",
+    "query": "dos",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991530143
+  },
+  {
+    "id": "1789991530201-1m30xz",
+    "source": "dashboard",
+    "requester": "Uno",
+    "query": "uno",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991530201
+  },
+  {
+    "id": "1789991530236-bv6x5e",
+    "source": "dashboard",
+    "requester": "Dos",
+    "query": "dos",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991530236
+  },
+  {
+    "id": "1789991530858-d6zxmz",
+    "source": "dashboard",
+    "requester": "Tres",
+    "query": "tres",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991530858
+  },
+  {
+    "id": "1789991538181-ywv55w",
+    "source": "dashboard",
+    "requester": "Tres",
+    "query": "tres",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789991538181
+  },
+  {
+    "id": "1789992014031-5rnwpx",
+    "source": "dashboard",
+    "requester": "Largo",
+    "query": "Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Es",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992014031
+  },
+  {
+    "id": "1789992021182-vt0fer",
+    "source": "dashboard",
+    "requester": "Largo",
+    "query": "Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Es",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992021182
+  },
+  {
+    "id": "1789992072981-fd4hzp",
+    "source": "dashboard",
+    "requester": "Largo",
+    "query": "Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Es",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992072981
+  },
+  {
+    "id": "1789992078172-isuvdm",
+    "source": "dashboard",
+    "requester": "Largo",
+    "query": "Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Este es un comentario muy largo para probar el scroll automatico. Es",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992078172
+  },
+  {
+    "id": "1789992750002-0i4x6x",
+    "source": "dashboard",
+    "requester": "Uno",
+    "query": "Comentario largo numero UNO para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero UNO para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero UNO ",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992750002
+  },
+  {
+    "id": "1789992750182-bvzylz",
+    "source": "dashboard",
+    "requester": "Uno",
+    "query": "Comentario largo numero UNO para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero UNO para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero UNO ",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992750182
+  },
+  {
+    "id": "1789992751503-rq1d1e",
+    "source": "dashboard",
+    "requester": "Dos",
+    "query": "Comentario largo numero DOS para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero DOS para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero DOS ",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992751503
+  },
+  {
+    "id": "1789992758182-otnm20",
+    "source": "dashboard",
+    "requester": "Dos",
+    "query": "Comentario largo numero DOS para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero DOS para probar que el scroll llegue hasta el ultimo renglon. Comentario largo numero DOS ",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789992758182
+  },
+  {
+    "id": "1789993074661-tkl1ic",
+    "source": "dashboard",
+    "requester": "A",
+    "query": "comentario A",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993074661
+  },
+  {
+    "id": "1789993075365-52plw1",
+    "source": "dashboard",
+    "requester": "B",
+    "query": "comentario B",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993075365
+  },
+  {
+    "id": "1789993078169-69oraa",
+    "source": "dashboard",
+    "requester": "A",
+    "query": "comentario A",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993078169
+  },
+  {
+    "id": "1789993078184-czu2pq",
+    "source": "dashboard",
+    "requester": "B",
+    "query": "comentario B",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993078184
+  },
+  {
+    "id": "1789993171515-wdsdd2",
+    "source": "dashboard",
+    "requester": "A",
+    "query": "comentario A",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993171515
+  },
+  {
+    "id": "1789993172236-5r4yep",
+    "source": "dashboard",
+    "requester": "B",
+    "query": "comentario B",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993172236
+  },
+  {
+    "id": "1789993175181-8bqlx1",
+    "source": "dashboard",
+    "requester": "A",
+    "query": "comentario A",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993175181
+  },
+  {
+    "id": "1789993175198-s39ld1",
+    "source": "dashboard",
+    "requester": "B",
+    "query": "comentario B",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993175198
+  },
+  {
+    "id": "1789993393414-rng4u4",
     "source": "dashboard",
     "requester": "Matias",
-    "query": "transporte:next",
-    "ok": true,
-    "message": "",
-    "track": {
-      "name": "Como Olvidarme",
-      "artist": "La Beriso",
-      "uri": "spotify:track:1"
-    },
-    "timestamp": 1789737415717
-  },
-  {
-    "id": "1789737415802-0p90su",
-    "source": "chat",
-    "requester": "Sofi",
-    "query": "",
+    "query": "¡Comentario de prueba!",
     "ok": false,
-    "message": "",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737415802
+    "timestamp": 1789993393414
   },
   {
-    "id": "1789737447014-98p5wi",
+    "id": "1789993399184-0xnuin",
     "source": "dashboard",
     "requester": "Matias",
-    "query": "transporte:next",
-    "ok": true,
-    "message": "",
-    "track": {
-      "name": "Como Olvidarme",
-      "artist": "La Beriso",
-      "uri": "spotify:track:1"
-    },
-    "timestamp": 1789737447014
-  },
-  {
-    "id": "1789737490196-yidgor",
-    "source": "dashboard",
-    "requester": "juan",
-    "query": "track:uno artist:la cumbia del 200",
+    "query": "¡Comentario de prueba!",
     "ok": false,
-    "message": "No me apures juan, que estoy laburando en otro tema.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737490196
+    "timestamp": 1789993399184
   },
   {
-    "id": "1789737491390-9siu56",
+    "id": "1789993566100-381no1",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "track:uno artist:la cumbia del 200",
+    "requester": "A",
+    "query": "comentario A",
     "ok": false,
-    "message": "Dejate de joder juan, track:uno artist:la cumbia del 200 no existe en Spotify.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737491390
+    "timestamp": 1789993566100
   },
   {
-    "id": "1789737506185-3g66nb",
+    "id": "1789993566470-77iuko",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "track:uno artist:la cumbia del 2000",
+    "requester": "B",
+    "query": "comentario B",
     "ok": false,
-    "message": "Esperá juan, no ves que estoy con otro pedido.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737506185
+    "timestamp": 1789993566470
   },
   {
-    "id": "1789737507721-k05dp0",
+    "id": "1789993566842-bvkiev",
     "source": "dashboard",
-    "requester": "juan",
-    "query": "track:uno artist:la cumbia del 2000",
+    "requester": "C",
+    "query": "comentario C",
     "ok": false,
-    "message": "No me aparece \"track:uno artist:la cumbia del 2000\" en Spotify juan, proba con el nombre exacto.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737507721
+    "timestamp": 1789993566842
   },
   {
-    "id": "1789737535445-la08z6",
+    "id": "1789993567186-fu6hmv",
     "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno cumbia",
-    "ok": true,
-    "message": "Listo juancho, ya se esta reproduciendo: Sakate Uno - Santaferia",
-    "track": {
-      "name": "Sakate Uno",
-      "artist": "Santaferia",
-      "uri": "spotify:track:06fawjV5hKobNhHF82dKMl"
-    },
-    "timestamp": 1789737535445
-  },
-  {
-    "id": "1789737540398-epwm3u",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno cumbia",
-    "ok": true,
-    "message": "Tomá juancho, suena Sakate Uno - Santaferia",
-    "track": {
-      "name": "Sakate Uno",
-      "artist": "Santaferia",
-      "uri": "spotify:track:06fawjV5hKobNhHF82dKMl"
-    },
-    "timestamp": 1789737540398
-  },
-  {
-    "id": "1789737551467-d0tw4v",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno ke personaje",
-    "ok": true,
-    "message": "juancho pedido, ahora suena Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
-    "track": {
-      "name": "Uno Nunca Sabe",
-      "artist": "Ke Personajes, Ulises Eyherabide",
-      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
-    },
-    "timestamp": 1789737551467
-  },
-  {
-    "id": "1789737558634-pv6cwq",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno ke personaje",
-    "ok": true,
-    "message": "juancho ya esta sonando: Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
-    "track": {
-      "name": "Uno Nunca Sabe",
-      "artist": "Ke Personajes, Ulises Eyherabide",
-      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
-    },
-    "timestamp": 1789737558634
-  },
-  {
-    "id": "1789737565408-7yo423",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno ke personaje",
-    "ok": true,
-    "message": "Bueno juancho, ahi va el tema que pediste: Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
-    "track": {
-      "name": "Uno Nunca Sabe",
-      "artist": "Ke Personajes, Ulises Eyherabide",
-      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
-    },
-    "timestamp": 1789737565408
-  },
-  {
-    "id": "1789737566321-pti6av",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "ke personaje",
+    "requester": "A",
+    "query": "comentario A",
     "ok": false,
-    "message": "Un pedido a la vez Dashboard, ya casi termino.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737566321
+    "timestamp": 1789993567186
   },
   {
-    "id": "1789737568804-p6nfed",
+    "id": "1789993567234-kn58v2",
     "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno ke personaje",
-    "ok": true,
-    "message": "Va juancho: Uno Nunca Sabe - Ke Personajes, Ulises Eyherabide",
-    "track": {
-      "name": "Uno Nunca Sabe",
-      "artist": "Ke Personajes, Ulises Eyherabide",
-      "uri": "spotify:track:5zoOSgUdBt1rcOHRnIYCc8"
-    },
-    "timestamp": 1789737568804
-  },
-  {
-    "id": "1789737577646-tiws0a",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno amar azul",
+    "requester": "B",
+    "query": "comentario B",
     "ok": false,
-    "message": "Tranquilo juancho, estoy con otro tema y ya te lo pongo.",
+    "message": "No lo lei como pedido de musica. (solo analisis)",
     "track": null,
-    "timestamp": 1789737577646
+    "timestamp": 1789993567234
   },
   {
-    "id": "1789737579379-elz1if",
+    "id": "1789993567257-xcnc3w",
     "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "ke personaje",
-    "ok": true,
-    "message": "Dashboard ya te puse el tema, es: Un Finde | CROSSOVER #2 - Big One, FMK, Ke Personajes",
-    "track": {
-      "name": "Un Finde | CROSSOVER #2",
-      "artist": "Big One, FMK, Ke Personajes",
-      "uri": "spotify:track:3tiJUOfAEqIrLFRQgGgdoY"
-    },
-    "timestamp": 1789737579379
+    "requester": "C",
+    "query": "comentario C",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993567257
   },
   {
-    "id": "1789737584414-co74pl",
+    "id": "1789993567298-iddfcf",
     "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "ke personaje",
-    "ok": true,
-    "message": "Dale Dashboard, te pongo Un Finde | CROSSOVER #2 - Big One, FMK, Ke Personajes",
-    "track": {
-      "name": "Un Finde | CROSSOVER #2",
-      "artist": "Big One, FMK, Ke Personajes",
-      "uri": "spotify:track:3tiJUOfAEqIrLFRQgGgdoY"
-    },
-    "timestamp": 1789737584414
+    "requester": "D",
+    "query": "comentario D",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993567298
   },
   {
-    "id": "1789737590382-91n22r",
+    "id": "1789993575180-8miv5z",
     "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno amar azul",
-    "ok": true,
-    "message": "Toma juancho, ahi te lo puse: Yo Tomo - Amar Azul",
-    "track": {
-      "name": "Yo Tomo",
-      "artist": "Amar Azul",
-      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
-    },
-    "timestamp": 1789737590382
+    "requester": "D",
+    "query": "comentario D",
+    "ok": false,
+    "message": "No lo lei como pedido de musica. (solo analisis)",
+    "track": null,
+    "timestamp": 1789993575180
   },
   {
-    "id": "1789737592422-rt3orq",
-    "source": "dashboard",
-    "requester": "Dashboard",
-    "query": "ke personaje",
-    "ok": true,
-    "message": "Dashboard pedido, ahora suena Un Finde | CROSSOVER #2 - Big One, FMK, Ke Personajes",
-    "track": {
-      "name": "Un Finde | CROSSOVER #2",
-      "artist": "Big One, FMK, Ke Personajes",
-      "uri": "spotify:track:3tiJUOfAEqIrLFRQgGgdoY"
-    },
-    "timestamp": 1789737592422
-  },
-  {
-    "id": "1789737596428-cp75qf",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno amar azul",
-    "ok": true,
-    "message": "Listo juancho, ya se esta reproduciendo: Yo Tomo - Amar Azul",
-    "track": {
-      "name": "Yo Tomo",
-      "artist": "Amar Azul",
-      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
-    },
-    "timestamp": 1789737596428
-  },
-  {
-    "id": "1789737602646-vrauo3",
-    "source": "dashboard",
-    "requester": "juancho",
-    "query": "uno amar azul",
-    "ok": true,
-    "message": "Tomá juancho, suena Yo Tomo - Amar Azul",
-    "track": {
-      "name": "Yo Tomo",
-      "artist": "Amar Azul",
-      "uri": "spotify:track:2zFYPORmfypZsFPQGszAoN"
-    },
-    "timestamp": 1789737602646
+    "id": "1789995340717-gjy1tl",
+    "source": "chat",
+    "requester": "Matias Moreira",
+    "query": "cambiar la imagen por un canguro",
+    "ok": false,
+    "message": "Ningun dispositivo activo: abri Spotify en la PC del OBS y dale play.",
+    "track": null,
+    "timestamp": 1789995340717
   }
 ]

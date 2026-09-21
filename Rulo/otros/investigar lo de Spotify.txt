@@ -1,0 +1,627 @@
+Sí. Te preparo un prompt para que tu desarrollador no implemente todavía, sino que primero investigue técnicamente cómo Spotify Desktop 2026 almacena las letras offline en Windows y después incorpore los resultados a nuestra arquitectura existente.
+
+Investigación técnica: letras offline de Spotify + integración con nuestro bot
+
+Contexto del proyecto
+
+Estoy desarrollando un bot/sistema para mi streaming con OBS que utiliza Spotify Premium.
+
+Actualmente tenemos un sistema donde:
+
+1. El usuario solicita una canción al bot.
+2. El sistema identifica/busca la canción en Spotify.
+3. Spotify la reproduce en el navegador/cliente.
+4. Otro script controla la reproducción, incluyendo avanzar/saltar automáticamente.
+5. Queremos incorporar una biblioteca local/offline de canciones.
+6. Queremos que las canciones locales tengan "start_at" y "end_at" para evitar intros, silencios o partes innecesarias.
+7. Queremos tener letras sincronizadas para utilizarlas durante el streaming.
+8. Queremos evitar descargar/procesar nuevamente información que Spotify ya tenga disponible localmente.
+
+Tenemos aproximadamente hasta 3.000 canciones, por lo que buscamos una arquitectura rápida, simple y eficiente.
+
+---
+
+NUEVO OBJETIVO DE INVESTIGACIÓN
+
+Antes de modificar la arquitectura o implementar esta parte, quiero que investigues específicamente cómo funciona el almacenamiento de letras offline de Spotify Desktop en Windows en la versión actual de Spotify de 2026.
+
+Spotify anunció en febrero de 2026 que las letras también se guardan para poder utilizarse offline cuando un usuario Premium descarga música.
+
+Quiero averiguar si esas letras pueden ser aprovechadas por nuestro sistema.
+
+Preguntas que debes investigar
+
+1. ¿Dónde guarda Spotify las letras offline?
+
+Investigar en Windows:
+
+- "%LOCALAPPDATA%\Spotify"
+- "%LOCALAPPDATA%\Packages\SpotifyAB.SpotifyMusic_*"
+- "LocalState"
+- "LocalCache"
+- "Storage"
+- "Data"
+- "Cache"
+- cualquier otra ubicación relevante
+
+No asumir que las ubicaciones antiguas siguen siendo correctas.
+
+Determinar si Spotify Desktop actual almacena las letras en:
+
+- SQLite
+- JSON
+- archivos binarios
+- archivos comprimidos
+- protobuf
+- caché
+- IndexedDB
+- bases internas
+- blobs
+- memoria
+- otro formato
+
+---
+
+2. Diferenciar AUDIO vs LETRAS
+
+Es muy importante no confundir:
+
+Spotify Offline Audio
+
+con:
+
+Spotify Offline Lyrics
+
+Queremos determinar si son datos separados.
+
+No intentar descifrar, extraer ni convertir el audio protegido de Spotify.
+
+La investigación debe centrarse exclusivamente en:
+
+- metadata
+- lyrics
+- timestamps
+- identificadores
+- cachés
+- estructuras de datos accesibles legítimamente
+
+---
+
+3. Determinar cómo se identifica una canción
+
+Necesitamos saber si las letras almacenadas localmente pueden asociarse directamente con:
+
+Spotify Track ID
+
+Por ejemplo:
+
+spotify:track:XXXXXXXX
+
+o algún otro identificador interno.
+
+Determinar si existe una relación:
+
+Track ID
+    ↓
+Lyrics
+
+o:
+
+Track ID
+    ↓
+Internal ID
+    ↓
+Lyrics
+
+---
+
+4. Determinar si las letras tienen sincronización
+
+Queremos saber si Spotify almacena:
+
+{
+  "startTimeMs": 1234,
+  "words": "..."
+}
+
+o un formato equivalente.
+
+Necesitamos determinar si son:
+
+- letras normales
+- letras línea por línea
+- letras sincronizadas
+- timestamps en milisegundos
+- karaoke/sílabas
+- otro formato
+
+Esto es especialmente importante porque nuestro streaming necesita poder sincronizar las letras con la canción.
+
+---
+
+5. Investigar el servicio interno de lyrics
+
+Investigar también cómo funciona actualmente el sistema de lyrics de Spotify.
+
+Hay referencias históricas a servicios/endpoints internos como:
+
+color-lyrics
+
+Investigar:
+
+- qué devuelve actualmente
+- si sigue existiendo
+- qué estructura devuelve
+- cómo se relaciona con el Track ID
+- si el cliente Spotify utiliza ese servicio
+- qué parte se almacena localmente después de descargar una canción
+- si las letras offline son simplemente una caché de esa información o si Spotify utiliza otro sistema
+
+No utilizar servicios de terceros como prueba de que Spotify almacena las letras de esa manera.
+
+---
+
+6. Hacer una investigación REAL en Windows
+
+Si es posible, preparar un procedimiento reproducible para comprobarlo en una instalación real de Spotify Desktop.
+
+Experimento recomendado:
+
+Paso 1
+
+Cerrar completamente Spotify.
+
+Paso 2
+
+Registrar el estado de las carpetas relevantes.
+
+Paso 3
+
+Abrir Spotify.
+
+Paso 4
+
+Elegir una canción que tenga letras.
+
+Paso 5
+
+Descargarla para uso offline.
+
+Paso 6
+
+Esperar a que termine completamente.
+
+Paso 7
+
+Abrir las letras.
+
+Paso 8
+
+Cerrar Spotify.
+
+Paso 9
+
+Comparar qué archivos/carpetas fueron creados o modificados.
+
+Si es necesario, utilizar herramientas como:
+
+- Process Monitor
+- PowerShell
+- herramientas de búsqueda de archivos
+- SQLite Browser
+- herramientas de inspección de archivos
+- hashes/timestamps
+- FileSystemWatcher
+- otras herramientas apropiadas
+
+La investigación debe intentar responder:
+
+¿Qué archivo cambió cuando descargué la canción?
+¿Qué archivo cambió cuando abrí las letras?
+¿Ese archivo contiene información legible?
+¿Contiene el Track ID?
+¿Contiene texto?
+¿Contiene timestamps?
+
+---
+
+7. Investigar proyectos de código abierto
+
+Buscar proyectos actuales o recientes que hayan investigado:
+
+- Spotify lyrics
+- Spotify offline lyrics
+- Spotify Desktop lyrics
+- Spotify cache
+- Spotify local storage
+- Spotify color-lyrics
+- Spotify Track ID + lyrics
+- Spotify Windows internals
+
+Priorizar:
+
+1. proyectos recientes
+2. código fuente
+3. issues/discussions técnicas
+4. documentación
+5. investigaciones reproducibles
+
+No confiar únicamente en posts antiguos de Reddit/Stack Overflow.
+
+Indicar claramente qué información está confirmada y cuál es solamente una hipótesis.
+
+---
+
+8. NO implementar todavía
+
+Durante esta etapa NO quiero que cambies nuestro sistema definitivamente.
+
+Primero quiero un informe técnico.
+
+El resultado debe dividirse en:
+
+A. Confirmado
+
+Información respaldada por:
+
+- documentación oficial
+- código verificable
+- pruebas reproducibles
+
+B. Probable
+
+Información que tiene evidencia técnica pero no confirmación oficial.
+
+C. Desconocido
+
+Información que no pudo determinarse.
+
+---
+
+ARQUITECTURA ACTUAL DEL PROYECTO
+
+Mientras investigás, tené presente que actualmente estamos planteando:
+
+music.db
+│
+├── tracks
+│
+├── lyrics
+│
+├── play_history
+│
+└── analysis_jobs
+
+tracks
+
+Campos conceptuales:
+
+id
+spotify_track_id
+title
+artist
+album
+duration
+offline
+enabled
+local_path
+start_at
+end_at
+skip_seconds
+analysis_status
+created_at
+updated_at
+
+lyrics
+
+track_id
+lyrics
+source
+is_synced
+updated_at
+
+play_history
+
+id
+track_id
+played_date
+played_at
+play_mode
+
+analysis_jobs
+
+Para el procesamiento automático de canciones nuevas.
+
+---
+
+CACHE EN RAM
+
+La idea actual es:
+
+SQLite = fuente permanente de verdad
+RAM = cache rápida
+
+Para aproximadamente 3.000 canciones queremos mantener en RAM solamente metadata pequeña:
+
+spotify_track_id
+title
+artist
+offline
+start_at
+end_at
+skip_seconds
+duration
+enabled
+
+No queremos cargar las 3.000 letras completas en RAM.
+
+Las letras deberían cargarse bajo demanda:
+
+Bot necesita lyrics
+        ↓
+SQLite
+        ↓
+lyrics
+        ↓
+RAM cache temporal
+
+---
+
+NUEVA POSIBILIDAD A INVESTIGAR
+
+Si descubrís que Spotify ya guarda las letras offline en Windows y que nuestro programa puede acceder de manera razonable a esos datos, quiero evaluar esta arquitectura:
+
+Spotify offline lyrics
+        ↓
+detectar Track ID
+        ↓
+leer lyrics local
+        ↓
+SQLite
+        ↓
+bot
+
+En ese caso podríamos tener:
+
+lyrics_source =
+    spotify_local
+    external
+    manual
+
+Y el sistema podría funcionar:
+
+¿Spotify tiene lyrics local?
+        │
+        ├── Sí
+        │    ↓
+        │  usar lyrics de Spotify
+        │
+        └── No
+             ↓
+           fuente externa
+
+Pero solamente implementar esto si técnicamente es viable y estable.
+
+---
+
+SISTEMA DE CANCIONES OFFLINE
+
+También estamos desarrollando un scanner que detectará canciones nuevas.
+
+Flujo:
+
+Scanner
+   ↓
+detecta archivo nuevo
+   ↓
+obtiene metadata
+   ↓
+identifica Spotify Track ID
+   ↓
+¿ya existe en SQLite?
+   ├── Sí → actualizar si corresponde
+   └── No → crear registro
+   ↓
+analizar canción
+
+El análisis de audio busca automáticamente:
+
+Inicio
+
+Analizar los primeros 15 segundos para encontrar:
+
+start_at
+
+Por ejemplo:
+
+0.0 s → silencio
+3.0 s → instrumental
+8.2 s → empieza contenido útil
+
+Resultado:
+
+start_at = 8.2
+
+Final
+
+Analizar los últimos 15 segundos para encontrar:
+
+end_at
+
+Por ejemplo:
+
+duración = 242 s
+
+y:
+
+end_at = 237.5
+
+No queremos modificar/recomprimir el archivo original.
+
+Guardar solamente:
+
+start_at
+end_at
+
+y hacer que el reproductor empiece y termine lógicamente en esos puntos.
+
+---
+
+IA PARA ANÁLISIS DE AUDIO
+
+La IA NO debería analizar las 3.000 canciones innecesariamente.
+
+Primero:
+
+audio analysis
+
+y solamente si existe ambigüedad:
+
+audio analysis
+      ↓
+¿resultado claro?
+ ├── Sí → guardar
+ └── No → IA
+
+La IA debe estar limitada a:
+
+inicio: 0–15 segundos
+final: últimos 15 segundos
+
+Validar siempre los resultados.
+
+Fallback seguro:
+
+start_at = 0
+end_at = duration
+
+---
+
+REPRODUCCIÓN
+
+El sistema debe mantener esta lógica:
+
+Solicitud manual
+
+Usuario solicita canción
+        ↓
+Spotify Track ID
+        ↓
+¿existe versión local/offline?
+        │
+        ├── Sí
+        │    ↓
+        │  reproducir local
+        │  aplicar start_at/end_at
+        │
+        └── No
+             ↓
+           reproducir online
+
+Las solicitudes manuales pueden repetir canciones aunque hayan sido reproducidas anteriormente ese día.
+
+---
+
+MODO AUTOMÁTICO
+
+Cuando el bot necesita elegir una canción automáticamente:
+
+offline = true
+AND
+enabled = true
+AND
+played_today = false
+
+Elegir aleatoriamente.
+
+Cuando se reproduce:
+
+play_history
+
+registra:
+
+track_id
+played_date
+played_at
+play_mode = auto
+
+Mantener un conjunto "played_today_ids" en RAM para hacerlo rápido.
+
+---
+
+OBJETIVO DE TU INVESTIGACIÓN
+
+Quiero que determines si podemos mejorar el sistema aprovechando directamente las letras que Spotify ya descarga.
+
+Especialmente quiero una respuesta técnica a estas preguntas:
+
+1. ¿Spotify realmente guarda las letras offline en Windows?
+2. ¿Dónde?
+3. ¿En qué formato?
+4. ¿Se pueden leer desde otro proceso?
+5. ¿Están asociadas al Spotify Track ID?
+6. ¿Incluyen timestamps?
+7. ¿Están completas o parcialmente almacenadas?
+8. ¿Necesitan Spotify abierto para accederlas?
+9. ¿Cambian entre online/offline?
+10. ¿Podemos utilizarlas legal/técnicamente sin tocar el audio protegido?
+11. ¿Qué riesgos tiene depender de esa estructura?
+12. ¿Spotify podría cambiarla fácilmente?
+13. ¿Conviene utilizarla como fuente primaria o solamente como fallback/cache?
+14. ¿Qué modificaciones habría que hacer a nuestra SQLite?
+15. ¿Qué modificaciones habría que hacer al scanner?
+16. ¿Qué modificaciones habría que hacer al bot?
+17. ¿Cuánto rendimiento/RAM consumiría?
+18. ¿Qué sucede cuando una letra no existe en Spotify?
+
+---
+
+IMPORTANTE SOBRE SEGURIDAD Y ESTABILIDAD
+
+No quiero:
+
+- descifrar DRM
+- extraer el audio protegido
+- modificar archivos internos de Spotify
+- romper protecciones
+- depender de hacks frágiles si existe una alternativa estable
+
+El objetivo es únicamente investigar si Spotify ya tiene localmente información de letras que nuestro sistema pueda utilizar de manera segura y razonable.
+
+---
+
+RESULTADO FINAL ESPERADO
+
+Primero entregame un informe técnico.
+
+Después, si encontrás una solución viable, actualizá nuestra arquitectura/documentación para incluirla.
+
+La guía final debe explicar claramente:
+
+ANTES
+SQLite + lyrics externas
+
+versus:
+
+DESPUÉS
+Spotify local lyrics
+        ↓
+SQLite/cache
+        ↓
+fuente externa como fallback
+
+Y explicar exactamente qué partes del sistema deben cambiar.
+
+No implementes código definitivo hasta terminar la investigación.
+
+Si encontrás varias soluciones, comparalas técnicamente en lugar de elegir una sin justificarla.
+
+La prioridad es:
+
+1. estabilidad
+2. velocidad
+3. simplicidad
+4. bajo consumo de RAM/CPU
+5. mantenimiento a largo plazo
+6. aprovechar datos que Spotify ya tenga localmente
+7. fallback confiable cuando esos datos no estén disponibles

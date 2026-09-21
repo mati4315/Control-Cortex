@@ -5,9 +5,9 @@
       "type": "Computer",
       "isActive": true,
       "isRestricted": false,
-      "volumePercent": 47
+      "volumePercent": 53
     }
   ],
   "activeName": "Web Player (Chrome)",
-  "updatedAt": 1789737600383
+  "updatedAt": 1789995338332
 }
