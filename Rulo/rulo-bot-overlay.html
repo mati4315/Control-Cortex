@@ -27,26 +27,50 @@
     body {
       display: flex;
       align-items: flex-start;
-      justify-content: center;
+      justify-content: flex-end;
       padding: 18px;
       color: var(--text);
       font-family: "Segoe UI", Arial, sans-serif;
       overflow: hidden;
     }
     #reply {
-      width: min(var(--max-width), 100%);
+      position: relative;
+      width: fit-content;
+      max-width: min(720px, var(--max-width), 100%);
       display: grid;
       grid-template-columns: 58px 1fr;
       gap: 14px;
       align-items: center;
       padding: 14px 18px 15px 14px;
       border: 2px solid var(--mood);
-      border-radius: 12px;
+      border-radius: 30px 32px 28px 30px;
       background: var(--panel);
       box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 0 18px rgba(159,213,11,.14);
       opacity: 0;
       transform: translateY(-12px) scale(.98);
       transition: opacity 220ms ease, transform 220ms ease, border-color 200ms ease;
+      text-align: left;
+    }
+    /* Silueta redondeada de globo y pequeña punta de diálogo a la derecha. */
+    #reply::before, #reply::after {
+      content: "";
+      position: absolute;
+      right: -13px;
+      bottom: 16px;
+      width: 0;
+      height: 0;
+      border-top: 11px solid transparent;
+      border-bottom: 3px solid transparent;
+      border-left: 14px solid var(--mood);
+      pointer-events: none;
+    }
+    #reply::after {
+      right: -9px;
+      bottom: 18px;
+      border-top-width: 8px;
+      border-bottom-width: 2px;
+      border-left-width: 11px;
+      border-left-color: var(--panel);
     }
     #reply.visible { opacity: 1; transform: translateY(0) scale(1); }
     #reply.leaving { opacity: 0; transform: translateY(-8px) scale(.98); }
@@ -54,6 +78,7 @@
     #reply[data-animation="pop"].visible { transform: scale(1); }
     #reply[data-animation="soft"] { transform: translateY(-4px); }
     #reply[data-animation="soft"].visible { transform: translateY(0); }
+    #reply[data-show-avatar="false"] { grid-template-columns: 1fr; }
     /* Estados (mood) que emite el backend en rulo_bot_message. */
     #reply[data-mood="idle"]     { --mood: var(--accent); }
     #reply[data-mood="thinking"] { --mood: #6ea8fe; }
@@ -73,6 +98,7 @@
       box-shadow: 0 0 0 3px rgba(159,213,11,.18);
       transition: background 200ms ease;
     }
+    .avatar[hidden], #botName[hidden] { display: none !important; }
     .avatar img.mascot { width: 92%; height: 92%; object-fit: contain; display: block; }
     #reply[data-mood="thinking"] .avatar { animation: rulo-pulse 1.4s ease-in-out infinite; }
     #reply[data-mood="speaking"] .avatar { animation: rulo-talk .7s ease-in-out infinite; }
@@ -83,9 +109,9 @@
     @media (prefers-reduced-motion: reduce) {
       .avatar, #reply { animation: none !important; transition: none !important; }
     }
-    .bot { margin: 0 0 3px; color: var(--mood); font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-    .message { margin: 0; font-size: clamp(1rem, 2.2vw, var(--message-size)); line-height: 1.28; font-weight: 650; overflow-wrap: anywhere; }
-    .time { margin-top: 5px; color: var(--muted); font-size: .72rem; }
+    .bot { margin: 0 0 3px; color: var(--mood); font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
+    .message { margin: 0; font-size: clamp(1rem, 2.2vw, var(--message-size)); line-height: 1.28; font-weight: 650; overflow-wrap: anywhere; text-align: left; }
+    .time { margin-top: 5px; color: var(--muted); font-size: .72rem; text-align: left; }
     @media (max-width: 420px) {
       body { padding: 10px; }
       #reply { grid-template-columns: 44px 1fr; gap: 10px; padding: 11px; }
@@ -110,6 +136,7 @@
       const time = document.getElementById('time');
       const avatarLetter = document.getElementById('avatarLetter');
       const mascot = document.getElementById('mascot');
+      const avatar = mascot.parentElement;
       const params = new URLSearchParams(location.search);
       const isPreview = params.get('preview') === '1';
       const MASCOT_BASE = '/rulo-assets/';
@@ -117,8 +144,11 @@
       let hideTimer = null;
       let socket = null;
       let retry = 500;
+      const waitingReplies = new Map();
+      const startedReplies = new Map();
+      const delayedReplies = new Set();
       // El nombre visible lo manda la configuracion de Rulo (fuente unica de verdad).
-      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, overlayTheme: 'dark', animation: 'slide' };
+      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, replyDelayMs: 0, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, showBotName: true, showAvatar: true, overlayTheme: 'dark', animation: 'slide' };
 
       // Contraste del avatar: con un acento oscuro la inicial va clara, y al reves.
       function inkFor(hex) {
@@ -146,9 +176,21 @@
         document.documentElement.style.setProperty('--message-size', config.fontSize + 'rem');
         document.documentElement.style.setProperty('--panel', 'rgba(' + (light ? '255, 255, 255' : '14, 17, 22') + ', ' + config.panelOpacity + ')');
         panel.dataset.animation = config.animation || 'slide';
+        panel.dataset.showAvatar = config.showAvatar === false ? 'false' : 'true';
+        avatar.hidden = config.showAvatar === false;
+        botName.hidden = config.showBotName === false;
         avatarLetter.textContent = config.avatarLetter || 'A';
         botName.textContent = config.botName || 'Rulo';
         applyMascot(config.showMascot === true, panel.dataset.mood || 'idle');
+        if (!isPreview && panel.classList.contains('visible')) scheduleHide();
+      }
+
+      function scheduleHide() {
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
+          panel.classList.remove('visible');
+          panel.classList.add('leaving');
+        }, Math.max(2000, Number(config.visibleMs) || 12000));
       }
 
       function applyMascot(enabled, mood) {
@@ -182,12 +224,53 @@
         applyMascot(config.showMascot === true, mood);
         panel.classList.remove('leaving');
         panel.classList.add('visible');
-        clearTimeout(hideTimer);
         if (isPreview) return;
-        hideTimer = setTimeout(function () {
-          panel.classList.remove('visible');
-          panel.classList.add('leaving');
-        }, Math.max(2000, Number(config.visibleMs) || 12000));
+        scheduleHide();
+      }
+
+      function queueReply(data, forceOverlay = false) {
+        if (!data || !data.message || data.provisional) return;
+        if (forceOverlay) {
+          delayedReplies.forEach(timer => clearTimeout(timer));
+          delayedReplies.clear();
+          waitingReplies.clear();
+          startedReplies.clear();
+          show(data);
+          return;
+        }
+        const triggerId = String(data.triggerId || '');
+        if (!triggerId) return;
+        if (startedReplies.has(triggerId)) {
+          const startedAt = startedReplies.get(triggerId);
+          startedReplies.delete(triggerId);
+          showAfterReplyDelay(data, startedAt);
+          return;
+        }
+        waitingReplies.set(triggerId, data);
+        while (waitingReplies.size > 30) waitingReplies.delete(waitingReplies.keys().next().value);
+      }
+
+      function revealStartedReply(triggerId) {
+        const id = String(triggerId || '');
+        if (!id) return;
+        const reply = waitingReplies.get(id);
+        if (reply) {
+          waitingReplies.delete(id);
+          showAfterReplyDelay(reply, Date.now());
+          return;
+        }
+        startedReplies.set(id, Date.now());
+        while (startedReplies.size > 30) startedReplies.delete(startedReplies.keys().next().value);
+      }
+
+      function showAfterReplyDelay(data, startedAt) {
+        const delayMs = Math.max(0, Number(config.replyDelayMs) || 0);
+        const remainingMs = Math.max(0, delayMs - (Date.now() - startedAt));
+        if (remainingMs === 0) show(data);
+        else {
+          const timer = setTimeout(() => { delayedReplies.delete(timer); show(data); }, remainingMs);
+          delayedReplies.add(timer);
+        }
       }
 
       function connect() {
@@ -197,7 +280,8 @@
         socket.onmessage = function (event) {
           try {
             const data = JSON.parse(event.data);
-            if (data && data.type === 'rulo_bot_message') show(data.rulo);
+            if (data && data.type === 'rulo_bot_message') queueReply(data.rulo, data.forceOverlay === true);
+            if (data && data.type === 'rulo_animation_started' && data.animation === 'hablando') revealStartedReply(data.triggerId);
             if (data && data.type === 'rulo_config_updated') applyConfig(data.config);
           } catch (_) {}
         };

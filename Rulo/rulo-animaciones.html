@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rulo animado</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}#stage{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;pointer-events:none}video{position:absolute;inset:0;width:100%;height:100%;opacity:0;object-fit:contain;object-position:center bottom}video.visible{opacity:1}
+</style></head><body><div id="stage"><video id="rulo-a" muted playsinline preload="auto"></video><video id="rulo-b" muted playsinline preload="auto"></video></div>
+<script>
+(() => {
+  const videos=[document.getElementById('rulo-a'),document.getElementById('rulo-b')];
+  const files={aparecer:'/rulo-animaciones/aparece%20de%20abajo.webm',hablar:'/rulo-animaciones/hablando.webm',dormir:'/rulo-animaciones/Rulo%20Durmiendo.webm'};
+  const LOOP_START=9, LOOP_END=28;
+  let front=null, shown=false, current='', pending=null, pendingTriggerId='', busy=false, transitioning=false, idleTimer, idleDue=0, generation=0, animationSocket=null;
+  let loopCandidate=null, loopReady=false, sleepUrl='';
+  function armIdle(){
+    clearTimeout(idleTimer);
+    idleDue=Date.now()+240000+Math.floor(Math.random()*120001);
+    if(shown) idleTimer=setTimeout(checkIdle,idleDue-Date.now());
+  }
+  function checkIdle(){
+    if(!shown || current==='dormir') return;
+    if(busy || pending){idleTimer=setTimeout(checkIdle,1000);return;}
+    if(Date.now()>=idleDue) start('dormir');
+  }
+  function start(kind,triggerId=''){
+    const ticket=++generation;
+    pending=null;
+    pendingTriggerId='';
+    if(kind==='ocultar'){
+      videos.forEach(player=>{player.pause();player.classList.remove('visible');});
+      front=null;shown=false;busy=false;transitioning=false;current='';loopCandidate=null;loopReady=false;clearTimeout(idleTimer);return;
+    }
+    const oldFront=front;
+    const target=videos.find(player=>player!==oldFront)||videos[0];
+    target.pause();target.classList.remove('visible');target.onerror=null;
+    transitioning=true;busy=true;shown=true;loopCandidate=null;loopReady=false;
+    const base=files[kind==='reposo'?'aparecer':kind];
+    const source=kind==='dormir'&&sleepUrl?sleepUrl:base+'?v='+Date.now();
+    if(kind==='dormir')sleepUrl=source;
+    target.src=source;
+    if(kind==='dormir') clearTimeout(idleTimer);
+    else armIdle();
+    target.onloadedmetadata=()=>{
+      if(ticket!==generation)return;
+      if(kind==='reposo'){
+        const freeze=()=>{if(ticket!==generation)return;activate(target,oldFront,kind,ticket,triggerId);target.pause();busy=false;};
+        target.addEventListener('seeked',freeze,{once:true});
+        target.currentTime=Math.max(0,target.duration-0.04);
+        if(target.readyState>=2&&!target.seeking)freeze();
+        return;
+      }
+      if(kind==='dormir' && target.duration<LOOP_END){
+        console.error('[Rulo] El clip de dormir debe durar al menos 28 segundos.');start('reposo');return;
+      }
+      target.play().then(()=>{
+        const show=()=>activate(target,oldFront,kind,ticket,triggerId);
+        if(typeof target.requestVideoFrameCallback==='function')target.requestVideoFrameCallback(()=>show());
+        else requestAnimationFrame(show);
+      }).catch(error=>{
+        if(ticket!==generation)return;
+        console.error('[Rulo] No se pudo reproducir:',error);start('ocultar');
+      });
+    };
+    target.onerror=()=>{if(ticket===generation){console.error('[Rulo] No se pudo cargar:',kind);if(!oldFront)start('ocultar');else{target.pause();transitioning=false;busy=false;}}};
+    target.load();
+  }
+  function activate(target,oldFront,kind,ticket,triggerId=''){
+    if(ticket!==generation)return;
+    if(oldFront&&oldFront!==target){oldFront.pause();oldFront.classList.remove('visible');}
+    target.classList.add('visible');front=target;current=kind;transitioning=false;
+    busy=kind!=='reposo';
+    if(kind==='hablar'&&animationSocket&&animationSocket.readyState===WebSocket.OPEN){
+      animationSocket.send(JSON.stringify({type:'rulo_animation_started',animation:'hablando',triggerId}));
+    }
+    if(kind==='dormir'){loopCandidate=null;loopReady=false;}
+    else armIdle();
+  }
+  function request(kind,manual=true,triggerId=''){
+    if(!files[kind] && kind!=='ocultar')return;
+    if(!manual && (!shown || pending==='ocultar'))return;
+    armIdle();
+    // Un único video y una siguiente acción: las solicitudes recientes reemplazan la pendiente.
+    if(current==='dormir'){
+      if(kind!=='dormir'){pending=kind;pendingTriggerId=triggerId;}
+      return;
+    }
+    if((busy||transitioning) && kind!=='ocultar'){pending=kind;pendingTriggerId=triggerId;return;}
+    start(kind,triggerId);
+  }
+  function activity(){
+    armIdle();
+    if(current==='dormir' && !pending){pending='reposo';pendingTriggerId='';}
+  }
+  function primeLoop(){
+    if(current!=='dormir'||pending||loopReady||transitioning||!front)return;
+    const spare=videos.find(player=>player!==front);
+    loopCandidate=spare;loopReady=false;spare.pause();spare.onerror=null;
+    spare.onloadedmetadata=()=>{
+      if(loopCandidate!==spare||current!=='dormir'||pending)return;
+      const ready=()=>{if(loopCandidate===spare&&current==='dormir'&&!pending)loopReady=true;};
+      spare.addEventListener('seeked',ready,{once:true});spare.currentTime=LOOP_START;
+      if(spare.readyState>=2&&!spare.seeking)ready();
+    };
+    spare.onerror=()=>{loopReady=false;};spare.src=sleepUrl;spare.load();
+  }
+  function handoffLoop(){
+    const old=front,target=loopCandidate;
+    if(!target||!loopReady)return;
+    loopReady=false;loopCandidate=null;
+    target.play().then(()=>{
+      const show=()=>{
+        if(current!=='dormir'||pending){target.pause();return;}
+        target.classList.add('visible');old.classList.remove('visible');old.pause();front=target;
+        primeLoop();
+      };
+      if(typeof target.requestVideoFrameCallback==='function')target.requestVideoFrameCallback(()=>show());
+      else requestAnimationFrame(show);
+    }).catch(()=>{if(front===old)old.currentTime=LOOP_START;});
+  }
+  function boundary(player,time){
+    if(player!==front||current!=='dormir'||player.seeking)return;
+    if(time>=LOOP_START&&time<LOOP_END&&!pending)primeLoop();
+    if(time<LOOP_END)return;
+    // On a pending action, finish the complete source video before switching.
+    if(!pending)handoffLoop();
+  }
+  videos.forEach(player=>{
+    player.addEventListener('timeupdate',()=>boundary(player,player.currentTime));
+    player.addEventListener('ended',()=>{
+      if(player!==front)return;
+      if(current==='dormir'){
+        if(pending){const next=pending,nextTrigger=pendingTriggerId;start(next,nextTrigger);}
+        else {player.currentTime=LOOP_START;player.play().catch(()=>start('ocultar'));}
+        return;
+      }
+      busy=false;
+      if(pending){const next=pending,nextTrigger=pendingTriggerId;start(next,nextTrigger);}
+    });
+  });
+  function onMessage(e){let d;try{d=JSON.parse(e.data)}catch(_){return}
+    if(d.type==='rulo_animation_control'){
+      request(d.action,true,d.triggerId||'');
+    } else if(d.type==='rulo_animation_trigger'&&d.animation==='hablando')request('hablar',false,d.triggerId||'');
+    else if(d.type==='rulo_animation_activity')activity();
+  }
+  function connect(){
+    const ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/?client=rulo-animation');
+    animationSocket=ws;
+    ws.addEventListener('message',onMessage);
+    ws.addEventListener('open',()=>{document.documentElement.dataset.connected='true';if(shown)armIdle();});
+    ws.addEventListener('close',()=>{document.documentElement.dataset.connected='false';setTimeout(connect,2000);});
+  }
+  connect();
+  window.ruloAnim={play:request};
+})();
+</script></body></html>

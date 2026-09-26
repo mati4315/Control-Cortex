@@ -22,6 +22,6 @@ idle.svg  thinking.svg  success.svg  warning.svg  error.svg  speaking.svg
 
 ## Estado
 
-Los seis SVG existen (primera version, generada desde el prototipo en CSS de `Rulo/rulo-mascota.html`) y `states.json` esta en `listo: true`. Son reemplazables uno por uno: mientras el archivo respete el nombre y el lienzo, el overlay lo toma solo.
+Los seis SVG corresponden al avatar de los mensajes del bot y `states.json` define sus estados. Son reemplazables uno por uno: mientras el archivo respete el nombre y el lienzo, el overlay lo toma solo.
 
 Paleta de la primera version: cuerpo claro con contorno oscuro (`#14181f`), para que se lea sobre cualquier color de acento configurado en el dashboard. Detalles con significado propio: burbuja azul en `thinking`, aviso ambar en `warning`, X rojas en `error`, ondas en `speaking`.

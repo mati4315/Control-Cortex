@@ -3,6 +3,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const cortexOverlayConfig = require('../cortex-overlay-config');
 
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +14,7 @@ const io = new Server(server, {
   }
 });
 
+app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -70,6 +72,17 @@ function saveConfig() {
     console.error('Error writing config.json:', e.message);
   }
 }
+
+app.get('/api/cortex-overlay-config', cortexOverlayConfig.localOnly, (req, res) => res.json({ success: true, config: cortexOverlayConfig.publicConfig(lightsConfig) }));
+app.post('/api/cortex-overlay-config', cortexOverlayConfig.localOnly, (req, res) => {
+  try {
+    if (req.body && req.body.snapshot) lightsConfig = cortexOverlayConfig.mergeSnapshot(lightsConfig, req.body.snapshot);
+    else cortexOverlayConfig.applyChanges(lightsConfig, req.body && req.body.changes);
+    saveConfig();
+    io.emit('configUpdate', lightsConfig);
+    res.json({ success: true, config: cortexOverlayConfig.publicConfig(lightsConfig) });
+  } catch (error) { res.status(400).json({ success: false, error: error.message }); }
+});
 
 let connectedOverlays = 0;
 let connectedDashboards = 0;

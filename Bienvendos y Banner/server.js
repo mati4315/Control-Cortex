@@ -6,6 +6,7 @@ const fsp = require('fs/promises');
 const socketIo = require('socket.io');
 const multer = require('multer');
 const { OBSWebSocket } = require('obs-websocket-js');
+const cortexOverlayConfig = require('../cortex-overlay-config');
 
 const app = express();
 const server = http.createServer(app);
@@ -427,6 +428,25 @@ app.post('/api/upload-bg-music', upload.single('bgMusic'), (req, res) => {
 
 app.get('/api/settings', (req, res) => {
   res.json(settings);
+});
+
+app.get('/api/cortex-overlay-config', cortexOverlayConfig.localOnly, (req, res) => res.json({ success: true, config: cortexOverlayConfig.publicConfig(settings) }));
+app.post('/api/cortex-overlay-config', cortexOverlayConfig.localOnly, async (req, res) => {
+  try {
+    const nextSettings = JSON.parse(JSON.stringify(settings));
+    const changes = req.body && req.body.changes;
+    const snapshot = req.body && req.body.snapshot;
+    const updatedSettings = snapshot ? cortexOverlayConfig.mergeSnapshot(nextSettings, snapshot) : cortexOverlayConfig.applyChanges(nextSettings, changes);
+    await updateSettings(updatedSettings);
+    if ((changes ? Object.hasOwn(changes, 'countdownTime') : snapshot && Object.hasOwn(snapshot, 'countdownTime')) && !timerState.isRunning) {
+      timerState.secondsRemaining = settings.countdownTime;
+      timerState.totalDuration = settings.countdownTime;
+      timerState.lastUpdated = Date.now();
+    }
+    emitSettingsUpdated();
+    io.emit('bannerUpdated', settings.banner);
+    res.json({ success: true, config: cortexOverlayConfig.publicConfig(settings) });
+  } catch (error) { res.status(400).json({ success: false, error: error.message }); }
 });
 
 // Banner Config API

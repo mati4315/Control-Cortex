@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Rulo | Chat y respuestas</title>
   <style>
     :root { --accent:#9fd50b; --font-scale:1; --bg:#101318; --header:#1b222c; --panel:#191e26; --panel-alt:#232c3a; --line:#303845; --text:#f4f6f8; --muted:#aab4c0; --warn:#f5b13d; --bad:#ef5f5f; --accent-ink:#9fd50b; --btn:#12161d; --input-bg:#0e1116; --input-border:#465160; --danger-bg:#3a2224; --hover:#20251f; --hover-response:#202a22; }
@@ -11,7 +11,10 @@
     * { box-sizing:border-box; }
     /* El control de lupa mueve --font-scale: todo lo que esta en rem y el texto base escalan juntos. */
     html { font-size:calc(16px * var(--font-scale)); color-scheme:dark; }
-    body { margin:0; height:100vh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); font-size:calc(14px * var(--font-scale)); font-family:"Segoe UI",Arial,sans-serif; overflow:hidden; }
+    /* 100dvh en celular: 100vh cuenta tambien el area que tapa la barra del
+       navegador, y la barra de transporte quedaba por debajo del borde visible
+       (aparecia recien cuando el aviso de abajo empujaba todo hacia arriba). */
+    body { margin:0; height:100vh; height:100dvh; display:flex; flex-direction:column; background:var(--bg); color:var(--text); font-size:calc(14px * var(--font-scale)); font-family:"Segoe UI",Arial,sans-serif; overflow:hidden; }
     header, #toolbar { flex:0 0 auto; }
     header { min-height:54px; display:grid; grid-template-columns:auto auto minmax(0,1fr) auto auto; align-items:center; gap:10px; padding:8px 16px; border-bottom:1px solid var(--line); background:var(--header); }
     h1 { margin:0; font-size:1.05rem; } h1 span { color:var(--accent-ink); }
@@ -50,8 +53,19 @@
     header.minimized .font-controls { padding-top:0; border-top:0; }
     .toolbar-status { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .dash-link { color:#111; background:var(--accent); border-radius:5px; padding:6px 9px; font-weight:800; font-size:.8rem; text-decoration:none; }
-    /* Opciones: panel inferior, oculto hasta pulsar "Mas Opciones". */
-    #toolbar { display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:9px 16px; border-top:1px solid var(--line); background:var(--btn); }
+    /* Barra de transporte + espectadores: siempre visible abajo. */
+    #transportBar { position:relative; z-index:10; flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:6px 16px; border-top:1px solid var(--line); background:var(--panel); }
+    #transportNotice { flex:1 1 auto; min-width:0; color:var(--muted); font-size:.76rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .viewer-count { display:inline-flex; align-items:center; gap:5px; flex-shrink:0; padding:4px 9px; border:1px solid var(--line); border-radius:999px; background:var(--btn); color:var(--accent-ink); font-size:.82rem; font-weight:800; }
+    .viewer-count svg { width:16px; height:16px; }
+    .viewer-count[hidden] { display:none; }
+    .stream-activity { display:inline-flex; align-items:center; gap:6px; flex:0 1 auto; min-width:0; max-width:min(42vw,340px); padding:4px 9px; border:1px solid var(--line); border-radius:999px; background:var(--btn); color:var(--text); font-size:.76rem; }
+    .stream-activity svg { width:15px; height:15px; flex:0 0 auto; color:var(--accent-ink); }
+    .stream-activity span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .stream-activity[hidden] { display:none; }
+    /* Opciones: panel inferior, oculto hasta pulsar "Mas Opciones". Va fijo con
+       z-index mas alto: al abrirse tapa la barra de transporte y queda por encima. */
+    #toolbar { position:fixed; left:0; right:0; bottom:0; z-index:40; display:flex; gap:8px; align-items:center; flex-wrap:wrap; padding:9px 16px; border-top:1px solid var(--line); background:var(--btn); }
     #toolbar.collapsed { display:none; }
     /* Si la ventana es baja, el panel scrollea por dentro en vez de comerse el chat. */
     #toolbar { max-height:45vh; overflow:auto; }
@@ -67,7 +81,7 @@
     #counter { margin-left:auto; color:var(--muted); font-size:.78rem; }
     #list { flex:1 1 auto; min-height:0; overflow:auto; padding:10px; }
     /* Barra de aviso del destacado: abajo de todo, en el flujo (no tapa el chat). */
-    #p2pToast { flex:0 0 auto; padding:8px 14px; border-top:1px solid var(--line); background:var(--panel); color:var(--text); font-size:.84rem; font-weight:700; text-align:center; }
+    #p2pToast { position:relative; z-index:50; flex:0 0 auto; padding:8px 14px; border-top:1px solid var(--line); background:var(--panel); color:var(--text); font-size:.84rem; font-weight:700; text-align:center; }
     #p2pToast[data-kind="ok"] { color:var(--accent-ink); border-top-color:rgba(159,213,11,.65); }
     #p2pToast[data-kind="bad"] { color:var(--bad); border-top-color:rgba(239,95,95,.65); }
     #p2pToast[hidden] { display:none; }
@@ -112,9 +126,19 @@
       h1 { font-size:.92rem; }
       .chip { font-size:.68rem; padding:3px 7px; }
       .dash-link { padding:5px 8px; font-size:.76rem; }
-      #toolbar { padding:6px 10px; gap:6px; }
+      #toolbar { padding:6px 10px calc(6px + env(safe-area-inset-bottom)); gap:6px; bottom:env(safe-area-inset-bottom); }
       #toolbar input[type=search], #toolbar select { padding:5px 7px; font-size:.84rem; }
       #toolbar button { padding:6px 9px; font-size:.82rem; }
+      /* En celular el borde de abajo lo tapa la barra de gestos: se le suma el
+         margen seguro (env) para que los botones no queden cortados. */
+      #transportBar { padding:5px 10px calc(5px + env(safe-area-inset-bottom)); gap:6px; }
+      #transportNotice { font-size:.7rem; }
+      .viewer-count { padding:3px 8px; font-size:.76rem; }
+      .viewer-count svg { width:14px; height:14px; }
+      .stream-activity { max-width:40vw; padding:3px 7px; font-size:.7rem; }
+      /* Colapsado no hay titulo ni boton: la fila de arriba del grid quedaba vacia
+         y empujaba los controles hacia abajo. Se saca y queda una sola linea. */
+      header.minimized { grid-template-columns:auto minmax(0,1fr) auto; grid-template-areas:"toggle fonts theme"; min-height:auto; }
       .check { font-size:.82rem; }
       #counter { font-size:.72rem; }
       #list { padding:6px; }
@@ -169,6 +193,34 @@
     </button>
   </header>
   <main id="list"></main>
+  <section id="transportBar" aria-label="Transporte y espectadores">
+    <button id="trackPrevious" class="icon-btn" data-transport="previous" type="button" title="Tema anterior" aria-label="Tema anterior">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <line x1="6" y1="6" x2="6" y2="18"></line>
+        <path d="M18.5 6.4 10.5 12l8 5.6z"></path>
+      </svg>
+    </button>
+    <button id="trackNext" class="icon-btn" data-transport="next" type="button" title="Tema siguiente" aria-label="Tema siguiente">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M5.5 6.4 13.5 12l-8 5.6z"></path>
+        <line x1="18" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+    <span id="transportNotice"></span>
+    <span id="streamActivity" class="stream-activity" title="Última entrada al directo" aria-live="polite" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="9" cy="8" r="3.5"></circle><path d="M3 20v-1.5A4.5 4.5 0 0 1 7.5 14h3A4.5 4.5 0 0 1 15 18.5V20"></path><path d="M17 8h4m-2-2v4"></path>
+      </svg>
+      <span id="streamActivityText"></span>
+    </span>
+    <span id="viewerCount" class="viewer-count" title="Espectadores en vivo" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2.5 12S6.2 5.6 12 5.6 21.5 12 21.5 12 17.8 18.4 12 18.4 2.5 12 2.5 12Z"></path>
+        <circle cx="12" cy="12" r="3.1"></circle>
+      </svg>
+      <span id="viewerCountValue">0</span>
+    </span>
+  </section>
   <section id="toolbar" class="collapsed" aria-label="Mas opciones">
     <div class="toolbar-status">
       <span class="chip" id="wsState">Conectando...</span>
@@ -178,7 +230,7 @@
     </div>
     <input id="filterText" type="search" placeholder="Buscar en comentarios, usuarios o respuestas">
     <select id="filterSource"><option value="">Todas las plataformas</option></select>
-    <label class="check"><input id="filterPending" type="checkbox"> Solo sin respuesta</label>
+    <label class="check"><input id="filterPending" type="checkbox" checked> Solo sin respuesta</label>
     <button id="clearHistory" class="danger" type="button">Limpiar historial</button>
     <span id="counter"></span>
   </section>
@@ -355,7 +407,8 @@
         response.textContent = hasResponse ? item.response : '';
         row.querySelector('.response').onclick = function () {
           if (!item.response) return;
-          fetch('/api/rulo-repeat-response', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ response:item.response, requester:item.requester }) })
+          fetch('/api/rulo-repeat-response', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ response:item.response, requester:item.requester, forceOverlay:true }) })
+            .then(async function (result) { const data = await result.json(); if (!result.ok || !data.success) throw new Error(data.error || 'No se pudo repetir la respuesta'); })
             .then(function () { setState('Respuesta repetida en el overlay', 'ok'); setTimeout(function () { setState('Conectado', 'ok'); }, 2000); })
             .catch(function () { setState('No se pudo repetir la respuesta', 'bad'); });
         };
@@ -375,13 +428,14 @@
       // --- Tamano de letra: lupa + / Restablecer / lupa - ---
       const FONT_KEY = 'ruloHistorialFontScale';
       const FONT_MIN = 0.8, FONT_MAX = 1.8, FONT_STEP = 0.1;
+      const FONT_DEFAULT = 1.3;   // tamano por defecto y destino de "Restablecer"
       const fontUp = document.getElementById('fontUp');
       const fontDown = document.getElementById('fontDown');
       const fontReset = document.getElementById('fontReset');
       const fontLevel = document.getElementById('fontLevel');
       const toolbar = document.getElementById('toolbar');
       const moreButton = document.getElementById('moreOptions');
-      let fontScale = 1;
+      let fontScale = FONT_DEFAULT;
       try {
         const savedScale = parseFloat(localStorage.getItem(FONT_KEY));
         if (isFinite(savedScale)) fontScale = Math.min(FONT_MAX, Math.max(FONT_MIN, savedScale));
@@ -398,7 +452,7 @@
       }
       fontUp.onclick = function () { applyFontScale(fontScale + FONT_STEP); };
       fontDown.onclick = function () { applyFontScale(fontScale - FONT_STEP); };
-      fontReset.onclick = function () { applyFontScale(1); };
+      fontReset.onclick = function () { applyFontScale(FONT_DEFAULT); };
 
       // --- Panel de opciones (abajo) con el boton "Mas Opciones" ---
       const OPTIONS_KEY = 'ruloHistorialOptionsOpen';
@@ -431,6 +485,83 @@
       try { optionsOpen = localStorage.getItem(OPTIONS_KEY) === '1'; } catch (_) {}
       applyFontScale(fontScale);
       setOptionsOpen(optionsOpen);
+
+      // --- Barra de transporte de Spotify (siempre visible abajo) ---
+      // Mismos comandos que los botones Anterior/Siguiente del dashboard de Spotify.
+      const transportNotice = document.getElementById('transportNotice');
+      let transportNoticeTimer = null;
+      function showTransportNotice(text) {
+        transportNotice.textContent = text;
+        clearTimeout(transportNoticeTimer);
+        transportNoticeTimer = setTimeout(function () { transportNotice.textContent = ''; }, 2500);
+      }
+      Array.prototype.slice.call(document.querySelectorAll('#transportBar [data-transport]')).forEach(function (button) {
+        button.onclick = function () {
+          const action = button.getAttribute('data-transport');
+          button.disabled = true;
+          fetch('/api/spotify-transport', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: action })
+          })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              button.disabled = false;
+              if (!data || data.ok !== true) { showTransportNotice('No se pudo enviar el comando'); return; }
+              showTransportNotice(action === 'next' ? 'Pasando al siguiente...' : 'Volviendo al anterior...');
+            })
+            .catch(function () { button.disabled = false; showTransportNotice('No se pudo enviar el comando'); });
+        };
+      });
+
+      // --- Espectadores en vivo ---
+      // Los manda el relay de SSN a Cortex y Cortex los reparte por WebSocket.
+      // Solo se muestran si el conteo es reciente: si el vivo termino, se ocultan.
+      const viewerCountEl = document.getElementById('viewerCount');
+      const viewerCountValue = document.getElementById('viewerCountValue');
+      const VIEWER_TTL_MS = 90000;
+      let viewerCountAt = 0;
+      const streamActivityEl = document.getElementById('streamActivity');
+      const streamActivityText = document.getElementById('streamActivityText');
+      let streamActivityTimer = null;
+      function showStreamActivity(activity) {
+        if (!activity || !activity.name || Date.now() - Number(activity.updatedAt || 0) > 120000) return;
+        streamActivityText.textContent = (activity.event === 'rejoined' ? 'Volvió: ' : 'Entró: ') + activity.name;
+        streamActivityEl.title = 'Última entrada · ' + (activity.platform || 'directo');
+        streamActivityEl.hidden = false;
+        if (streamActivityTimer) clearTimeout(streamActivityTimer);
+        streamActivityTimer = setTimeout(function () { streamActivityEl.hidden = true; }, 120000);
+      }
+      fetch('/api/stream-activity').then(function (r) { return r.json(); }).then(function (d) { if (d && d.activity) showStreamActivity(d.activity); }).catch(function () {});
+      function formatViewers(total) {
+        const n = Number(total) || 0;
+        try { return n.toLocaleString('es-AR'); } catch (_) { return String(n); }
+      }
+      function showViewerCount(data) {
+        const total = Number(data && data.total);
+        if (!isFinite(total)) return;
+        const cuando = Number(data.updatedAt) || Date.now();
+        viewerCountAt = cuando;
+        // Dato viejo (el vivo termino o la pagina se cerro): no se muestra.
+        if (Date.now() - cuando > VIEWER_TTL_MS) { viewerCountEl.hidden = true; return; }
+        viewerCountValue.textContent = formatViewers(total);
+        const conteos = data && data.counts && typeof data.counts === 'object' ? data.counts : null;
+        const detalle = conteos
+          ? Object.keys(conteos).map(function (clave) { return clave + ': ' + formatViewers(conteos[clave]); }).join(' · ')
+          : '';
+        viewerCountEl.title = 'Espectadores en vivo: ' + formatViewers(total) + (detalle ? ' (' + detalle + ')' : '');
+        viewerCountEl.hidden = false;
+      }
+      setInterval(function () {
+        if (!viewerCountEl.hidden && viewerCountAt && Date.now() - viewerCountAt > VIEWER_TTL_MS) viewerCountEl.hidden = true;
+      }, 10000);
+      fetch('/api/viewer-count')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          // Se muestra aunque sea 0: asi se ve que el dato esta llegando.
+          if (d && Number(d.updatedAt) > 0 && Date.now() - Number(d.updatedAt) < VIEWER_TTL_MS) showViewerCount(d);
+        })
+        .catch(function () {});
 
       // Zebra segun layout: en dos columnas alterna por FILA (comentario+respuesta juntos);
       // apilado (<=620px) alterna por CELDA para que nunca queden dos del mismo color pegados.
@@ -469,44 +600,22 @@
         }
       } catch (_) {}
 
-      // Al bajar se ocultan el titulo y el boton; al subir vuelven (la barra de letra y el tema
-      // quedan siempre visibles). Arriba de todo se muestra siempre.
+      // El encabezado arranca SIEMPRE colapsado y el scroll no lo cambia: el
+      // titulo y el boton "Mas Opciones" quedan ocultos, y la unica forma de
+      // mostrarlos es pulsar la flecha de la punta izquierda.
+      // La barra de letra y el boton de tema se ven en los dos estados.
       const header = document.querySelector('header');
       const headerToggle = document.getElementById('headerToggle');
-      let scrollTicking = false;
       function setHeaderMinimized(minimized) {
         header.classList.toggle('minimized', minimized);
         headerToggle.title = minimized ? 'Mostrar el encabezado' : 'Ocultar el encabezado';
         headerToggle.setAttribute('aria-pressed', minimized ? 'true' : 'false');
       }
-      let lastScrollTop = 0;
-      function updateHeaderOnScroll() {
-        const top = list.scrollTop;
-        if (top <= 4) {
-          setHeaderMinimized(false);
-        } else if (top > lastScrollTop + 8) {
-          setHeaderMinimized(true);   // bajando
-        } else if (top < lastScrollTop - 8) {
-          setHeaderMinimized(false);  // subiendo
-        }
-        lastScrollTop = top;
-        scrollTicking = false;
-      }
-      // Flecha de la punta izquierda: muestra u oculta el encabezado a mano
-      // (el proximo scroll vuelve al comportamiento automatico).
+      // Flecha de la punta izquierda: unica forma de mostrar u ocultar el encabezado.
       headerToggle.onclick = function () {
         setHeaderMinimized(!header.classList.contains('minimized'));
       };
-      setHeaderMinimized(false);
-      list.addEventListener('scroll', function () {
-        if (scrollTicking) return;
-        scrollTicking = true;
-        if (typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(updateHeaderOnScroll);
-        } else {
-          setTimeout(updateHeaderOnScroll, 16);
-        }
-      }, { passive: true });
+      setHeaderMinimized(true);
 
       // Tema claro/oscuro: boton sol-luna al final de la barra de letra.
       const THEME_KEY = 'ruloHistorialTheme';
@@ -575,6 +684,8 @@
             if (data.type === 'rulo_chat_item') draw(data.item);
             else if (data.type === 'rulo_config_updated') applyConfig(data.config);
             else if (data.type === 'rulo_chat_cleared') clearLocal();
+            else if (data.type === 'viewer_count') showViewerCount(data);
+            else if (data.type === 'stream_activity') showStreamActivity(data.activity);
           } catch (_) {}
         };
         socket.onerror = function () { socket.close(); };

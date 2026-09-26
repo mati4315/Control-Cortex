@@ -89,3 +89,29 @@ antes de `background.js` (lo consume al arrancar).
 
 Las pruebas de todo esto están en `Rulo\tests\ssn-patcher-test.js` (36 casos, incluida una migración
 completa en una carpeta temporal): `cd "Rulo/tests" && npm run test:patcher`.
+
+## Social Stream Ninja para Windows (SSApp)
+
+La instalacion de `D:\Archivos de programa\socialstream` es un programa de terceros: no editar su
+`resources\app.asar`. Su perfil persistente esta en `%APPDATA%\SocialStream`, separado de Brave.
+La app puede cargar una carpeta local de Social Stream desde **File > Load Social Stream From Folder**;
+usar `D:\plugins para mi OBS\SocialStream Ninja`, donde el backend mantiene los overrides de Cortex.
+
+La primera migracion desde Brave se hizo con:
+
+```powershell
+node "D:\plugins para mi OBS\Control Cortex\tools\migrar-socialstream-desktop.js" --dry-run
+node "D:\plugins para mi OBS\Control Cortex\tools\migrar-socialstream-desktop.js"
+```
+
+Cerrar SSApp antes del segundo comando. El script copia el ID `XJ9hQ2JDHH`, los ajustes de
+`chrome.storage.local` de la extension (incluida la configuracion de Spotify), conserva las fuentes
+propias de SSApp y configura `localSourcePath` para cargar la carpeta adaptada. Primero respalda
+`config.json` y `savedSync.json` en `%APPDATA%\SocialStream-migration-backups\<fecha>`.
+No mueve cookies ni sesiones iniciadas en Brave: autenticar las fuentes dentro de SSApp si hace falta.
+Despues de cada actualizacion del codigo de SSN, reiniciar el backend para re-aplicar el parcheo y
+reiniciar SSApp para que vuelva a cargar la carpeta local. Una actualizacion del ejecutable no deberia
+borrar `%APPDATA%\SocialStream`, pero conviene conservar los respaldos.
+
+**No usar la extension de Brave y SSApp capturando la misma transmision al mismo tiempo con ese ID**:
+pueden duplicar comentarios, respuestas y ordenes de Spotify. Elegir una como emisor activo.

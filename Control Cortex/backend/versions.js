@@ -5,5 +5,5 @@
 'use strict';
 
 module.exports = {
-  SPOTIFY_MODULE_VERSION: 40
+  SPOTIFY_MODULE_VERSION: 43
 };

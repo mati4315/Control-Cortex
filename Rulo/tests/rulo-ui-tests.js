@@ -126,6 +126,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     check('historial: con respuesta la celda se muestra',
       !answeredRow.querySelector('.response').classList.contains('is-empty') && /Listo Matias/.test(answeredRow.querySelector('.response-text').textContent),
       answeredRow.querySelector('.response-text').textContent);
+    // "Solo sin respuesta" viene activado por defecto: se comprueba y se apaga
+    // para que el resto de las pruebas (zebra, contador) vean las dos filas.
+    const pendingFilter = doc.getElementById('filterPending');
+    check('historial: "solo sin respuesta" viene activado', pendingFilter.checked === true, String(pendingFilter.checked));
+    pendingFilter.checked = false;
+    pendingFilter.dispatchEvent(new doc.defaultView.Event('change'));
+    await wait(20);
+
     // zebra: la primera fila visible queda oscura y la segunda clara
     check('historial: filas alternadas (1 oscura, 2 clara)',
       !doc.getElementById('rulo-row-a2').classList.contains('zebra-b') && doc.getElementById('rulo-row-a1').classList.contains('zebra-b'),
@@ -196,7 +204,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
     more.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
     check('historial: Mas Opciones abre el panel', !toolbar.classList.contains('collapsed') && more.getAttribute('aria-expanded') === 'true', toolbar.className);
     check('historial: el boton cambia de texto', /Ocultar/.test(more.textContent), more.textContent);
-    check('historial: el panel queda debajo de la lista', doc.querySelector('main + #toolbar') === toolbar, 'ok');
+    check('historial: el panel queda debajo de la lista y de la barra de transporte', doc.querySelector('main + #transportBar + #toolbar') === toolbar, 'ok');
     more.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
     check('historial: segundo clic lo vuelve a cerrar', toolbar.classList.contains('collapsed') && more.textContent === 'Mas Opciones', more.textContent);
 
@@ -240,41 +248,33 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       p2pChip.textContent === 'Peers P2P: 1' && p2pChip.className === 'chip ok' && !more.classList.contains('has-warning'),
       p2pChip.textContent + ' | ' + more.className);
 
-    // el header se oculta al bajar y vuelve al subir (la barra de letra queda)
+    // el header arranca colapsado y el scroll NO lo cambia: solo la flecha lo muestra
     const headerEl = doc.querySelector('header');
     const listEl = doc.getElementById('list');
     let fakeTop = 0;
     Object.defineProperty(listEl, 'scrollTop', { get: () => fakeTop, configurable: true });
     const scrollTo = async (value) => { fakeTop = value; listEl.dispatchEvent(new doc.defaultView.Event('scroll')); await wait(30); };
-    await scrollTo(0);
-    check('historial: header visible arriba de todo', !headerEl.classList.contains('minimized'), headerEl.className);
+    check('historial: header arranca colapsado', headerEl.classList.contains('minimized'), headerEl.className);
     await scrollTo(200);
-    check('historial: header se oculta al bajar', headerEl.classList.contains('minimized'), headerEl.className);
+    check('historial: bajar no muestra el header', headerEl.classList.contains('minimized'), headerEl.className);
     await scrollTo(420);
-    check('historial: sigue oculto bajando', headerEl.classList.contains('minimized'), headerEl.className);
-    await scrollTo(300);
-    check('historial: al subir el header vuelve', !headerEl.classList.contains('minimized'), headerEl.className);
-    await scrollTo(60);
-    check('historial: sigue visible subiendo', !headerEl.classList.contains('minimized'), headerEl.className);
+    check('historial: sigue colapsado bajando', headerEl.classList.contains('minimized'), headerEl.className);
     await scrollTo(0);
+    check('historial: subir tampoco lo muestra', headerEl.classList.contains('minimized'), headerEl.className);
 
-    // flecha de la punta izquierda: mostrar / ocultar a mano
+    // flecha de la punta izquierda: la unica forma de mostrar / colapsar el encabezado
     const headerToggle = doc.getElementById('headerToggle');
-    check('historial: la flecha arranca pidiendo ocultar', headerToggle.title === 'Ocultar el encabezado' && headerToggle.getAttribute('aria-pressed') === 'false', headerToggle.title);
+    check('historial: la flecha arranca pidiendo mostrar', headerToggle.title === 'Mostrar el encabezado' && headerToggle.getAttribute('aria-pressed') === 'true', headerToggle.title);
     headerToggle.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
-    check('historial: la flecha oculta el encabezado',
-      headerEl.classList.contains('minimized') && headerToggle.title === 'Mostrar el encabezado' && headerToggle.getAttribute('aria-pressed') === 'true',
+    check('historial: la flecha muestra el encabezado',
+      !headerEl.classList.contains('minimized') && headerToggle.title === 'Ocultar el encabezado' && headerToggle.getAttribute('aria-pressed') === 'false',
       headerToggle.title + '/' + headerToggle.getAttribute('aria-pressed'));
+    await scrollTo(300);
+    check('historial: con el header abierto el scroll no lo colapsa', !headerEl.classList.contains('minimized'), headerEl.className);
     headerToggle.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
-    check('historial: la flecha lo vuelve a mostrar',
-      !headerEl.classList.contains('minimized') && headerToggle.getAttribute('aria-pressed') === 'false',
+    check('historial: la flecha lo vuelve a colapsar',
+      headerEl.classList.contains('minimized') && headerToggle.getAttribute('aria-pressed') === 'true',
       headerToggle.title);
-    await scrollTo(0);
-    headerToggle.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
-    check('historial: la flecha oculta tambien arriba de todo', headerEl.classList.contains('minimized'), headerEl.className);
-    await scrollTo(200);
-    await scrollTo(100);
-    check('historial: el scroll retoma el control automatico', !headerEl.classList.contains('minimized'), headerEl.className);
     await scrollTo(0);
 
     // control de tamano de letra
@@ -304,14 +304,14 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
       doc.querySelector('header').lastElementChild.id === 'themeToggle'
       && doc.querySelector('header').firstElementChild.id === 'headerToggle',
       doc.querySelector('header').firstElementChild.id + ' ... ' + doc.querySelector('header').lastElementChild.id);
-    check('historial: escala inicial 100%', scale() === '1' && level.textContent === '100%', scale() + '|' + level.textContent);
+    check('historial: escala inicial 130%', scale() === '1.3' && level.textContent === '130%', scale() + '|' + level.textContent);
     up.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
     up.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
-    check('historial: lupa + agranda la letra', scale() === '1.2' && level.textContent === '120%', scale() + '|' + level.textContent);
+    check('historial: lupa + agranda la letra', scale() === '1.5' && level.textContent === '150%', scale() + '|' + level.textContent);
     down.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
-    check('historial: lupa - achica la letra', scale() === '1.1', scale());
+    check('historial: lupa - achica la letra', scale() === '1.4', scale());
     reset.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
-    check('historial: Restablecer vuelve al original', scale() === '1' && level.textContent === '100%', scale() + '|' + level.textContent);
+    check('historial: Restablecer vuelve al original', scale() === '1.3' && level.textContent === '130%', scale() + '|' + level.textContent);
     for (let i = 0; i < 20; i++) up.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));
     check('historial: tope maximo y boton deshabilitado', scale() === '1.8' && up.disabled === true, scale() + '|' + up.disabled);
     for (let i = 0; i < 30; i++) down.dispatchEvent(new doc.defaultView.MouseEvent('click', { bubbles: true }));

@@ -9,7 +9,7 @@ Espacio independiente para las funciones y overlays propios del bot. Todo lo nue
 | Overlay de respuestas | `http://192.168.4.100:4000/rulo-bot-overlay.html?session=XJ9hQ2JDHH` | Fuente Navegador de OBS. Solo respuestas del bot. |
 | Dashboard | `http://192.168.4.100:4000/rulo-dashboard.html?session=XJ9hQ2JDHH` | Configuración visual, URLs para OBS y vista previa por estado. |
 | Historial | `http://192.168.4.100:4000/rulo-chat-historial.html?session=XJ9hQ2JDHH` | Comentarios de audiencia + respuestas, con filtros y limpieza. |
-| Prototipo de mascota | `http://192.168.4.100:4000/rulo-mascota.html?session=XJ9hQ2JDHH` | Direcciones visuales de los 6 estados (no va a OBS). |
+| Animaciones de Rulo | `http://localhost:4000/rulo-mascota.html?session=XJ9hQ2JDHH` | Panel: disparadores, URL para OBS y carga de clips WebM. |
 | Dashboard de Spotify | `http://192.168.4.100:4000/rulo-spotify.html` | Ajustes del cambio automático de música: esperas, modo prueba sin esperas, dispositivo, pruebas y registro. |
 | Entrenamiento del bot | `http://192.168.4.100:4000/rulo-spotify-training.html` | Vocabulario (palabras clave, verbos, géneros, correcciones) con analizador en vivo y el cerebro (IA) opcional. |
 | Redirección legada | `http://192.168.4.100:4000/rulo-chat-dock.html` | 302 a `rulo-chat-historial.html` para no romper enlaces viejos. |
@@ -25,6 +25,18 @@ La URL base ya no está escrita a mano en varios archivos: el backend la detecta
 - El texto fijo `Anormalia 22` del overlay de letras es el nombre del programa elegido por el usuario; no lo toca nada.
 
 ## Estados (mood) de la mascota
+
+### Animaciones WebM en OBS
+
+El panel `/rulo-mascota.html` controla la fuente `/rulo-animaciones.html` y permite reemplazar entrada, habla y sueño. El archivo de sueño es `animaciones/Rulo Durmiendo.webm` (copiado desde `D:\RULO\escenas\escenas terminadas`).
+
+- Mientras Rulo está visible, entra en sueño después de 4–6 minutos sin actividad (intervalo aleatorio). Los controles manuales y los eventos de pedidos/respuestas reinician la espera; los comentarios generales y el historial restaurado no cuentan.
+- Sueño: reproduce 0–28 segundos una vez y luego repite 9–28. Los segundos posteriores al 28 no se usan.
+- Una acción durante el sueño termina el bucle actual hasta el segundo 28 y, entonces, deja correr la cola del video hasta el final del archivo antes de cambiar, incluso si se solicita ocultar. Si llegan varias, se conserva la última. Un pedido en búsqueda despierta al terminar; su respuesta activa el habla.
+- Un único elemento de video impide superposiciones; los clips de entrada/habla terminan antes de ejecutar otra animación pendiente. Ocultar durante entrada/habla es inmediato.
+- Rulo oculto no se duerme ni aparece automáticamente. El clip de sueño debe durar al menos 28 segundos.
+
+La lógica se comprueba con `node --test Rulo/tests/rulo-animation-sleep.test.cjs`.
 
 El evento `rulo_bot_message` incluye `mood`, que el backend valida contra esta lista exacta:
 
@@ -53,6 +65,8 @@ El overlay usa el estado para color, animación y (si está activado) el asset `
 | POST | `/api/rulo-chat-message` | Alta de comentario de audiencia (lo usa `rulo-chat-relay.js`). |
 | POST | `/api/rulo-chat-clear` | Vacía historial en memoria y en disco; emite `rulo_chat_cleared`. |
 | POST | `/api/rulo-repeat-response` | Repite una respuesta en el overlay (mood `speaking`). |
+| POST | `/api/rulo-animation-trigger` | Disparador manual: `aparecer`, `hablar` u `ocultar`. |
+| POST | `/api/rulo-animation-upload/aparecer` o `/hablar` | Reemplaza el clip WebM correspondiente (máximo 100 MB). |
 | GET | `/api/cortex-base-url` | URL base LAN detectada + Session ID. |
 
 Eventos WebSocket: `rulo_bot_message`, `rulo_chat_item`, `rulo_chat_cleared`, `rulo_config_updated`.
@@ -69,8 +83,10 @@ Eventos WebSocket: `rulo_bot_message`, `rulo_chat_item`, `rulo_chat_cleared`, `r
 | --- | --- |
 | `rulo-bot-overlay.html` | Fuente Navegador de OBS. Acepta `?preview=1&mood=<estado>` y `?theme=light\|dark` (el parametro gana sobre la config) para probar sin OBS. |
 | `rulo-dashboard.html` | Configuración visual, URLs para OBS y vista previa por estado. |
-| `rulo-chat-historial.html` | Docks de chat: estado P2P (con aviso persistente y marca roja en "Mas Opciones" cuando no hay peers), destacar comentarios y, en el panel inferior "Mas Opciones", los filtros (texto, plataforma, "solo sin respuesta", contador) y "Limpiar historial". La respuesta sin contenido no se muestra (la celda queda invisible y aparece cuando llega). En el centro del encabezado: lupa - / Restablecer / lupa + para el tamano de letra (80%-180%, recordado entre sesiones). El estado (Conectado / Peers P2P) y el link Dashboard viven adentro de "Mas Opciones". Al bajar en el chat el encabezado se oculta (titulo y boton) y queda solo la barra de letra; al subir vuelve a aparecer. Esa barra tiene lupa -, Restablecer y lupa +; en la punta izquierda del encabezado hay una flecha para mostrarlo/ocultarlo a mano y en la punta derecha el boton sol/luna que cambia entre tema oscuro (por defecto) y claro. El tema se recuerda entre sesiones y afecta solo a esta pagina. Filas alternadas: en dos columnas por fila (comentario+respuesta juntos) y, apilado en movil, por celda para que nunca queden dos del mismo color pegados. Header mas claro que el resto. En movil (<=620px) los controles de letra quedan como barra justo arriba del chat. |
-| `rulo-mascota.html` | Prototipo de la mascota (6 estados, CSS puro). |
+| `rulo-chat-historial.html` | Docks de chat: estado P2P (con aviso persistente y marca roja en "Mas Opciones" cuando no hay peers), destacar comentarios y, en el panel inferior "Mas Opciones", los filtros (texto, plataforma, "solo sin respuesta", contador) y "Limpiar historial". La respuesta sin contenido no se muestra (la celda queda invisible y aparece cuando llega). En el centro del encabezado: lupa - / Restablecer / lupa + para el tamano de letra (80%-180%, recordado entre sesiones). El estado (Conectado / Peers P2P) y el link Dashboard viven adentro de "Mas Opciones". El encabezado arranca siempre colapsado (titulo y boton ocultos; queda la barra de letra) y el scroll no lo cambia: la unica forma de mostrarlo es la flecha de la punta izquierda. Esa barra tiene lupa -, Restablecer y lupa +; en la punta derecha el boton sol/luna que cambia entre tema oscuro (por defecto) y claro. El tema se recuerda entre sesiones y afecta solo a esta pagina. Filas alternadas: en dos columnas por fila (comentario+respuesta juntos) y, apilado en movil, por celda para que nunca queden dos del mismo color pegados. Header mas claro que el resto. En movil (<=620px) los controles de letra quedan como barra justo arriba del chat. |
+| `rulo-mascota.html` | Panel de animaciones, disparadores y carga de videos para OBS. |
+| `rulo-animaciones.html` | Fuente de navegador transparente para OBS; entrada manual y animación automática al llegar respuestas reales. |
+| `rulo-animaciones-dashboard.html` | URL antigua; redirige al panel unificado de `rulo-mascota.html`. |
 | `rulo-chat-relay.js` | Override SSN que replica mensajes no-bot hacia Cortex. |
 | `rulo-config.json` | Configuración persistente de Rulo. |
 | `rulo-chat-history.json` | Historial persistente (generado). |

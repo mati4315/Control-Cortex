@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cortex · Inicio</title><link rel="stylesheet" href="/home.css"><script src="/home.js" defer></script></head>
+<body>
+<aside class="sidebar">
+  <a class="brand" href="/"><span class="logo">C</span><span>CORTEX<small>TU ESPACIO DE CONTROL</small></span></a>
+  <div class="workspace"><label for="profile">PERFIL ACTIVO</label><select id="profile" aria-label="Perfil activo" disabled></select><span id="profile-hint">Conectando con Cortex…</span></div>
+  <nav aria-label="Secciones"><button class="nav active" data-view="home"><span>▦</span> Inicio</button><button class="nav" data-view="favorites"><span>☆</span> Favoritos</button><button class="nav" data-view="profiles"><span>◎</span> Perfiles y respaldos</button><button class="nav" data-view="assistant"><span>✧</span> Asistente IA</button></nav>
+  <div class="sidebar-bottom"><a href="/index.html">↗ Control de servicios</a><p>Todo en su lugar.<br>Más espacio para crear.</p><span class="version">CORTEX / INICIO 01</span></div>
+</aside>
+<main>
+  <header class="topbar"><span>MI ESTUDIO <span class="slash">/</span> <span id="breadcrumb">Inicio</span></span><div class="topbar-tools"><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro">☾ <span>Modo oscuro</span></button><span class="connection" id="connection">Conectando</span></div></header>
+  <div id="notice" role="status" aria-live="polite" hidden></div>
+  <section id="view-home" class="view">
+    <div class="hero"><div><span class="eyebrow">MENOS PESTAÑAS. MÁS CONTROL.</span><h1>Tu estudio, en orden<span>.</span></h1><p>Un lugar para tus plugins, tus ajustes y lo que viene.</p></div><div class="hero-mark" aria-hidden="true">✳</div></div>
+    <div class="health-bar" aria-label="Estado del estudio"><div><span>Servicios en marcha</span><strong id="health-services">—</strong></div><div><span>Spotify</span><strong id="health-spotify">Comprobando…</strong></div><div><span>OBS WebSocket</span><strong id="health-obs">Comprobando…</strong></div></div>
+    <div class="summary"><div><strong id="module-count">—</strong><span>accesos disponibles</span></div><div><strong id="favorite-count">—</strong><span>favoritos en este perfil</span></div><div><strong id="active-name">—</strong><span>tu espacio actual</span></div></div>
+    <div class="section-heading"><div><span class="eyebrow">TU CAJA DE HERRAMIENTAS</span><h2 id="catalog-title">Todos tus paneles</h2></div><button id="add-link" class="primary">+ Añadir acceso</button></div>
+    <div class="filters"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar un panel, una función…" aria-label="Buscar paneles"></label><select id="category" aria-label="Filtrar por categoría"><option value="">Todas las categorías</option></select></div>
+    <div class="chips" id="categories"></div><div class="cards" id="cards"></div><p id="empty" class="empty" hidden>No hay paneles con este filtro. Prueba otra búsqueda o añade un acceso.</p>
+    <div class="footnote"><span>↗</span> Los paneles se abren en otra pestaña. Los servicios registrados en Cortex aparecen aquí automáticamente.</div>
+  </section>
+  <section id="view-profiles" class="view" hidden>
+    <span class="eyebrow">UN ESPACIO PARA CADA MOMENTO</span><h1>Perfiles y respaldos<span>.</span></h1><p class="lead">Alterna entre tu configuración habitual, pruebas y otros usuarios.</p>
+    <div class="info"><strong>Perfiles de configuración de este Cortex.</strong><p>Al cambiar, se guardan los ajustes actuales y se aplican los del perfil elegido a la misma sesión en vivo. «Pruebas» comparte los overlays y Spotify activos; no es un entorno de directo aislado ni una cuenta separada.</p><p><b>Incluye:</b> organización, favoritos, ajustes de Spotify y Rulo, overlay unificado, luces, clima, ruleta y bienvenida/banner. Los overlays detenidos guardan los ajustes para su próximo inicio.</p><p><b>Se mantienen globales:</b> conexión y claves de IA, credenciales, participantes e historial de ganadores, alias, historial de chat y conexión OBS.</p></div>
+    <div class="toolbar"><button id="new-profile" class="primary">+ Crear perfil</button><button id="save-profile">Guardar ajustes actuales</button><button id="import-profile">Importar respaldo</button><input id="import-file" type="file" accept="application/json,.json" hidden></div>
+    <div id="profiles" class="profile-list"></div>
+  </section>
+  <section id="view-assistant" class="view" hidden>
+    <span class="eyebrow">EL MISMO CEREBRO, MÁS CONTEXTO</span><h1>Hablemos de tu Cortex<span>.</span></h1><p class="lead">Consulta el proyecto, pide recomendaciones y prepara cambios para tus overlays.</p>
+    <div class="context-card"><div><strong>Contexto del proyecto</strong><span id="context-status">Preparando índice local…</span></div><div class="context-actions"><button id="load-overlay-list" type="button">Ver overlays y parámetros</button><button id="refresh-context" type="button">Actualizar contexto</button></div></div>
+    <div id="overlay-inventory" class="overlay-inventory" hidden></div>
+    <div class="info"><strong id="ai-status">Comprobando conexión…</strong><p>El proveedor y modelo del asistente se guardan aquí. Cada proveedor usa su propia clave de <code>Control Cortex/backend/.env</code>; las claves nunca se muestran ni llegan al navegador. Al cambiar el archivo, reinicia Cortex.</p><p id="ai-key-status" role="status">Comprobando clave…</p><a href="/rulo-spotify-training.html" target="_blank" rel="noopener">Abrir Entrenamiento de Rulo ↗</a></div>
+    <form id="ai-config-form" class="ai-config-form"><label for="ai-provider">Proveedor</label><select id="ai-provider" name="provider"><option value="rulo">IA de Rulo</option><option value="gemini">Google Gemini</option><option value="openai">OpenAI API</option></select><label for="ai-model">Modelo</label><div class="ai-model-row"><input id="ai-model" name="model" list="ai-model-options" maxlength="120" placeholder="Escribe o elige un modelo" required><datalist id="ai-model-options"><option value="gemini-3.6-flash" label="Gemini 3.6 Flash"></option><option value="gpt-5.4-nano" label="OpenAI GPT-5.4 nano · económico"></option></datalist><button id="save-ai-model" class="primary" type="submit">Guardar modelo</button></div><p id="ai-model-hint">El modelo de Rulo que ya tenías configurado.</p></form>
+    <div class="suggestions"><button data-question="Revisa el proyecto y recomiéndame tres mejoras futuras con mayor impacto y un orden para implementarlas.">Recomendar mejoras</button><button data-question="Quiero que el overlay unificado use un estilo más limpio. Propón cambios concretos en los parámetros visuales actuales y explica cada uno.">Mejorar un overlay</button><button data-question="¿Qué plugins y dashboards forman mi proyecto y cómo se conectan entre sí?">Entender el proyecto</button></div>
+    <form id="ask-form"><label for="question">¿Qué quieres mejorar?</label><textarea id="question" maxlength="4000" rows="4" placeholder="Ej.: cambia los colores y el tamaño del overlay de bienvenida, y recomiéndame mejoras futuras…" required></textarea><button id="ask" class="primary">Consultar al asistente ↗</button></form>
+    <article id="answer-wrap" hidden><div class="section-heading"><h2>Una propuesta para ti</h2><button id="copy-answer">Copiar respuesta</button></div><div id="answer"></div><div id="overlay-changes" hidden></div></article>
+    <section class="assistant-history"><div class="section-heading"><div><span class="eyebrow">RECUPERACIÓN</span><h2>Cambios aplicados</h2></div><button id="toggle-history" type="button">Ver historial</button></div><div id="assistant-history-list" hidden></div></section>
+  </section>
+  <footer>CORTEX <span>Un inicio. Todos tus proyectos.</span><a href="/index.html">Administrar servicios ↗</a></footer>
+</main>
+<dialog id="editor"><form id="editor-form"><div class="section-heading"><h2 id="editor-title">Nuevo acceso</h2><button type="button" id="close-editor" aria-label="Cerrar">×</button></div><label>Nombre<input name="name" maxlength="80" required></label><div id="link-fields"><label>Dirección del dashboard<input name="url" placeholder="http://localhost:3000 o /mi-panel.html"></label><label>Categoría<input name="category" maxlength="80" value="Mis accesos"></label></div><button class="primary" type="submit">Guardar</button></form></dialog>
+<dialog id="confirm"><h2 id="confirm-title">Cambiar perfil</h2><p id="confirm-text"></p><div class="toolbar"><button id="cancel-confirm">Cancelar</button><button id="accept-confirm" class="primary">Continuar</button></div></dialog>
+</body></html>

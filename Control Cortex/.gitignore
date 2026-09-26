@@ -5,6 +5,11 @@ env/
 secrets/
 *.local
 *.log
+*.rar
+# Estado local y respaldos de Inicio (mismo criterio que el repositorio principal)
+backend/cortex-home.json*
+backend/cortex-project-context.json*
+backend/cortex-assistant-history.json*
 config/*.json
 settings.json
 README-Spotify-install*

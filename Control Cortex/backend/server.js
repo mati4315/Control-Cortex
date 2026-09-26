@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const pm2 = require('pm2');
 const os = require('os');
+const net = require('net');
 const { OBSWebSocket } = require('obs-websocket-js');
 const { createFileStore } = require('./file-store');
 const { createAnalytics } = require('./spotify-analytics');
@@ -62,6 +63,20 @@ const OBS_CONFIG = {
   url: process.env.OBS_WS_URL || 'ws://192.168.4.45:4455',
   password: process.env.OBS_WS_PASSWORD || ''
 };
+function probeObsWebSocket() {
+  let endpoint;
+  try { endpoint = new URL(OBS_CONFIG.url); } catch { return Promise.resolve(false); }
+  const host = endpoint.hostname.replace(/^\[|\]$/g, '');
+  const port = Number(endpoint.port || (endpoint.protocol === 'wss:' ? 443 : 4455));
+  return new Promise(resolve => {
+    const socket = net.createConnection({ host, port });
+    let settled = false;
+    const finish = reachable => { if (settled) return; settled = true; clearTimeout(timer); socket.destroy(); resolve(reachable); };
+    const timer = setTimeout(() => finish(false), 1600);
+    socket.once('connect', () => finish(true));
+    socket.once('error', () => finish(false));
+  });
+}
 if (!OBS_CONFIG.password) {
   console.warn('[Cortex] Falta OBS_WS_PASSWORD en .env: el control de OBS no va a poder conectarse.');
 }
@@ -140,11 +155,14 @@ const DEFAULT_RULO_CONFIG = {
   accent: '#9fd50b',
   avatarLetter: 'A',
   visibleMs: 12000,
+  replyDelayMs: 0,
   maxWidth: 760,
   fontSize: 1.35,
   panelOpacity: 0.94,
   showRequester: true,
   showMascot: false,
+  showBotName: true,
+  showAvatar: true,
   // Tema del overlay para OBS: 'dark' (por defecto) o 'light'.
   overlayTheme: 'dark',
   animation: 'slide'
@@ -583,11 +601,16 @@ function queueSpotifyCommand(command) {
   return entry;
 }
 
-function dequeueSpotifyCommand() {
+function pendingSpotifyCommands() {
   const now = Date.now();
   while (spotifyCommandQueue.length && now - spotifyCommandQueue[0].createdAt > SPOTIFY_COMMAND_TTL_MS) {
     spotifyCommandQueue.shift();
   }
+  return spotifyCommandQueue.slice(0, 10);
+}
+
+function dequeueSpotifyCommand() {
+  pendingSpotifyCommands();
   return spotifyCommandQueue.shift() || null;
 }
 
@@ -736,7 +759,31 @@ if (!vocabularyInit.exists) {
 
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '2mb' }));
+
+// Reemplazo de los clips de Rulo: nombres fijos, WebM validado y escritura atómica.
+app.post('/api/rulo-animation-upload/:kind', express.raw({ type: 'video/webm', limit: '100mb' }), (req, res) => {
+  const filenames = { aparecer: 'aparece de abajo.webm', hablar: 'hablando.webm', dormir: 'Rulo Durmiendo.webm' };
+  const filename = filenames[String(req.params.kind || '')];
+  const data = req.body;
+  if (!filename) return res.status(400).json({ success: false, error: 'Animación no válida.' });
+  if (!Buffer.isBuffer(data) || data.length < 4 || data[0] !== 0x1a || data[1] !== 0x45 || data[2] !== 0xdf || data[3] !== 0xa3) {
+    return res.status(400).json({ success: false, error: 'El archivo no parece ser un WebM válido.' });
+  }
+  const directory = path.join(WORKSPACE_ROOT, 'Rulo', 'animaciones');
+  const target = path.join(directory, filename);
+  const temporary = target + '.upload';
+  try {
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(temporary, data);
+    fs.renameSync(temporary, target);
+    res.json({ success: true, filename, bytes: data.length });
+  } catch (error) {
+    try { fs.unlinkSync(temporary); } catch (_) {}
+    console.error('[Rulo] No se pudo actualizar la animación:', error.message);
+    res.status(500).json({ success: false, error: 'No se pudo guardar el video.' });
+  }
+});
 
 // Antes de cada consulta de Spotify: si algun JSON cambio afuera (edicion a mano
 // o de una IA), se relee y se le avisa a la extension. Ademas un vigilante cada
@@ -841,6 +888,33 @@ app.get('/rulo-mascota.html', (req, res, next) => {
   });
 });
 
+// Mascota animada de Rulo para OBS y panel de disparadores.
+app.get('/rulo-animaciones.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo', 'rulo-animaciones.html'), error => { if (error) next(error); });
+});
+app.get('/rulo-animaciones-dashboard.html', (req, res, next) => {
+  res.redirect(302, '/rulo-mascota.html' + (req.url.includes('?') ? req.url.slice(req.url.indexOf('?')) : ''));
+});
+app.use('/rulo-animaciones', express.static(path.join(WORKSPACE_ROOT, 'Rulo', 'animaciones'), { setHeaders: res => res.setHeader('Cache-Control', 'no-store') }));
+app.post('/api/rulo-animation-trigger', (req, res) => {
+  const action = String((req.body || {}).action || '');
+  if (!['aparecer', 'hablar', 'dormir', 'ocultar'].includes(action)) return res.status(400).json({ success: false, error: 'Accion invalida' });
+  const timestamp = Date.now();
+  const triggerId = `${timestamp}-${Math.random().toString(36).slice(2, 8)}`;
+  if (action === 'hablar') {
+    const testReply = {
+      message: 'Prueba de animación hablando.', botName: ruloConfig.botName,
+      mood: 'speaking', requester: '', timestamp, triggerId
+    };
+    latestRuloBotMessage = testReply;
+    broadcast({ type: 'rulo_bot_message', rulo: testReply });
+  }
+  const overlayClients = broadcastRuloAnimation({ type: 'rulo_animation_control', action, triggerId, timestamp });
+  res.json({ success: true, action, overlayClients });
+});
+app.get('/api/rulo-animation-status', (req, res) => res.json({ success: true, overlayClients: ruloAnimationClients.size }));
+
 // Dashboard de Spotify (pedidos de musica, esperas, dispositivo y pruebas).
 app.get('/rulo-spotify.html', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -874,6 +948,16 @@ app.get('/rulo-spotify-training.html', (req, res, next) => {
 app.use('/rulo-assets', express.static(path.join(WORKSPACE_ROOT, 'Rulo', 'assets')));
 
 // Serve static frontend files
+require('./cortex-home').mountHome(app, {
+  server, readServices,
+  obsHealth: probeObsWebSocket,
+  aiConfig: () => spotifyVocabulary.ai || {},
+  providerKeys: () => ({
+    rulo: spotifyAiKey(),
+    gemini: String(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '').trim(),
+    openai: String(process.env.OPENAI_API_KEY || '').trim()
+  })
+});
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 app.get('/api/spotify-device-target', (req, res) => {
@@ -955,11 +1039,14 @@ app.get('/api/spotify-client-state', (req, res) => {
     version: String(req.query?.version || '').slice(0, 20),
     hasToken: req.query?.token === '1'
   };
-  const commands = [];
-  let next = dequeueSpotifyCommand();
-  while (next && commands.length < 10) {
-    commands.push(next);
-    next = dequeueSpotifyCommand();
+  const supportsClaims = Number(req.query?.version) >= 42;
+  const commands = supportsClaims ? pendingSpotifyCommands() : [];
+  if (!supportsClaims) {
+    let next = dequeueSpotifyCommand();
+    while (next && commands.length < 10) {
+      commands.push(next);
+      next = dequeueSpotifyCommand();
+    }
   }
   res.json({
     ok: true,
@@ -972,6 +1059,15 @@ app.get('/api/spotify-client-state', (req, res) => {
     sessionId: RULO_SESSION_ID,
     serverTime: Date.now()
   });
+});
+
+app.post('/api/spotify-command-claim', (req, res) => {
+  const id = String(req.body?.id || '').slice(0, 80);
+  pendingSpotifyCommands();
+  const index = spotifyCommandQueue.findIndex(command => command.id === id);
+  if (index === -1) return res.json({ ok: true, claimed: false });
+  spotifyCommandQueue.splice(index, 1);
+  res.json({ ok: true, claimed: true });
 });
 
 // --- Correcciones de escritura ("laberiso" -> "la beriso") ---
@@ -2284,6 +2380,8 @@ app.post('/api/rulo-bot-message', (req, res) => {
   }
 
   const requestedMood = String(body.mood || '').trim().toLowerCase();
+  // Actividad en vivo: incluye pedidos que aún se están buscando. No se reenvía al conectar.
+  broadcastRuloAnimation({ type: 'rulo_animation_activity', timestamp: Date.now() });
   const provisional = body.provisional === true;
   const botMessage = {
     message,
@@ -2291,7 +2389,9 @@ app.post('/api/rulo-bot-message', (req, res) => {
     botName: ruloConfig.botName,
     mood: RULO_MOODS.includes(requestedMood) ? requestedMood : 'success',
     requester: String(body.requester || '').trim().slice(0, 80),
-    timestamp: Number(body.timestamp) || Date.now()
+    timestamp: Number(body.timestamp) || Date.now(),
+    triggerId: `${Number(body.timestamp) || Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    provisional
   };
 
   // Mensaje provisorio (ej. "Buscando en Spotify..." con mood thinking): se muestra en el
@@ -2302,6 +2402,9 @@ app.post('/api/rulo-bot-message', (req, res) => {
   }
 
   latestRuloBotMessage = botMessage;
+
+  // Solo respuestas reales activan el movimiento de habla; los avisos provisorios no.
+  broadcastRuloAnimation({ type: 'rulo_animation_trigger', animation: 'hablando', timestamp: botMessage.timestamp, triggerId: botMessage.triggerId });
 
   if (latestRuloBotMessage.requester) {
     const matched = [...ruloChatItems].reverse().find(item =>
@@ -2376,7 +2479,10 @@ app.post('/api/rulo-repeat-response', (req, res) => {
     timestamp: Date.now()
   };
   latestRuloBotMessage = message;
-  broadcast({ type: 'rulo_bot_message', rulo: message });
+  message.triggerId = `${message.timestamp}-${Math.random().toString(36).slice(2, 8)}`;
+  broadcastRuloAnimation({ type: 'rulo_animation_trigger', animation: 'hablando', timestamp: message.timestamp, triggerId: message.triggerId });
+  // La orden manual es transitoria: no se repite al reconectar una fuente.
+  broadcast({ type: 'rulo_bot_message', rulo: message, forceOverlay: body.forceOverlay === true });
   res.json({ success: true });
 });
 
@@ -2392,11 +2498,14 @@ app.post('/api/rulo-config', (req, res) => {
     accent: /^#[0-9a-f]{6}$/i.test(String(body.accent || '')) ? String(body.accent) : ruloConfig.accent,
     avatarLetter: String(body.avatarLetter ?? ruloConfig.avatarLetter).trim().slice(0, 2) || 'A',
     visibleMs: Math.min(60000, Math.max(2000, Math.round(Number(body.visibleMs ?? ruloConfig.visibleMs) || 12000))),
+    replyDelayMs: Math.min(120000, Math.max(0, Math.round(Number(body.replyDelayMs ?? ruloConfig.replyDelayMs) || 0))),
     maxWidth: Math.min(1200, Math.max(320, Math.round(Number(body.maxWidth ?? ruloConfig.maxWidth) || 760))),
     fontSize: Math.min(2.5, Math.max(0.7, Number(body.fontSize ?? ruloConfig.fontSize) || 1.35)),
     panelOpacity: Math.min(1, Math.max(0.2, Number(body.panelOpacity ?? ruloConfig.panelOpacity) || 0.94)),
     showRequester: body.showRequester === undefined ? ruloConfig.showRequester : body.showRequester === true,
     showMascot: body.showMascot === undefined ? ruloConfig.showMascot === true : body.showMascot === true,
+    showBotName: body.showBotName === undefined ? ruloConfig.showBotName !== false : body.showBotName === true,
+    showAvatar: body.showAvatar === undefined ? ruloConfig.showAvatar !== false : body.showAvatar === true,
     overlayTheme: ['dark', 'light'].includes(String(body.overlayTheme || '').toLowerCase())
       ? String(body.overlayTheme).toLowerCase()
       : ruloConfig.overlayTheme,
@@ -2468,6 +2577,72 @@ app.post('/api/rulo-unified-config', (req, res) => {
   }
 });
 
+// Espectadores en vivo. El relay de SSN los manda desde sendDataP2P (no pasan por
+// sendToDestinations), asi que llegan al endpoint y se reparten por WebSocket.
+let viewerCounts = {};
+let viewerCountsAt = 0;
+let latestStreamActivity = null;
+// Un conteo viejo no se muestra: si el vivo termino, el numero quedaba pegado.
+const VIEWER_TTL_MS = 90000;
+function viewerCountSnapshot() {
+  const fresco = viewerCountsAt > 0 && (Date.now() - viewerCountsAt) < VIEWER_TTL_MS;
+  const counts = fresco ? viewerCounts : {};
+  const total = Object.values(counts).reduce((suma, n) => suma + (Number(n) || 0), 0);
+  return { counts, total, updatedAt: fresco ? viewerCountsAt : 0 };
+}
+
+app.post('/api/viewer-count', (req, res) => {
+  const body = req.body || {};
+  // Limpiar a mano: sirve si quedo un numero pegado de una prueba o de un vivo
+  // anterior. Se reparte el vacio por WebSocket para que los overlays lo suelten.
+  if (body.reset === true) {
+    viewerCounts = {};
+    viewerCountsAt = 0;
+    const limpio = viewerCountSnapshot();
+    broadcast({ type: 'viewer_count', ...limpio });
+    return res.json({ ok: true, ...limpio });
+  }
+  const entrantes = body.counts && typeof body.counts === 'object' && !Array.isArray(body.counts) ? body.counts : null;
+  const proximos = {};
+  if (entrantes) {
+    Object.keys(entrantes).slice(0, 20).forEach(clave => {
+      const n = Number(entrantes[clave]);
+      if (Number.isFinite(n) && n >= 0) proximos[String(clave).slice(0, 30)] = Math.round(n);
+    });
+  } else {
+    const n = Number(body.count);
+    if (Number.isFinite(n) && n >= 0) proximos[String(body.platform || 'chat').slice(0, 30)] = Math.round(n);
+  }
+  if (!Object.keys(proximos).length) return res.status(400).json({ ok: false, error: 'Sin conteos validos.' });
+  // El relay manda el objeto completo cuando es el agregado (replace). Si se
+  // fusionara, una plataforma vieja quedaria sumando para siempre al total.
+  viewerCounts = body.replace === true ? proximos : { ...viewerCounts, ...proximos };
+  viewerCountsAt = Date.now();
+  const snapshot = viewerCountSnapshot();
+  broadcast({ type: 'viewer_count', ...snapshot });
+  res.json({ ok: true, ...snapshot });
+});
+
+app.get('/api/viewer-count', (req, res) => {
+  res.json({ ok: true, ...viewerCountSnapshot() });
+});
+
+// Entradas al directo: solo se anuncian eventos explícitos enviados por SSN.
+app.post('/api/stream-activity', (req, res) => {
+  const body = req.body || {};
+  const event = String(body.event || '').toLowerCase();
+  const name = typeof body.name === 'string' ? body.name.trim().replace(/[<>]/g, '').slice(0, 100) : '';
+  if (!name || !['joined', 'rejoined'].includes(event)) return res.status(400).json({ ok: false, error: 'Evento de entrada no válido.' });
+  latestStreamActivity = { name, event, platform: String(body.platform || 'live').slice(0, 30), updatedAt: Date.now() };
+  broadcast({ type: 'stream_activity', activity: latestStreamActivity });
+  res.json({ ok: true });
+});
+
+app.get('/api/stream-activity', (req, res) => {
+  const fresh = latestStreamActivity && Date.now() - latestStreamActivity.updatedAt < 120000;
+  res.json({ ok: true, activity: fresh ? latestStreamActivity : null });
+});
+
 // API: URL base de Cortex — fuente unica para panel, overrides y OBS.
 app.get('/api/cortex-base-url', (req, res) => {
   res.json({
@@ -2476,6 +2651,28 @@ app.get('/api/cortex-base-url', (req, res) => {
     sessionId: RULO_SESSION_ID,
     port: PORT
   });
+});
+
+// API: URL publica del tunel de ngrok (acceso remoto temporal).
+// Se lee desde la API local de ngrok porque cambia en cada reinicio del tunel.
+app.get('/api/ngrok-url', async (req, res) => {
+  try {
+    const respuesta = await fetch('http://127.0.0.1:4040/api/tunnels', { signal: AbortSignal.timeout(4000) });
+    const datos = await respuesta.json();
+    const tuneles = Array.isArray(datos && datos.tunnels) ? datos.tunnels : [];
+    const tunel = tuneles.find(t => String((t && t.public_url) || '').startsWith('https')) || tuneles[0];
+    if (!tunel || !tunel.public_url) return res.json({ success: true, activo: false });
+    res.json({
+      success: true,
+      activo: true,
+      publicUrl: String(tunel.public_url).replace(/\/+$/, ''),
+      addr: String((tunel.config && tunel.config.addr) || ''),
+      sessionId: RULO_SESSION_ID
+    });
+  } catch (_) {
+    // Sin tunel levantado: no es un error, simplemente esta apagado.
+    res.json({ success: true, activo: false, sessionId: RULO_SESSION_ID });
+  }
 });
 
 // API: Stop all services
@@ -2570,6 +2767,7 @@ server.on('upgrade', (request, socket, head) => {
 
 // Keep track of connected clients
 const clients = new Set();
+const ruloAnimationClients = new Set();
 // Clientes de Spotify (extension SocialStream Ninja): reciben los comandos del
 // dashboard al instante, sin esperar el poll. El poll sigue como respaldo.
 const spotifySockets = new Set();
@@ -2580,6 +2778,7 @@ function pushToSpotifyClients(payload) {
   let sent = 0;
   spotifySockets.forEach((socket) => {
     try {
+      if (payload.type === 'spotify_command' && socket.spotifyCommandClaims !== true) return;
       if (socket.readyState === WebSocket.OPEN) {
         socket.send(message);
         sent += 1;
@@ -2593,6 +2792,8 @@ wss.on('connection', (ws, request) => {
   const isSpotifyClient = String(request?.url || '').includes('/api/spotify-ws');
   if (isSpotifyClient) {
     // La extension solo recibe lo suyo: no se le manda el trafico de overlays.
+    const clientVersion = Number(new URL(request.url, 'http://localhost').searchParams.get('version'));
+    ws.spotifyCommandClaims = clientVersion >= 42;
     spotifySockets.add(ws);
     console.log(`[Spotify] Extension conectada por WebSocket (${spotifySockets.size} activa/s).`);
     try {
@@ -2608,6 +2809,12 @@ wss.on('connection', (ws, request) => {
     return;
   }
   clients.add(ws);
+  const clientUrl = new URL(request.url, 'http://localhost');
+  if (clientUrl.searchParams.get('client') === 'rulo-animation') {
+    ws.isRuloAnimationClient = true;
+    ruloAnimationClients.add(ws);
+    broadcast({ type: 'rulo_animation_clients', count: ruloAnimationClients.size });
+  }
   console.log(`WebSocket client connected. Total clients: ${clients.size}`);
 
   if (latestSpotifyOverlay) {
@@ -2640,8 +2847,32 @@ wss.on('connection', (ws, request) => {
     ws.send(JSON.stringify({ type: 'rulo_unified_config_updated', config: ruloUnifiedConfig }));
   } catch (_) {}
 
+  if (viewerCountsAt) {
+    try {
+      ws.send(JSON.stringify({ type: 'viewer_count', ...viewerCountSnapshot() }));
+    } catch (_) {}
+  }
+
+  if (latestStreamActivity && Date.now() - latestStreamActivity.updatedAt < 120000) {
+    try { ws.send(JSON.stringify({ type: 'stream_activity', activity: latestStreamActivity })); } catch (_) {}
+  }
+
+  ws.on('message', raw => {
+    if (!ws.isRuloAnimationClient) return;
+    try {
+      const data = JSON.parse(String(raw));
+      if (data.type === 'rulo_animation_started' && data.animation === 'hablando') {
+        broadcast({ type: 'rulo_animation_started', animation: 'hablando', triggerId: String(data.triggerId || '') });
+      }
+    } catch (_) {}
+  });
+
   ws.on('close', () => {
     clients.delete(ws);
+    if (ws.isRuloAnimationClient) {
+      ruloAnimationClients.delete(ws);
+      broadcast({ type: 'rulo_animation_clients', count: ruloAnimationClients.size });
+    }
     console.log(`WebSocket client disconnected. Total clients: ${clients.size}`);
   });
 });
@@ -2654,6 +2885,16 @@ function broadcast(data) {
       client.send(message);
     }
   });
+}
+
+function broadcastRuloAnimation(data) {
+  const message = JSON.stringify(data);
+  let sent = 0;
+  ruloAnimationClients.forEach(client => {
+    if (client.readyState !== WebSocket.OPEN) return;
+    try { client.send(message); sent += 1; } catch (_) {}
+  });
+  return sent;
 }
 
 // PM2 launch bus to monitor real-time logs and events

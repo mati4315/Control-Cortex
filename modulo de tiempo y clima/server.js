@@ -3,11 +3,13 @@ const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const fs = require('fs');
+const cortexOverlayConfig = require('../cortex-overlay-config');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
+app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const CONFIG_PATH = path.join(__dirname, 'config.json');
@@ -164,6 +166,19 @@ async function updateAllWeather(bypassCache = false) {
     io.emit('configUpdate', overlayConfig);
   }
 }
+
+app.get('/api/cortex-overlay-config', cortexOverlayConfig.localOnly, (req, res) => res.json({ success: true, config: cortexOverlayConfig.publicConfig(overlayConfig) }));
+app.post('/api/cortex-overlay-config', cortexOverlayConfig.localOnly, async (req, res) => {
+  try {
+    const oldCities = overlayConfig.locations.map(location => location.city).join('|');
+    if (req.body && req.body.snapshot) overlayConfig = cortexOverlayConfig.mergeSnapshot(overlayConfig, req.body.snapshot);
+    else cortexOverlayConfig.applyChanges(overlayConfig, req.body && req.body.changes);
+    saveConfig();
+    io.emit('configUpdate', overlayConfig);
+    if (oldCities !== overlayConfig.locations.map(location => location.city).join('|')) await updateAllWeather(false);
+    res.json({ success: true, config: cortexOverlayConfig.publicConfig(overlayConfig) });
+  } catch (error) { res.status(400).json({ success: false, error: error.message }); }
+});
 
 // Periodically update weather every 10 minutes
 setInterval(() => updateAllWeather(false), 10 * 60 * 1000);

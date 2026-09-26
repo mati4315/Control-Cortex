@@ -27,6 +27,10 @@
     .chip.ph { border-style:dashed; font-family:Consolas,monospace; font-size:.8rem; padding:4px 9px; }
     .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
     .card { padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+    .duration-card { display:flex; align-items:end; gap:12px; flex-wrap:wrap; margin:0 0 12px; }
+    .duration-card label { display:block; margin:0 0 5px; font-weight:700; }
+    .duration-card input { width:150px; }
+    .duration-card .duration-help { flex-basis:100%; margin:0; }
     .card h3 { margin:0 0 6px; font-size:.98rem; }
     .card .mood { color:var(--muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.04em; }
     textarea, input[type=text], input[type=number] { width:100%; border:1px solid #465160; border-radius:5px; background:#0e1116; color:var(--text); padding:9px; font:inherit; }
@@ -96,9 +100,15 @@
       </div>
     </div>
 
-    <h2>Respuestas del bot / Rulo</h2>
+    <h2 id="rulo-responses">Respuestas del bot / Rulo</h2>
     <span class="hint">Una respuesta por línea. Los datos entre llaves se completan solos: <code>{nombre}</code> (el que pidió), <code>{tema}</code>, <code>{artista}</code>, <code>{pedido}</code>, <code>{busqueda}</code>, <code>{genero}</code>, <code>{segundos}</code>, <code>{dispositivo}</code>, <code>{accion}</code>, <code>{comando}</code>, <code>{dispositivos}</code>, <code>{entendido}</code>. Si una variante pide un dato que en ese momento no existe, el bot la saltea y elige otra.<br>
     El botón <strong>Generar 3 con IA</strong> usa el cerebro: se activa, se le pone el endpoint y el modelo en <a href="/rulo-spotify-training.html#cerebro" style="color:var(--accent)">Entrenamiento → Cerebro (IA)</a>, y la clave va en <code>Control Cortex/backend/.env</code> como <code>SPOTIFY_AI_API_KEY</code>.</span>
+    <div class="card duration-card">
+      <div><label for="replyVisibleSeconds">Tiempo visible de la respuesta en el overlay (segundos)</label><input id="replyVisibleSeconds" type="number" min="2" max="60" step="0.5" inputmode="decimal"></div>
+      <button id="saveReplyVisibleSeconds" type="button">Guardar tiempo</button>
+      <span id="replyVisibleStatus" class="notice" role="status" aria-live="polite"></span>
+      <span class="hint duration-help">De 2 a 60 segundos. El cambio también actualiza la respuesta que esté visible.</span>
+    </div>
     <div class="card" style="margin-bottom:14px">
       <div class="row">
         <label style="flex:0 0 auto"><input type="checkbox" id="respRandom"> Elegir al azar</label>
@@ -131,6 +141,8 @@
       const el = id => document.getElementById(id);
       const notice = el('notice');
       const status = el('status');
+      const replyVisibleSeconds = el('replyVisibleSeconds');
+      const replyVisibleStatus = el('replyVisibleStatus');
       // Datos de ejemplo para la vista previa y para probar cada contexto.
       const SAMPLE = {
         nombre: "Matías",
@@ -165,6 +177,38 @@
       function textToList(value) {
         return String(value || '').split('\n').map(line => line.trim()).filter(Boolean);
       }
+
+      function loadReplyVisibleTime() {
+        fetch('/api/rulo-config').then(response => response.json()).then(data => {
+          if (!data || !data.config) throw new Error('No se pudo leer el ajuste.');
+          replyVisibleSeconds.value = (Number(data.config.visibleMs || 12000) / 1000).toString();
+        }).catch(error => { replyVisibleStatus.textContent = error.message || 'No se pudo cargar el tiempo.'; replyVisibleStatus.classList.add('error'); });
+      }
+      const ruloConfigSocket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+      ruloConfigSocket.addEventListener('message', event => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type !== 'rulo_config_updated' || !data.config) return;
+          if (document.activeElement !== replyVisibleSeconds && Number.isFinite(Number(data.config.visibleMs))) {
+            replyVisibleSeconds.value = (Number(data.config.visibleMs) / 1000).toString();
+            replyVisibleStatus.textContent = 'Sincronizado con el dashboard.';
+            replyVisibleStatus.classList.remove('error');
+          }
+        } catch (_) {}
+      });
+      el('saveReplyVisibleSeconds').addEventListener('click', async () => {
+        if (!replyVisibleSeconds.reportValidity()) return;
+        const button = el('saveReplyVisibleSeconds'); button.disabled = true; replyVisibleStatus.textContent = 'Guardando…'; replyVisibleStatus.classList.remove('error');
+        try {
+          const response = await fetch('/api/rulo-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ visibleMs:Math.round(Number(replyVisibleSeconds.value) * 1000) }) });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.error || 'No se pudo guardar el tiempo.');
+          replyVisibleSeconds.value = (Number(data.config.visibleMs) / 1000).toString();
+          replyVisibleStatus.textContent = 'Tiempo guardado.';
+        } catch (error) { replyVisibleStatus.textContent = error.message || 'No se pudo guardar el tiempo.'; replyVisibleStatus.classList.add('error'); }
+        finally { button.disabled = false; }
+      });
+      loadReplyVisibleTime();
 
       // --- misma logica de eleccion que usa el modulo en la extension ---------
       function placeholdersOf(template) {

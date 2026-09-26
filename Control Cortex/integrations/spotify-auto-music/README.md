@@ -61,6 +61,8 @@ consultan a `POST /api/spotify-ai-interpret` (la clave vive en el `.env` del bac
 
 ## Tolerancia a errores de escritura
 
+Desde la versión 43, las búsquedas de canciones usan páginas de hasta 10 resultados, compatibles con el límite de Spotify Development Mode. El grupo de variedad de 20 o más canciones se obtiene con paginación. Un rechazo HTTP se comunica como error de búsqueda, sin afirmar que el artista no existe. La regresión del pedido «quiero un tema de karina» se comprueba en `Rulo/tests/spotify-module-test.js`, con el catálogo de artista no disponible y el límite de 10 exigido por la API simulada.
+
 El parser acepta saludos, muletillas, "temita/temazo" como sinonimo de "tema" y pedidos sin la palabra
 tema ("pasame a ke personajes"). Si la busqueda no encuentra nada, prueba variantes (articulo pegado
 "laberiso" -> "la beriso", sin articulo, y confusiones i/y, b/v, s/z, ll/y, qu/k, c/s; hasta 7 intentos)

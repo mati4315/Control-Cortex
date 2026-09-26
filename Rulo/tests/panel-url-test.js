@@ -9,7 +9,7 @@ const seen = [];
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 (async () => {
-  const dom = await JSDOM.fromURL('http://127.0.0.1:4000/', {
+  const dom = await JSDOM.fromURL('http://127.0.0.1:4000/index.html', {
     runScripts: 'dangerously',
     resources: 'usable',
     pretendToBeVisual: true,

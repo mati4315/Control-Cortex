@@ -36,7 +36,9 @@
     .preview-controls small { margin:0; }
     .preview iframe { width:100%; height:145px; border:1px dashed #465160; background:transparent; }
     .url-box { margin:0 0 22px; padding:14px; border:1px solid var(--accent); border-radius:8px; background:#151a21; }
-    .url-label { display:block; margin-bottom:8px; color:var(--accent); font-weight:800; }
+    .url-label { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px; color:var(--accent); font-weight:800; }
+    .url-label a { color:var(--text); background:#303845; border-radius:5px; padding:7px 10px; font-size:.88rem; text-decoration:none; }
+    .url-label a:hover { background:#414d5c; }
     .url-line { display:flex; gap:8px; align-items:center; }
     .url-line input { flex:1; min-width:0; }
     .url-line button { white-space:nowrap; }
@@ -53,7 +55,7 @@
       <div class="status" id="status">Cargando configuración...</div>
     </header>
     <section class="url-box">
-      <span class="url-label">URL para OBS Browser Source</span>
+      <span class="url-label">URL para OBS Browser Source <a id="editResponsesLink" href="/rulo-spotify-bot.html" target="_blank" rel="noopener">Editar respuestas de Rulo ↗</a></span>
       <div class="url-line"><input id="overlayUrl" readonly><button id="copyUrl" type="button">Copiar URL</button><button id="openUrl" class="secondary" type="button">Abrir</button></div>
       <small>Usá esta dirección como fuente Navegador en OBS. Se actualiza con el Session ID indicado.</small>
       <div class="url-line url-extra"><input id="dockUrl" readonly><button id="copyDock" type="button">Copiar dock</button><button id="openDock" class="secondary" type="button">Abrir</button></div>
@@ -65,16 +67,30 @@
       <div class="url-line url-extra"><input id="featuredUrl" readonly><button id="copyFeatured" type="button">Copiar destacados</button><button id="openFeatured" class="secondary" type="button">Abrir</button></div>
       <small>Mensajes destacados: aparece al hacer clic en un comentario del historial. Estilo art-forest con canguro local editable.</small>
     </section>
+    <section class="url-box" id="ngrokBox">
+      <span class="url-label">Acceso remoto (ngrok)</span>
+      <div class="url-line"><input id="ngrokUrl" readonly placeholder="Túnel apagado"><button id="copyNgrok" type="button">Copiar</button><button id="openNgrokPanel" class="secondary" type="button">Panel de ngrok</button></div>
+      <small id="ngrokInfo">Para que otra persona maneje el historial desde afuera. La dirección cambia cada vez que reiniciás el túnel: acá se actualiza sola.</small>
+    </section>
+    <section class="url-box">
+      <span class="url-label">Facebook: contador de espectadores</span>
+      <div class="url-line"><input id="fbVideoInput" placeholder="URL o ID del video en vivo"><button id="fbVideoOpen" type="button">Abrir el video</button><button id="fbVideoCopy" class="secondary" type="button">Copiar URL</button></div>
+      <div class="url-line url-extra"><input id="fbPageInput" placeholder="Page ID (solo si transmitís desde una Página)"><button id="fbPageCopy" class="secondary" type="button">Copiar URL del bridge</button></div>
+      <small id="fbVideoInfo">Con la página del video abierta en una pestaña, SSN lee el contador y lo manda al historial. No hace falta token. El bridge con token es solo para Páginas que administrás.</small>
+    </section>
     <form id="configForm">
       <div class="field"><label for="botName">Nombre visible</label><input id="botName" maxlength="80"><small>Fuente única de verdad: el nombre del overlay y del historial sale de acá. Las respuestas del módulo de Spotify ya no lo pisan.</small></div>
       <div class="field"><label for="avatarLetter">Avatar o inicial</label><input id="avatarLetter" maxlength="2"><small>Se usa cuando la mascota está desactivada o cuando falta el asset del estado actual.</small></div>
       <div class="field"><label for="accent">Color principal</label><input id="accent" type="color"><small>Borde, avatar y nombre del bot.</small></div>
       <div class="field"><label for="animation">Animación</label><select id="animation"><option value="slide">Deslizamiento</option><option value="pop">Aparición elástica</option><option value="soft">Suave</option></select></div>
-      <div class="field"><label for="visibleMs">Tiempo visible (ms)</label><input id="visibleMs" type="number" min="2000" max="60000" step="500"><small>Entre 2 y 60 segundos.</small></div>
+      <div class="field"><label for="visibleSeconds">Tiempo visible de la respuesta (segundos)</label><input id="visibleSeconds" type="number" min="2" max="60" step="0.5" inputmode="decimal"><small>Escribe cuánto tiempo permanece visible la respuesta en OBS. Puedes usar medios segundos; el rango es de 2 a 60 segundos.</small></div>
+      <div class="field"><label for="replyDelaySeconds">Delay Segundos para que aparezca cartel respuesta</label><input id="replyDelaySeconds" type="number" min="0" max="120" step="0.1" inputmode="decimal" value="0"><small>Se cuenta desde el primer fotograma de «Habla». Usa 0 para que el cartel aparezca junto con la animación; admite décimas de segundo.</small></div>
       <div class="field"><label for="maxWidth">Ancho máximo (px)</label><input id="maxWidth" type="number" min="320" max="1200" step="10"></div>
       <div class="field"><label for="fontSize">Tamaño del mensaje (rem)</label><input id="fontSize" type="number" min="0.7" max="2.5" step="0.05"></div>
       <div class="field"><label for="panelOpacity">Opacidad del panel</label><input id="panelOpacity" type="number" min="0.2" max="1" step="0.05"></div>
       <div class="field wide"><label class="check"><input id="showRequester" type="checkbox"> Mostrar “Pedido de ...” debajo de la respuesta</label></div>
+      <div class="field wide"><label class="check"><input id="showBotName" type="checkbox"> Mostrar el nombre “Rulo” en la respuesta</label></div>
+      <div class="field wide"><label class="check"><input id="showAvatar" type="checkbox"> Mostrar el avatar (inicial o imagen) de la respuesta</label></div>
       <div class="field wide"><label class="check"><input id="showMascot" type="checkbox"> Mostrar mascota en lugar de la inicial</label><small>Busca <code>/rulo-assets/&lt;estado&gt;.svg</code>. Si el archivo no existe, vuelve a la inicial sin romper el overlay.</small></div>
       <div class="field"><label for="overlayTheme">Tema del overlay</label><select id="overlayTheme"><option value="dark">Oscuro</option><option value="light">Claro</option></select><small>Lo usa el overlay en OBS. El historial tiene su propio boton sol/luna.</small></div>
     </form>
@@ -98,7 +114,7 @@
   </main>
   <script>
     (function () {
-      const ids = ['botName','avatarLetter','accent','visibleMs','maxWidth','fontSize','panelOpacity','showRequester','showMascot','overlayTheme','animation'];
+      const ids = ['botName','avatarLetter','accent','visibleSeconds','replyDelaySeconds','maxWidth','fontSize','panelOpacity','showRequester','showMascot','showBotName','showAvatar','overlayTheme','animation'];
       const form = id => document.getElementById(id);
       const notice = form('notice');
       const status = form('status');
@@ -111,6 +127,7 @@
       const unifiedOverlayUrl = location.origin + '/rulo-unified-overlay.html?session=' + encodeURIComponent(session);
       const unifiedDashUrl = location.origin + '/rulo-unified-dashboard.html?session=' + encodeURIComponent(session);
       const featuredUrl = location.origin + '/rulo-featured.html?session=' + encodeURIComponent(session) + '&style=art-forest&mascot=mi-canguro.png';
+      form('editResponsesLink').href = location.origin + '/rulo-spotify-bot.html?session=' + encodeURIComponent(session) + '#rulo-responses';
       form('historyLink').href = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
       form('chatLink').href = chatUrl;
       form('unifiedLink').href = unifiedDashUrl;
@@ -124,14 +141,117 @@
       form('featuredUrl').value = featuredUrl;
       form('copyFeatured').onclick = () => navigator.clipboard.writeText(featuredUrl).then(() => showNotice('URL de destacados copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openFeatured').onclick = () => window.open(featuredUrl, '_blank', 'noopener');
+
+      // Acceso remoto: la URL de ngrok cambia en cada reinicio del tunel, asi que
+      // se consulta sola cada 5 s y avisa cuando aparece una direccion nueva.
+      const ngrokInput = form('ngrokUrl');
+      let ngrokFull = '', ngrokAnterior = '';
+      function refreshNgrok() {
+        fetch('/api/ngrok-url').then(r => r.json()).then(d => {
+          if (d && d.activo && d.publicUrl) {
+            ngrokFull = d.publicUrl + '/rulo-chat-historial.html?session=' + encodeURIComponent(d.sessionId || session);
+            if (ngrokInput.value !== ngrokFull) { ngrokInput.value = ngrokFull; }
+            form('ngrokBox').style.borderColor = 'var(--accent)';
+            form('ngrokInfo').textContent = 'Túnel activo. Compartí esta dirección; cambia cada vez que reiniciás el túnel.';
+            if (ngrokFull !== ngrokAnterior) {
+              if (ngrokAnterior) showNotice('La URL del túnel cambió');
+              ngrokAnterior = ngrokFull;
+            }
+          } else {
+            ngrokFull = '';
+            ngrokAnterior = '';
+            ngrokInput.value = '';
+            ngrokInput.placeholder = 'Túnel apagado';
+            form('ngrokBox').style.borderColor = '';
+            form('ngrokInfo').textContent = 'Túnel apagado. Levantalo con "Iniciar tunel ngrok.bat" y la dirección aparece acá sola.';
+          }
+        }).catch(() => {});
+      }
+      form('copyNgrok').onclick = () => {
+        if (!ngrokFull) { showNotice('El túnel está apagado', true); return; }
+        navigator.clipboard.writeText(ngrokFull).then(() => showNotice('URL remota copiada')).catch(() => showNotice('No se pudo copiar', true));
+      };
+      form('openNgrokPanel').onclick = () => window.open('http://127.0.0.1:4040', '_blank', 'noopener');
+      refreshNgrok();
+      setInterval(refreshNgrok, 5000);
+
+      // --- Facebook: contador de espectadores ---
+      // Camino normal (sin token): abrir la pagina del video en una pestana. SSN
+      // lee el numero del DOM y lo manda a Cortex.
+      // Camino con token: solo para Paginas propias (bridge de SSN).
+      const FB_KEY = 'ruloFacebookVideoId';
+      const FB_PAGE_KEY = 'ruloFacebookPageId';
+      const FB_BRIDGE = 'https://socialstream.ninja/sources/websocket/facebook.html';
+      const fbInput = form('fbVideoInput');
+      const fbPageInput = form('fbPageInput');
+      const fbInfo = form('fbVideoInfo');
+
+      function primerNumero(texto) {
+        const suelto = String(texto || '').match(/\d{8,}/);
+        return suelto ? suelto[0] : '';
+      }
+      // Acepta la URL completa (del panel o publica) o el numero suelto.
+      function extraerVideoId(texto) {
+        const enUrl = String(texto || '').match(/(?:dashboard|videos|producer)\/(\d{8,})/);
+        return enUrl ? enUrl[1] : primerNumero(texto);
+      }
+      // URL a abrir para que SSN lea el contador.
+      function fbVideoTarget() {
+        const crudo = String(fbInput.value || '').trim();
+        if (/^https?:\/\//i.test(crudo)) return crudo;
+        const id = extraerVideoId(crudo);
+        return id ? 'https://www.facebook.com/watch/?v=' + encodeURIComponent(id) : '';
+      }
+      // URL del bridge (necesita Page + token).
+      function fbBridgeUrl() {
+        const video = extraerVideoId(fbInput.value);
+        if (video) return FB_BRIDGE + '?videoId=' + encodeURIComponent(video) + '&autoconnect=1';
+        const pagina = primerNumero(fbPageInput.value);
+        if (pagina) return FB_BRIDGE + '?pageId=' + encodeURIComponent(pagina) + '&autoconnect=1';
+        return '';
+      }
+      function fbRefresh() {
+        const crudo = String(fbInput.value || '').trim();
+        const video = extraerVideoId(crudo);
+        if (!crudo) {
+          fbInfo.textContent = 'Con la página del video abierta en una pestaña, SSN lee el contador y lo manda al historial. No hace falta token. El bridge con token es solo para Páginas que administrás.';
+          return;
+        }
+        if (!video) {
+          fbInfo.textContent = 'No encontré un ID de video ahí. Pegá la URL del vivo o el número.';
+          return;
+        }
+        try { localStorage.setItem(FB_KEY, crudo); } catch (_) {}
+        fbInfo.textContent = 'Video ' + video + ': tocá "Abrir el video" y dejá esa pestaña abierta mientras transmitís. El contador aparece en el historial.';
+      }
+      fbInput.addEventListener('input', fbRefresh);
+      fbPageInput.addEventListener('input', () => { try { localStorage.setItem(FB_PAGE_KEY, primerNumero(fbPageInput.value)); } catch (_) {} });
+      form('fbVideoOpen').onclick = () => {
+        const url = fbVideoTarget();
+        if (!url) { showNotice('Pegá la URL o el ID del video', true); return; }
+        window.open(url, '_blank', 'noopener');
+      };
+      form('fbVideoCopy').onclick = () => {
+        const url = fbVideoTarget();
+        if (!url) { showNotice('Pegá la URL o el ID del video', true); return; }
+        navigator.clipboard.writeText(url).then(() => showNotice('URL del video copiada')).catch(() => showNotice('No se pudo copiar', true));
+      };
+      form('fbPageCopy').onclick = () => {
+        const url = fbBridgeUrl();
+        if (!url) { showNotice('Pegá el video o el Page ID', true); return; }
+        navigator.clipboard.writeText(url).then(() => showNotice('URL del bridge copiada')).catch(() => showNotice('No se pudo copiar', true));
+      };
+      try { const v = localStorage.getItem(FB_KEY); if (v) fbInput.value = v; } catch (_) {}
+      try { const p = localStorage.getItem(FB_PAGE_KEY); if (p) fbPageInput.value = p; } catch (_) {}
+      fbRefresh();
       form('copyUrl').onclick = () => navigator.clipboard.writeText(overlayUrl).then(() => showNotice('URL copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openUrl').onclick = () => window.open(overlayUrl, '_blank', 'noopener');
       form('copyDock').onclick = () => navigator.clipboard.writeText(dockUrl).then(() => showNotice('URL del dock copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openDock').onclick = () => window.open(dockUrl, '_blank', 'noopener');
       form('copyChat').onclick = () => navigator.clipboard.writeText(chatUrl).then(() => showNotice('URL del chat copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openChat').onclick = () => window.open(chatUrl, '_blank', 'noopener');
-      function fill(data) { config = data; ids.forEach(id => { if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = data[id]; }); }
-      function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Number(value.visibleMs); value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
+      function fill(data) { config = data; ids.forEach(id => { if (id === 'visibleSeconds') form(id).value = (Number(data.visibleMs) / 1000).toString(); else if (id === 'replyDelaySeconds') form(id).value = (Number(data.replyDelayMs || 0) / 1000).toString(); else if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = data[id]; }); }
+      function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Math.round(Number(value.visibleSeconds)*1000); delete value.visibleSeconds; value.replyDelayMs=Math.round(Number(value.replyDelaySeconds)*1000); delete value.replyDelaySeconds; value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
       function showNotice(text, error) { notice.textContent=text; notice.style.color=error?'#ff7d7d':'var(--accent)'; setTimeout(() => notice.textContent='',3000); }
       function updatePreview() { preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + encodeURIComponent(form('previewMood').value || 'success') + '&theme=' + encodeURIComponent(form('overlayTheme').value || 'dark') + '&v=' + Date.now(); }
       form('mascotLink').href = location.origin + '/rulo-mascota.html?session=' + encodeURIComponent(session);
@@ -141,7 +261,18 @@
         document.title = label + ' | Dashboard';
       }
       fetch('/api/rulo-config').then(r => r.json()).then(data => { fill(data.config); applyBrandName(data.config && data.config.botName); status.textContent='Configuración cargada'; updatePreview(); }).catch(() => status.textContent='No se pudo cargar');
-      form('save').onclick = () => fetch('/api/rulo-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(read())}).then(r=>r.json()).then(data => { if (!data.success) throw new Error(); fill(data.config); applyBrandName(data.config.botName); updatePreview(); showNotice('Guardado'); }).catch(() => showNotice('No se pudo guardar',true));
+      const configSocket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+      configSocket.addEventListener('message', event => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type !== 'rulo_config_updated' || !data.config) return;
+          config = data.config;
+          if (document.activeElement !== form('visibleSeconds')) form('visibleSeconds').value = (Number(data.config.visibleMs) / 1000).toString();
+          if (document.activeElement !== form('replyDelaySeconds')) form('replyDelaySeconds').value = (Number(data.config.replyDelayMs || 0) / 1000).toString();
+          ['showBotName','showAvatar'].forEach(id => { if (document.activeElement !== form(id)) form(id).checked = data.config[id] !== false; });
+        } catch (_) {}
+      });
+      form('save').onclick = () => { if (!form('visibleSeconds').reportValidity() || !form('replyDelaySeconds').reportValidity()) return; return fetch('/api/rulo-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(read())}).then(r=>r.json()).then(data => { if (!data.success) throw new Error(); fill(data.config); applyBrandName(data.config.botName); updatePreview(); showNotice('Guardado'); }).catch(() => showNotice('No se pudo guardar',true)); };
       form('test').onclick = () => fetch('/api/rulo-bot-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Esta es una respuesta de prueba de ' + (read().botName || 'Rulo') + '.',requester:'Matias',mood:form('previewMood').value || 'success',timestamp:Date.now()})}).then(() => { updatePreview(); showNotice('Respuesta de prueba enviada'); }).catch(() => showNotice('No se pudo probar',true));
       form('previewMood').onchange = updatePreview;
       form('overlayTheme').onchange = updatePreview;

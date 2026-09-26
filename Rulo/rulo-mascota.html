@@ -2,212 +2,109 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rulo | Prototipo de mascota</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rulo | Animaciones</title>
   <style>
-    :root { --accent:#9fd50b; --bg:#0d1014; --panel:#171c24; --line:#2c3440; --text:#f4f6f8; --muted:#a9b3c0; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font:15px "Segoe UI",Arial,sans-serif; }
-    main { width:min(1000px,100%); margin:0 auto; padding:26px 20px 60px; }
-    h1 { margin:0 0 6px; font-size:1.7rem; } h1 span { color:var(--accent); }
-    h2 { margin:26px 0 12px; font-size:1.05rem; }
-    p.lead { margin:0 0 18px; color:var(--muted); max-width:70ch; }
-    .toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:16px 0 6px; }
-    .toolbar button { border:1px solid var(--line); background:var(--panel); color:var(--text); border-radius:6px; padding:9px 13px; font-weight:700; cursor:pointer; }
-    .toolbar button.active { background:var(--accent); color:#111; border-color:var(--accent); }
-    input[type=color] { width:52px; height:40px; padding:2px; border:1px solid var(--line); border-radius:6px; background:var(--panel); cursor:pointer; }
-    .stage { display:grid; grid-template-columns:300px 1fr; gap:22px; align-items:start; }
-    @media(max-width:760px){ .stage { grid-template-columns:1fr; } }
-    .pet-card { border:1px solid var(--line); border-radius:12px; background:linear-gradient(160deg,#151a21,#0d1014); padding:22px; display:grid; place-items:center; gap:14px; }
-    .pet { position:relative; width:190px; height:190px; --tint:var(--accent); }
-    .body { position:absolute; inset:0; border-radius:46% 46% 44% 44%; background:radial-gradient(circle at 34% 26%, #ffffff22, transparent 46%), linear-gradient(160deg, var(--tint), #0e1116 140%); border:2px solid #ffffff22; box-shadow:0 14px 32px rgba(0,0,0,.45), inset 0 -14px 26px rgba(0,0,0,.28); transition:background 240ms ease, transform 240ms ease; animation:float 3.6s ease-in-out infinite; }
-    .face { position:absolute; left:0; right:0; top:58px; height:70px; }
-    .eye { position:absolute; top:8px; width:24px; height:26px; border-radius:50%; background:#0b0d11; box-shadow:inset 0 -4px 0 #ffffff26; }
-    .eye.left { left:44px; } .eye.right { right:44px; }
-    .eye::after { content:''; position:absolute; top:5px; left:5px; width:8px; height:8px; border-radius:50%; background:#ffffffcc; }
-    .mouth { position:absolute; left:50%; transform:translateX(-50%); top:44px; width:34px; height:9px; border-radius:0 0 18px 18px; background:#0b0d11; transition:all 200ms ease; }
-    .hat { position:absolute; left:50%; transform:translateX(-50%); top:-16px; font-size:1.4rem; opacity:0; transition:opacity 200ms ease; }
-    @keyframes float { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-7px); } }
-    @keyframes blink { 0%,92%,100% { transform:scaleY(1); } 96% { transform:scaleY(.12); } }
-    @keyframes talk { 0%,100% { height:9px; } 50% { height:20px; } }
-    @keyframes shake { 0%,100% { transform:translateX(0); } 25% { transform:translateX(-5px); } 75% { transform:translateX(5px); } }
-    @keyframes bob { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-9px) rotate(-4deg); } }
-    @keyframes pop { 0% { transform:scale(.9); } 60% { transform:scale(1.06); } 100% { transform:scale(1); } }
-    .pet .eye { animation:blink 4.2s ease-in-out infinite; }
-    /* Estados: mismas claves que emite el backend (campo mood). */
-    .pet[data-state="idle"] { --tint:var(--accent); }
-    .pet[data-state="thinking"] { --tint:#6ea8fe; }
-    .pet[data-state="thinking"] .body { animation:bob 1.5s ease-in-out infinite; }
-    .pet[data-state="thinking"] .eye { transform:translate(-4px,-4px); }
-    .pet[data-state="thinking"] .mouth { width:16px; height:16px; border-radius:50%; background:#0b0d11; }
-    .pet[data-state="thinking"] .hat { content:''; opacity:1; }
-    .pet[data-state="success"] { --tint:var(--accent); }
-    .pet[data-state="success"] .body { animation:pop .55s ease-out 1, float 3.6s ease-in-out .6s infinite; }
-    .pet[data-state="success"] .eye { height:12px; border-radius:12px 12px 0 0; background:#0b0d11; }
-    .pet[data-state="success"] .eye::after { display:none; }
-    .pet[data-state="success"] .mouth { width:40px; height:18px; border-radius:0 0 22px 22px; }
-    .pet[data-state="warning"] { --tint:#f5b13d; }
-    .pet[data-state="warning"] .body { animation:shake .9s ease-in-out infinite; }
-    .pet[data-state="warning"] .eye { height:9px; border-radius:9px; }
-    .pet[data-state="warning"] .mouth { width:26px; height:6px; border-radius:6px; }
-    .pet[data-state="error"] { --tint:#ef5f5f; }
-    .pet[data-state="error"] .body { animation:shake .45s ease-in-out 3; }
-    .pet[data-state="error"] .eye { background:transparent; box-shadow:none; height:22px; }
-    .pet[data-state="error"] .eye::after { left:2px; top:8px; width:22px; height:5px; border-radius:3px; background:#0b0d11; transform:rotate(45deg); }
-    .pet[data-state="error"] .eye.right::after { transform:rotate(-45deg); }
-    .pet[data-state="error"] .mouth { width:26px; height:8px; border-radius:8px 8px 0 0; background:#0b0d11; }
-    .pet[data-state="speaking"] { --tint:var(--accent); }
-    .pet[data-state="speaking"] .mouth { animation:talk .38s ease-in-out infinite; }
-    .pet[data-state="speaking"] .body { animation:pop .5s ease-out 1, float 3.6s ease-in-out .5s infinite; }
-    .state-name { font-weight:800; letter-spacing:.06em; text-transform:uppercase; font-size:.78rem; color:var(--muted); }
-    .panel { border:1px solid var(--line); border-radius:12px; background:var(--panel); padding:18px; }
-    .panel ul { margin:8px 0 0; padding-left:18px; color:var(--muted); line-height:1.55; }
-    code { background:#0b0e13; border:1px solid var(--line); border-radius:4px; padding:1px 5px; font-size:.86em; }
-    .overlay-frame { width:100%; height:170px; border:1px dashed var(--line); border-radius:10px; background:#0b0e13; }
-    .swatches { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-    .gallery { display:grid; grid-template-columns:repeat(auto-fit,minmax(148px,1fr)); gap:12px; }
-    .asset-card { border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:12px; display:grid; place-items:center; gap:8px; }
-    .asset-card img { width:96px; height:96px; }
-    .asset-card .state-name { color:var(--text); font-weight:800; text-transform:uppercase; letter-spacing:.05em; font-size:.72rem; }
-    .asset-card .meta { font-size:.78rem; color:var(--muted); text-align:center; line-height:1.35; }
-    .asset-card.ok .meta { color:var(--accent); }
-    .asset-card.bad .meta { color:#ef5f5f; }
-    .swatch { width:34px; height:34px; border-radius:8px; border:1px solid var(--line); }
+    :root{color-scheme:dark;--accent:#9fd50b;--bg:#0d1014;--panel:#171c24;--line:#303a46;--text:#f4f6f8;--muted:#a9b3c0}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#202a34,var(--bg) 68%);color:var(--text);font:15px "Segoe UI",Arial,sans-serif}
+    main{width:min(900px,100%);margin:auto;padding:32px 20px 60px}h1{margin:0 0 7px;font-size:1.8rem}h1 span{color:var(--accent)}h2{font-size:1.05rem;margin:23px 0 12px}p{color:var(--muted);line-height:1.5}.lead{margin:0 0 22px}.card{border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#1b232c,#151a21);padding:20px;margin:16px 0}.connection{display:inline-flex;margin-left:8px;padding:4px 10px;border-radius:20px;background:#333c45;color:var(--muted);font-size:.78rem;vertical-align:middle}.connection.on{background:#28451c;color:#d0ff9b}
+    .url-row{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.url{flex:1;min-width:240px;padding:11px;background:#0b0e13;border:1px solid var(--line);border-radius:7px;overflow-wrap:anywhere;color:#e5efdb;font:13px ui-monospace,monospace}.buttons,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px}.control,.upload{background:#10151b;border:1px solid var(--line);border-radius:9px;padding:14px}.control strong,.upload strong{display:block;margin-bottom:6px}.control small,.upload small{display:block;min-height:38px;color:var(--muted);line-height:1.4;margin-bottom:10px}
+    button,.open-link{border:1px solid #465261;border-radius:7px;padding:10px 12px;background:#26313c;color:var(--text);font:700 14px "Segoe UI",Arial,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}button.primary{background:var(--accent);color:#111;border-color:var(--accent)}button.hide{background:#633d42}button:disabled{opacity:.6;cursor:wait}.open-link{background:#34472a;border-color:#526d3d}.upload input{display:block;width:100%;margin:8px 0 12px;color:var(--muted)}#status{min-height:24px;margin-bottom:0;color:var(--accent)}.note{font-size:.88rem}.status-label{font-weight:700;color:var(--text)}
+    @media(max-width:560px){main{padding:22px 14px 40px}.card{padding:15px}.url{min-width:100%}}
   </style>
 </head>
 <body>
   <main>
-    <h1><span>Rulo</span> | Prototipo de mascota</h1>
-    <p class="lead">Direcciones visuales en CSS puro para los seis estados que ya emite el backend. El personaje de abajo es el prototipo en CSS para comparar direcciones; los seis SVG reales ya están generados y el overlay los usa cuando la mascota está activada (galería más abajo). Los assets van en <code>Rulo\assets\&lt;estado&gt;.svg</code> (512x512, fondo transparente).</p>
-
-    <div class="toolbar">
-      <button type="button" data-state="idle">1 · idle</button>
-      <button type="button" data-state="thinking">2 · thinking</button>
-      <button type="button" data-state="success" class="active">3 · success</button>
-      <button type="button" data-state="warning">4 · warning</button>
-      <button type="button" data-state="error">5 · error</button>
-      <button type="button" data-state="speaking">6 · speaking</button>
-      <span style="color:var(--muted)">Color base</span>
-      <input id="accent" type="color" value="#9fd50b">
-      <button type="button" id="toConfig" title="Guardar este color como color principal de Rulo">Usar este color en Rulo</button>
-    </div>
-
-    <div class="stage">
-      <div class="pet-card">
-        <div class="pet" id="pet" data-state="success">
-          <div class="body">
-            <div class="hat">💭</div>
-            <div class="face">
-              <div class="eye left"></div>
-              <div class="eye right"></div>
-              <div class="mouth"></div>
-            </div>
-          </div>
-        </div>
-        <div class="state-name" id="stateName">success</div>
+    <h1><span>Rulo</span> | Animaciones</h1>
+    <p class="lead">Controla la aparición de Rulo en OBS y reemplaza sus clips WebM desde este panel.</p>
+    <section class="card" aria-labelledby="obsTitle">
+      <h2 id="obsTitle">Fuente para OBS <span class="connection" id="connection">Conectando…</span></h2>
+      <p class="note">Copia esta dirección en una fuente de tipo Navegador. Para transparencia, el video debe tener canal alfa; si el clip tiene fondo negro, seguirá viéndose negro en OBS.</p>
+      <div class="url-row"><code class="url" id="url"></code><a class="open-link" id="openUrl" href="#" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>
+      <div class="buttons">
+        <div class="control"><strong>Entrada</strong><small>Reproduce «aparece de abajo» una vez y deja a Rulo visible al terminar.</small><button class="primary" type="button" data-trigger="aparecer">Mostrar / repetir entrada</button></div>
+        <div class="control"><strong>Habla</strong><small>Prueba «hablando». Las respuestas reales también la activan si Rulo está visible.</small><button type="button" data-trigger="hablar">Probar hablando</button></div>
+        <div class="control"><strong>Durmiendo</strong><small>Entrada de 0 a 9 s; después repite de 9 a 28 s. Puedes probarlo sin esperar.</small><button type="button" data-trigger="dormir">Probar sueño</button></div>
+        <div class="control"><strong>Visibilidad</strong><small>Oculta a Rulo; las respuestas posteriores no lo mostrarán automáticamente.</small><button class="hide" type="button" data-trigger="ocultar">Ocultar a Rulo</button></div>
       </div>
-      <div class="panel">
-        <strong>Qué significa cada estado</strong>
-        <ul>
-          <li><code>idle</code> — sin actividad: color base, respiración lenta.</li>
-          <li><code>thinking</code> — buscando en Spotify: azul, ojos arriba, burbuja.</li>
-          <li><code>success</code> — pedido aceptado: color base, rebote y sonrisa.</li>
-          <li><code>warning</code> — cooldown o aviso: ámbar, ojos entrecerrados, vibración suave.</li>
-          <li><code>error</code> — pedido fallido: rojo, ojos en X, vibración corta.</li>
-          <li><code>speaking</code> — repetición de una respuesta: boca animada.</li>
-        </ul>
-        <p style="color:var(--muted);margin:12px 0 0">El backend valida el campo <code>mood</code> en <code>POST /api/rulo-bot-message</code> (estados permitidos exactos). El módulo de Spotify todavía envía <code>success</code> por defecto; cuando haya arte, se afina por caso (cooldown → warning, fallo → error).</p>
-        <div class="swatches" id="swatches"></div>
+      <p class="note">Rulo se duerme automáticamente tras una espera aleatoria de 4 a 6 minutos sin pedidos ni acciones, mientras esté visible. Los pedidos de música y las respuestas reinician esa espera. Un comentario general del chat no cuenta como pedido a Rulo.</p>
+      <p class="note">Solo se reproduce un video a la vez. Si Rulo está durmiendo, cualquier cambio —incluso ocultarlo— espera hasta el segundo 28 del tramo actual. Durante la entrada al sueño también espera hasta ese punto. Si llegan varias acciones, conserva la más reciente. Las otras animaciones terminan antes de reproducir la siguiente.</p>
+    </section>
+    <section class="card" aria-labelledby="uploadTitle">
+      <h2 id="uploadTitle">Actualizar animaciones</h2>
+      <p class="note">Sube un archivo `.webm` de hasta 100 MB. Al guardarlo, reemplaza el clip actual con el mismo nombre.</p>
+      <div class="grid">
+        <div class="upload"><strong>Entrada desde abajo</strong><small>Reemplaza `aparece de abajo.webm`.</small><input type="file" accept=".webm,video/webm" id="entranceFile"><button type="button" data-upload="aparecer">Subir y reemplazar</button></div>
+        <div class="upload"><strong>Hablando</strong><small>Reemplaza `hablando.webm`.</small><input type="file" accept=".webm,video/webm" id="speakingFile"><button type="button" data-upload="hablar">Subir y reemplazar</button></div>
+        <div class="upload"><strong>Durmiendo</strong><small>Reemplaza Rulo Durmiendo.webm. Debe durar al menos 28 segundos y permitir repetir el tramo 9–28.</small><input type="file" accept=".webm,video/webm" id="sleepingFile"><button type="button" data-upload="dormir">Subir y reemplazar</button></div>
       </div>
-    </div>
-
-    <h2>Assets reales del overlay</h2>
-    <p class="lead">Estos son los SVG que el overlay ya usa cuando la mascota está activada (uno por estado, servidos como <code>/rulo-assets/&lt;estado&gt;.svg</code>).</p>
-    <div class="gallery" id="gallery"></div>
-
-    <h2>Integración real (overlay con este estado)</h2>
-    <iframe class="overlay-frame" id="overlayPreview" title="Vista previa del overlay"></iframe>
-    <p class="lead" style="margin-top:10px">Esta vista previa usa el overlay real (<code>/rulo-bot-overlay.html?preview=1&amp;mood=...</code>). Si activás la mascota en el dashboard y todavía no hay assets, se muestra la inicial como respaldo.</p>
+      <p id="status" role="status" aria-live="polite"></p>
+    </section>
   </main>
   <script>
-    (function () {
-      const pet = document.getElementById('pet');
-      const stateName = document.getElementById('stateName');
-      const accent = document.getElementById('accent');
-      const preview = document.getElementById('overlayPreview');
-      const states = ['idle','thinking','success','warning','error','speaking'];
+    (() => {
       const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
-      const params = new URLSearchParams(location.search);
-      const startAccent = (params.get('accent') || '#9fd50b').replace('#', '');
-      if (/^[0-9a-f]{6}$/i.test(startAccent)) accent.value = '#' + startAccent;
+      const sourceUrl = location.origin + '/rulo-animaciones.html?session=' + encodeURIComponent(session);
+      document.getElementById('url').textContent = sourceUrl;
+      document.getElementById('openUrl').href = sourceUrl;
+      const status = document.getElementById('status');
+      const connection = document.getElementById('connection');
 
-      function paint(state) {
-        const value = states.indexOf(state) === -1 ? 'idle' : state;
-        pet.dataset.state = value;
-        stateName.textContent = value;
-        document.querySelectorAll('.toolbar button[data-state]').forEach(function (btn) {
-          btn.classList.toggle('active', btn.dataset.state === value);
+      document.querySelectorAll('[data-trigger]').forEach(button => {
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const response = await fetch('/api/rulo-animation-trigger', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:button.dataset.trigger}) });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'No se pudo enviar el control.');
+            status.textContent = result.overlayClients
+              ? 'Prueba enviada a la fuente OBS conectada. Si Rulo está durmiendo, terminará el video completo antes de cambiar.'
+              : 'No hay una fuente de animaciones conectada. Recarga en OBS la fuente Navegador de rulo-animaciones.html y vuelve a probar.';
+          } catch (error) { status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
+          finally { button.disabled = false; }
         });
-        preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + value + '&message=' + encodeURIComponent('Vista previa del estado ' + value + '.') + '&v=' + Date.now();
-      }
+      });
 
-      function applyAccent(value) {
-        document.documentElement.style.setProperty('--accent', value);
-        document.querySelectorAll('.swatch').forEach(function (swatch) {
-          swatch.style.background = 'linear-gradient(160deg,' + value + ',#0e1116 140%)';
-          swatch.title = value;
+      document.querySelectorAll('[data-upload]').forEach(button => {
+        button.addEventListener('click', async () => {
+          const kind = button.dataset.upload;
+          const input = document.getElementById(({aparecer:'entranceFile',hablar:'speakingFile',dormir:'sleepingFile'})[kind]);
+          const file = input.files && input.files[0];
+          if (!file) { status.textContent = 'Elige primero un archivo .webm.'; return; }
+          if (!file.name.toLowerCase().endsWith('.webm') || file.size > 100 * 1024 * 1024) { status.textContent = 'Elige un archivo .webm de hasta 100 MB.'; return; }
+          button.disabled = true; button.textContent = 'Subiendo…'; status.textContent = 'Subiendo ' + file.name + '…';
+          try {
+            if(kind === 'dormir') {
+              await new Promise((resolve,reject) => {
+                const probe = document.createElement('video');
+                const objectUrl = URL.createObjectURL(file);
+                let settled = false;
+                const done = error => { if(settled)return; settled = true; clearTimeout(timeout); probe.onloadedmetadata = null; probe.onerror = null; probe.removeAttribute('src'); probe.load(); URL.revokeObjectURL(objectUrl); error ? reject(error) : resolve(); };
+                const timeout = setTimeout(() => done(new Error('No se pudo leer la duración del video.')), 15000);
+                probe.onloadedmetadata = () => done(!Number.isFinite(probe.duration) || probe.duration < 28 ? new Error('El video de dormir debe durar al menos 28 segundos.') : null);
+                probe.onerror = () => done(new Error('No se pudo leer este WebM.'));
+                probe.preload = 'metadata'; probe.src = objectUrl;
+              });
+            }
+            const response = await fetch('/api/rulo-animation-upload/' + kind, { method:'POST', headers:{'Content-Type':'video/webm'}, body:file });
+            const result = await response.json();
+            if (!response.ok) throw new Error(result.error || 'No se pudo guardar el video.');
+            status.textContent = 'Video actualizado: ' + result.filename + '. Se usará en la próxima reproducción.';
+            input.value = '';
+          } catch (error) { status.textContent = error.message || 'Error al subir el video.'; }
+          finally { button.disabled = false; button.textContent = 'Subir y reemplazar'; }
         });
-      }
-
-      document.querySelectorAll('.toolbar button[data-state]').forEach(function (btn) {
-        btn.onclick = function () { paint(btn.dataset.state); };
-      });
-      accent.oninput = function () { applyAccent(accent.value); };
-
-      document.getElementById('toConfig').onclick = function () {
-        fetch('/api/rulo-config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ accent: accent.value }) })
-          .then(function (r) { return r.json(); })
-          .then(function () { document.getElementById('toConfig').textContent = 'Color aplicado en Rulo ✓'; })
-          .catch(function () { document.getElementById('toConfig').textContent = 'No se pudo aplicar'; });
-      };
-
-      window.addEventListener('keydown', function (event) {
-        const index = parseInt(event.key, 10) - 1;
-        if (index >= 0 && index < states.length) paint(states[index]);
       });
 
-      ['#9fd50b','#221a61','#6ea8fe','#f5b13d','#ef5f5f','#e94f9c','#22d3ee'].forEach(function (color) {
-        const swatch = document.createElement('div');
-        swatch.className = 'swatch';
-        swatch.style.background = 'linear-gradient(160deg,' + color + ',#0e1116 140%)';
-        swatch.title = color + ' (clic para probar)';
-        swatch.onclick = function () { accent.value = color; applyAccent(color); };
-        document.getElementById('swatches').appendChild(swatch);
-      });
-
-      // Galeria de los SVG reales: reporta tamaño (o error) al lado de cada uno.
-      const assetStates = ['idle','thinking','success','warning','error','speaking'];
-      const gallery = document.getElementById('gallery');
-      assetStates.forEach(function (state) {
-        const card = document.createElement('div');
-        card.className = 'asset-card';
-        card.innerHTML = '<img alt="Rulo ' + state + '"><div class="state-name">' + state + '</div><div class="meta">cargando...</div>';
-        const img = card.querySelector('img');
-        const meta = card.querySelector('.meta');
-        img.onload = function () {
-          const w = img.naturalWidth, h = img.naturalHeight;
-          const good = w > 0 && h > 0;
-          card.classList.add(good ? 'ok' : 'bad');
-          meta.textContent = good ? (w + ' x ' + h + ' OK') : 'ERROR: tamaño 0';
-        };
-        img.onerror = function () { card.classList.add('bad'); meta.textContent = 'ERROR: no carga'; };
-        img.src = '/rulo-assets/' + state + '.svg';
-        gallery.appendChild(card);
-      });
-
-      applyAccent(accent.value);
-      paint(params.get('state') || 'success');
-    }());
+      const socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
+      socket.onopen = () => { connection.textContent = 'Cortex conectado'; connection.classList.add('on'); };
+      socket.onclose = () => { connection.textContent = 'Desconectado'; connection.classList.remove('on'); };
+      socket.onmessage = event => { try { const data = JSON.parse(event.data); if(data.type === 'rulo_animation_clients') connection.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; } catch (_) {} };
+      fetch('/api/rulo-animation-status').then(response => response.json()).then(data => {
+        connection.textContent = data.overlayClients ? 'Fuente OBS conectada' : 'Fuente OBS desconectada';
+        connection.classList.toggle('on', data.overlayClients > 0);
+      }).catch(() => {});
+    })();
   </script>
 </body>
 </html>

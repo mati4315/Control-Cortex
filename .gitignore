@@ -5,6 +5,9 @@ node_modules/
 .env.*
 # Estado y datos de chat generados en tiempo de ejecucion
 Rulo/rulo-chat-history.json
+Rulo/Spotify/spotify-analytics.db*
+Rulo/Spotify/spotify-request-log.json
+Rulo/Spotify/spotify-devices.json
 # Respaldos comprimidos
 *.rar
 .git/
@@ -16,3 +19,6 @@ desktop.ini
 *.swp
 *.swo
 Thumbs.db
+Control Cortex/backend/cortex-home.json*
+Control Cortex/backend/cortex-project-context.json*
+Control Cortex/backend/cortex-assistant-history.json*
