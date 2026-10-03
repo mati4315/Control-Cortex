@@ -94,7 +94,7 @@
       </div>
       <div class="field" id="testModeField">
         <label class="check"><input type="checkbox" data-key="testMode"><span>Modo prueba (sin esperas)</span></label>
-        <small>Saltea la espera global y la de cada usuario. Ideal para probar temas seguidos sin esperar. El bloqueo de "pedido en curso" sigue activo.</small>
+        <small>Saltea la espera global y la de cada usuario. La cola por tandas y la sincronización con «Habla» siguen activas.</small>
       </div>
       <div class="field">
         <label class="check"><input type="checkbox" data-key="requireCommand"><span>Solo comandos (!playnow, !tema, !musica)</span></label>
@@ -149,12 +149,12 @@
       <div class="field">
         <label for="cooldown">Espera global (segundos)</label>
         <input type="number" data-key="cooldownSeconds" id="cooldown" min="0" max="3600" step="1">
-        <small>0 = sin espera entre pedidos distintos. Mods y host no la sufren.</small>
+        <small>Tiempo mínimo entre cambios de tema. Se aplica al chat, moderadores, streamer y pruebas del dashboard. 0 = sin espera.</small>
       </div>
       <div class="field">
         <label for="userCooldown">Espera por usuario (segundos)</label>
         <input type="number" data-key="userCooldownSeconds" id="userCooldown" min="0" max="7200" step="1">
-        <small>0 = la misma persona puede pedir seguido.</small>
+        <small>Tiempo mínimo entre temas de la misma persona. Su pedido espera en la cola. 0 = sin espera adicional.</small>
       </div>
       <div class="field">
         <label for="minText">Largo mínimo del comentario</label>
@@ -164,7 +164,7 @@
       <div class="field">
         <label class="check"><input type="checkbox" data-key="skipEnabled"><span>Quitar los primeros segundos</span></label>
         <input type="number" data-key="skipSeconds" id="skipSeconds" min="1" max="120" step="1" style="margin-top:8px">
-        <small>Arranca el tema en ese segundo y corta el final, para empalmar canciones sin silencio.</small>
+        <small>Omite el inicio y corta el final. En los pedidos, silencia Spotify brevemente durante el cambio y recupera tu volumen cuando llega al segundo elegido. Puede haber una pequeña pausa antes de oír el tema.</small>
       </div>
       <div class="field">
         <label for="pollSeconds">Cada cuánto consulta la extensión (segundos)</label>
@@ -183,15 +183,16 @@
       <div class="devices" id="devices"><span class="empty">Todavía no hay dispositivos reportados. Abrí Spotify en la PC del OBS y usá «Buscar dispositivos».</span></div>
     </div>
 
+    <p>La cola completa la tanda de tres pedidos en curso y luego toma los tres más recientes. Si llegan 16 pedidos antes de terminar la primera tanda, reproduce 1, 2, 3 y después 14, 15, 16. Las esperas guardadas se respetan entre temas; los pedidos intermedios se omiten.</p>
     <h2>Pruebas</h2>
     <div class="field">
       <label for="testQuery">Probar un tema o artista</label>
       <div class="row">
         <input type="text" id="testQuery" placeholder="Ej: Amar Azul Yo Tomo Licor">
-        <button id="btnTest" type="button">Reproducir ahora</button>
+        <button id="btnTest" type="button">Pedir tema</button>
         <button id="btnSearch" class="secondary" type="button">Buscar sin reproducir</button>
       </div>
-      <small>Se saltea el parser y las esperas: es como si el streamer pidiera el tema. «Buscar sin reproducir» usa la misma tolerancia a errores de escritura y solo muestra qué encontró.</small>
+      <small>«Pedir tema» busca directamente y entra en la misma cola y esperas que el chat. «Buscar sin reproducir» solo muestra qué encontró. Para probar sin esperas, activa «Modo prueba».</small>
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <label for="simComment">Simular un comentario del chat</label>
       <div class="row">

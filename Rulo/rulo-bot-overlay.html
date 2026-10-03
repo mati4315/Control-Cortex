@@ -8,7 +8,7 @@
     :root {
       --accent: #9fd50b;
       --mood: var(--accent);
-      --panel: rgba(14, 17, 22, .94);
+      --panel: rgba(18, 22, 29, .96);
       --text: #f5f7fa;
       --muted: #aeb7c3;
       --avatar-ink: #111;
@@ -21,7 +21,10 @@
       --text: #161b22;
       --muted: #5a6675;
     }
-    html.theme-light #reply { box-shadow: 0 8px 20px rgba(0,0,0,.16), 0 0 14px rgba(0,0,0,.08); }
+    html.theme-light #reply {
+      background: linear-gradient(145deg, #fff, var(--panel) 72%);
+      box-shadow: 0 12px 26px rgba(0,0,0,.15), 0 0 16px rgba(0,0,0,.07), inset 0 1px 0 rgba(255,255,255,.9);
+    }
     * { box-sizing: border-box; }
     html, body { margin: 0; min-height: 100%; background: transparent; }
     body {
@@ -43,9 +46,9 @@
       align-items: center;
       padding: 14px 18px 15px 14px;
       border: 2px solid var(--mood);
-      border-radius: 30px 32px 28px 30px;
-      background: var(--panel);
-      box-shadow: 0 8px 24px rgba(0,0,0,.32), 0 0 18px rgba(159,213,11,.14);
+      border-radius: 28px 30px 26px 30px;
+      background: linear-gradient(145deg, rgba(34, 40, 49, .98), var(--panel) 62%);
+      box-shadow: 0 12px 30px rgba(0,0,0,.34), 0 0 22px color-mix(in srgb, var(--mood) 19%, transparent), inset 0 1px 0 rgba(255,255,255,.09);
       opacity: 0;
       transform: translateY(-12px) scale(.98);
       transition: opacity 220ms ease, transform 220ms ease, border-color 200ms ease;
@@ -64,6 +67,7 @@
       border-left: 14px solid var(--mood);
       pointer-events: none;
     }
+    #reply::before { filter: drop-shadow(0 2px 2px rgba(0,0,0,.16)); }
     #reply::after {
       right: -9px;
       bottom: 18px;
@@ -72,6 +76,33 @@
       border-left-width: 11px;
       border-left-color: var(--panel);
     }
+    #reply[data-tail-position="right-upper"]::before { top: 8px; bottom: auto; border-top-width: 3px; border-bottom-width: 11px; }
+    #reply[data-tail-position="right-upper"]::after { top: 10px; bottom: auto; border-top-width: 2px; border-bottom-width: 8px; }
+    #reply[data-tail-position="right-middle"]::before,
+    #reply[data-tail-position="right-middle"]::after { top: 50%; bottom: auto; transform: translateY(-50%); }
+    #reply[data-tail-position="right-middle"]::before { border-top-width: 7px; border-bottom-width: 7px; }
+    #reply[data-tail-position="right-middle"]::after { border-top-width: 5px; border-bottom-width: 5px; }
+    #reply[data-tail-position="right-lower"]::before { top: auto; bottom: 0; border-top-width: 23px; border-bottom-width: 1px; border-left-width: 24px; }
+    #reply[data-tail-position="right-lower"]::after { top: auto; bottom: 2px; border-top-width: 19px; border-bottom-width: 1px; border-left-width: 20px; }
+    #reply[data-tail-position^="bottom-"]::before,
+    #reply[data-tail-position^="bottom-"]::after {
+      top: auto;
+      right: auto;
+      width: 0;
+      height: 0;
+      border-top-style: solid;
+      border-bottom: 0;
+      border-left: 9px solid transparent;
+      border-right: 9px solid transparent;
+    }
+    #reply[data-tail-position^="bottom-"]::before { bottom: -13px; border-top-width: 14px; border-top-color: var(--mood); }
+    #reply[data-tail-position^="bottom-"]::after { bottom: -9px; border-top-width: 11px; border-top-color: var(--panel); }
+    #reply[data-tail-position="bottom-left"]::before,
+    #reply[data-tail-position="bottom-left"]::after { left: 34px; }
+    #reply[data-tail-position="bottom-center"]::before,
+    #reply[data-tail-position="bottom-center"]::after { left: 50%; transform: translateX(-50%); }
+    #reply[data-tail-position="bottom-right"]::before,
+    #reply[data-tail-position="bottom-right"]::after { left: auto; right: 34px; }
     #reply.visible { opacity: 1; transform: translateY(0) scale(1); }
     #reply.leaving { opacity: 0; transform: translateY(-8px) scale(.98); }
     #reply[data-animation="pop"] { transform: scale(.82); }
@@ -148,7 +179,7 @@
       const startedReplies = new Map();
       const delayedReplies = new Set();
       // El nombre visible lo manda la configuracion de Rulo (fuente unica de verdad).
-      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, replyDelayMs: 0, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, showBotName: true, showAvatar: true, overlayTheme: 'dark', animation: 'slide' };
+      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, replyDelayMs: 0, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, showBotName: true, showAvatar: true, overlayTheme: 'dark', animation: 'slide', tailPosition: 'right-lower' };
 
       // Contraste del avatar: con un acento oscuro la inicial va clara, y al reves.
       function inkFor(hex) {
@@ -176,13 +207,24 @@
         document.documentElement.style.setProperty('--message-size', config.fontSize + 'rem');
         document.documentElement.style.setProperty('--panel', 'rgba(' + (light ? '255, 255, 255' : '14, 17, 22') + ', ' + config.panelOpacity + ')');
         panel.dataset.animation = config.animation || 'slide';
+        const tailPosition = params.get('tailPosition') || config.tailPosition || 'right-lower';
+        panel.dataset.tailPosition = ['right-upper','right-middle','right-lower','bottom-left','bottom-center','bottom-right'].includes(tailPosition) ? tailPosition : 'right-lower';
         panel.dataset.showAvatar = config.showAvatar === false ? 'false' : 'true';
         avatar.hidden = config.showAvatar === false;
         botName.hidden = config.showBotName === false;
         avatarLetter.textContent = config.avatarLetter || 'A';
         botName.textContent = config.botName || 'Rulo';
         applyMascot(config.showMascot === true, panel.dataset.mood || 'idle');
+        if (config.mascotEnabled === false) clearPanel();
         if (!isPreview && panel.classList.contains('visible')) scheduleHide();
+      }
+
+      function clearPanel() {
+        clearTimeout(hideTimer);
+        delayedReplies.forEach(timer => clearTimeout(timer));
+        delayedReplies.clear(); waitingReplies.clear(); startedReplies.clear();
+        panel.classList.remove('visible');
+        panel.classList.add('leaving');
       }
 
       function scheduleHide() {
@@ -216,6 +258,7 @@
 
       function show(data) {
         if (!data || !data.message) return;
+        if (!isPreview && config.mascotEnabled === false) return;
         const mood = String(data.mood || 'success').toLowerCase();
         panel.dataset.mood = mood;
         botName.textContent = config.botName || 'Rulo';

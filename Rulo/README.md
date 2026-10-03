@@ -28,13 +28,11 @@ La URL base ya no está escrita a mano en varios archivos: el backend la detecta
 
 ### Animaciones WebM en OBS
 
-El panel `/rulo-mascota.html` controla la fuente `/rulo-animaciones.html` y permite reemplazar entrada, habla y sueño. El archivo de sueño es `animaciones/Rulo Durmiendo.webm` (copiado desde `D:\RULO\escenas\escenas terminadas`).
-
-- Mientras Rulo está visible, entra en sueño después de 4–6 minutos sin actividad (intervalo aleatorio). Los controles manuales y los eventos de pedidos/respuestas reinician la espera; los comentarios generales y el historial restaurado no cuentan.
-- Sueño: reproduce 0–28 segundos una vez y luego repite 9–28. Los segundos posteriores al 28 no se usan.
-- Una acción durante el sueño termina el bucle actual hasta el segundo 28 y, entonces, deja correr la cola del video hasta el final del archivo antes de cambiar, incluso si se solicita ocultar. Si llegan varias, se conserva la última. Un pedido en búsqueda despierta al terminar; su respuesta activa el habla.
-- Un único elemento de video impide superposiciones; los clips de entrada/habla terminan antes de ejecutar otra animación pendiente. Ocultar durante entrada/habla es inmediato.
-- Rulo oculto no se duerme ni aparece automáticamente. El clip de sueño debe durar al menos 28 segundos.
+El panel `/rulo-mascota.html` controla la fuente `/rulo-animaciones.html` y permite disparar o reemplazar entrada, habla, estado normal y sueño.
+- **Estado Normal / Esperando** (`animaciones/Estado Normal - Esperando.webm`): es la animación por defecto en bucle continuo mientras Rulo está visible. Al finalizar la «Entrada» o tras cada respuesta de «Habla», Rulo vuelve y continúa automáticamente en este estado en bucle esperando la siguiente animación.
+- **Entrada** (`animaciones/aparece de abajo.webm`): reproduce la aparición una vez y pasa de inmediato a estado normal en bucle.
+- **Habla** (`animaciones/hablando.webm`): reproduce el habla una vez con cada respuesta real y al terminar continúa en estado normal en bucle.
+- **Sueño** (`animaciones/Rulo Durmiendo.webm`): reproduce 0–28 segundos una vez y luego repite 9–28. Rulo entra en sueño tras 4–6 minutos de inactividad mientras está visible. Cualquier actividad o acción pendiente completa el video y pasa a estado normal o a la acción correspondiente.
 
 La lógica se comprueba con `node --test Rulo/tests/rulo-animation-sleep.test.cjs`.
 

@@ -108,6 +108,7 @@ const PROFILE_SETTING_KEYS = [...Object.keys(ADAPTERS), ...Object.values(PROFILE
 const BUILTINS = [
   ['rulo', 'Rulo · Apariencia', 'Bot y chat', '/rulo-dashboard.html', 'Nombre, mascota y estilo de las respuestas.'],
   ['rulo-mascota', 'Rulo · Animaciones', 'Bot y chat', '/rulo-mascota.html', 'Controles y clips WebM de Rulo para OBS.'],
+  ['rulo-library', 'Rulo · Biblioteca de animaciones', 'Bot y chat', '/rulo-library.html', 'Importa videos, ajusta poses y administra los clips de Rulo.'],
   ['chat', 'Historial de chat', 'Bot y chat', '/rulo-chat-historial.html', 'Comentarios, respuestas y mensajes destacados.'],
   ['spotify', 'Spotify', 'Música', '/rulo-spotify.html', 'Pedidos, reproducción y ajustes de música.'],
   ['training', 'Entrenamiento e IA', 'Música', '/rulo-spotify-training.html', 'Vocabulario, respuestas y conexión del cerebro.'],

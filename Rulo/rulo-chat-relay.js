@@ -16,6 +16,7 @@
   function postComment(message) {
     postJoin(message);
     if (!message || message.bot || !message.chatmessage || !message.chatname) return;
+    const isAlert = !!(message.isAlert || message.event === 'alert' || message.event === 'reaction' || message.hasDonation || /reaccion[oó]|reaccion|shared|comparti[oó]|estrellas|stars|sigui[oó]|followed/i.test(message.chatmessage));
     fetch(RELAY_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -26,7 +27,9 @@
         id: String(message.id || message.mid || '').slice(0, 120),
         type: String(message.type || message.platform || 'chat').slice(0, 40),
         timestamp: Number(message.timestamp) || Date.now(),
-        source: message.type || message.platform || "chat"
+        source: message.type || message.platform || "chat",
+        isAlert: isAlert,
+        event: isAlert ? 'alert' : String(message.event || '')
       })
     }).catch(function () {});
   }

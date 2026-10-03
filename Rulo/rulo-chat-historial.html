@@ -26,6 +26,11 @@
     .icon-btn:hover { color:var(--accent-ink); border-color:var(--accent-ink); }
     .icon-btn:disabled { opacity:.35; cursor:default; color:var(--muted); border-color:var(--line); }
     .icon-btn svg { width:20px; height:20px; }
+    .scene-shortcuts { display:flex; align-items:center; gap:5px; padding-left:8px; margin-left:2px; border-left:1px solid var(--line); }
+    .scene-shortcuts-label { color:var(--muted); font-size:.68rem; font-weight:800; white-space:nowrap; }
+    .scene-btn { width:32px; height:32px; padding:0; border:1px solid var(--line); border-radius:7px; background:var(--btn); color:var(--text); font-size:.9rem; font-weight:900; }
+    .scene-btn:hover { border-color:var(--accent); color:var(--accent-ink); transform:translateY(-1px); }
+    .scene-btn:disabled { opacity:.45; cursor:wait; }
     /* El boton muestra el sol en tema oscuro y la luna en tema claro. */
     #themeToggle .icon-moon { display:none; }
     html.theme-light #themeToggle .icon-sun { display:none; }
@@ -106,6 +111,33 @@
     .name { color:var(--accent-ink); font-weight:800; }
     .text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.3; }
     .empty { color:var(--muted); font-style:italic; }
+    /* Alertas de Facebook y eventos en vivo con color de fondo diferenciado */
+    .row.is-alert .cell.comment {
+      background: linear-gradient(135deg, rgba(24, 119, 242, 0.26) 0%, rgba(18, 30, 48, 0.95) 100%);
+      border-color: rgba(24, 119, 242, 0.75);
+      box-shadow: 0 0 14px rgba(24, 119, 242, 0.22);
+    }
+    .row.is-alert .cell.comment:hover {
+      background: linear-gradient(135deg, rgba(24, 119, 242, 0.38) 0%, rgba(24, 42, 70, 0.98) 100%);
+      border-color: #1877f2;
+    }
+    html.theme-light .row.is-alert .cell.comment {
+      background: linear-gradient(135deg, #e3eeff 0%, #f0f6ff 100%);
+      border-color: #5b92f7;
+      box-shadow: 0 2px 8px rgba(24, 119, 242, 0.15);
+    }
+    html.theme-light .row.is-alert .cell.comment:hover {
+      background: #d4e5ff;
+    }
+    .badge.alert-badge {
+      background: #1877f2;
+      color: #fff;
+      border-color: #1877f2;
+      font-weight: 800;
+      text-transform: uppercase;
+      font-size: .62rem;
+      letter-spacing: .04em;
+    }
     @media(max-width:620px){
       .row { grid-template-columns:1fr; gap:6px; margin-bottom:6px; }
       /* Apilado: la celda vacia no ocupa lugar ni deja hueco. */
@@ -133,6 +165,9 @@
          margen seguro (env) para que los botones no queden cortados. */
       #transportBar { padding:5px 10px calc(5px + env(safe-area-inset-bottom)); gap:6px; }
       #transportNotice { font-size:.7rem; }
+      .scene-shortcuts { gap:4px; padding-left:6px; }
+      .scene-shortcuts-label { display:none; }
+      .scene-btn { width:30px; height:30px; }
       .viewer-count { padding:3px 8px; font-size:.76rem; }
       .viewer-count svg { width:14px; height:14px; }
       .stream-activity { max-width:40vw; padding:3px 7px; font-size:.7rem; }
@@ -206,6 +241,12 @@
         <line x1="18" y1="6" x2="18" y2="18"></line>
       </svg>
     </button>
+    <div class="scene-shortcuts" role="group" aria-label="Cambiar escena de OBS">
+      <span class="scene-shortcuts-label">Escena OBS</span>
+      <button class="scene-btn" type="button" data-obs-hotkey="1" title="Activar atajo 1 de OBS" aria-label="Activar escena con el atajo 1 de OBS">1</button>
+      <button class="scene-btn" type="button" data-obs-hotkey="2" title="Activar atajo 2 de OBS" aria-label="Activar escena con el atajo 2 de OBS">2</button>
+      <button class="scene-btn" type="button" data-obs-hotkey="3" title="Activar atajo 3 de OBS" aria-label="Activar escena con el atajo 3 de OBS">3</button>
+    </div>
     <span id="transportNotice"></span>
     <span id="streamActivity" class="stream-activity" title="Última entrada al directo" aria-live="polite" hidden>
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -388,9 +429,30 @@
         const row = old || document.createElement('div');
         row.id = 'rulo-row-' + item.id;
         row.className = 'row';
-        row.innerHTML = '<div class="cell comment" title="Hacer clic para destacar este comentario en featured.html"><div class="label"><img class="profile" alt=""><span class="name"></span><span class="commented">comentó</span><span class="badge source"></span><span class="stamp"></span></div><div class="text comment-text"></div></div><div class="cell response" title="Hacer clic para repetir esta respuesta en el overlay de Rulo"><div class="label"><span class="resp-label"></span><span class="stamp resp-stamp"></span></div><div class="text response-text"></div></div>';
+        if (!old) {
+          row.innerHTML = '<div class="cell comment" title="Hacer clic para destacar este comentario en featured.html"><div class="label"><img class="profile" alt=""><span class="name"></span><span class="commented">comentó</span><span class="badge source"></span><span class="stamp"></span></div><div class="text comment-text"></div></div><div class="cell response" title="Hacer clic para repetir esta respuesta en el overlay de Rulo"><div class="label"><span class="resp-label"></span><span class="stamp resp-stamp"></span></div><div class="text response-text"></div></div>';
+        }
+        const isAlert = item.isAlert === true || item.event === 'alert' || item.event === 'reaction' ||
+          /reaccion[oó]|reaccion|shared|comparti[oó]|estrellas|stars|sigui[oó]|followed/i.test(item.comment || '');
+        row.classList.toggle('is-alert', isAlert);
         row.querySelector('.name').textContent = escapeText(item.requester);
         row.querySelector('.comment-text').textContent = escapeText(item.comment);
+        const commentedSpan = row.querySelector('.commented');
+        if (commentedSpan) commentedSpan.textContent = isAlert ? 'alerta' : 'comentó';
+        const labelDiv = row.querySelector('.comment .label');
+        if (labelDiv) {
+          const oldAlertBadge = labelDiv.querySelector('.alert-badge');
+          if (isAlert && !oldAlertBadge) {
+            const alertBadge = document.createElement('span');
+            alertBadge.className = 'badge alert-badge';
+            alertBadge.textContent = 'ALERTA';
+            const stampSpan = labelDiv.querySelector('.stamp');
+            if (stampSpan) labelDiv.insertBefore(alertBadge, stampSpan);
+            else labelDiv.appendChild(alertBadge);
+          } else if (!isAlert && oldAlertBadge) {
+            oldAlertBadge.remove();
+          }
+        }
         row.querySelector('.resp-label').textContent = botName + ' responde';
         const sourceBadge = row.querySelector('.source');
         if (item.source) { sourceBadge.textContent = escapeText(item.source); } else sourceBadge.remove();
@@ -508,9 +570,30 @@
             .then(function (data) {
               button.disabled = false;
               if (!data || data.ok !== true) { showTransportNotice('No se pudo enviar el comando'); return; }
-              showTransportNotice(action === 'next' ? 'Pasando al siguiente...' : 'Volviendo al anterior...');
+              showTransportNotice(action === 'next' ? 'Siguiente: aplicando el inicio configurado...' : 'Anterior: aplicando el inicio configurado...');
             })
             .catch(function () { button.disabled = false; showTransportNotice('No se pudo enviar el comando'); });
+        };
+      });
+      Array.prototype.slice.call(document.querySelectorAll('#transportBar [data-obs-hotkey]')).forEach(function (button) {
+        button.onclick = function () {
+          const key = button.getAttribute('data-obs-hotkey');
+          button.disabled = true;
+          fetch('/api/obs/trigger-hotkey', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key: key })
+          })
+            .then(function (r) { return r.json().then(function (data) { return { ok: r.ok, data: data }; }); })
+            .then(function (result) {
+              button.disabled = false;
+              if (!result.ok || !result.data || result.data.ok !== true) {
+                showTransportNotice(result.data && result.data.error ? result.data.error : 'No se pudo cambiar la escena de OBS');
+                return;
+              }
+              showTransportNotice('Atajo ' + key + ' enviado a OBS');
+            })
+            .catch(function () { button.disabled = false; showTransportNotice('No se pudo conectar con OBS'); });
         };
       });
 

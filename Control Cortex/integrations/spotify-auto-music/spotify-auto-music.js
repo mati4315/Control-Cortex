@@ -16,7 +16,7 @@
 	const CONTROL_CORTEX_PLAYBACK_OFFSET_URL = CORTEX_BASE_URL + "/api/spotify-playback-offset";
 	const RULO_BOT_RELAY_URL = CORTEX_BASE_URL + "/api/rulo-bot-message";
 	// Dashboard de Spotify (Rulo/Spotify): ajustes en vivo, registro y comandos.
-	const MODULE_VERSION = 43;
+	const MODULE_VERSION = 55;
 	const CORTEX_CLIENT_STATE_URL = CORTEX_BASE_URL + "/api/spotify-client-state";
 	const CORTEX_WS_URL = CORTEX_BASE_URL.replace(/^http/i, "ws") + "/api/spotify-ws";
 	const CORTEX_REQUEST_LOG_URL = CORTEX_BASE_URL + "/api/spotify-request-log";
@@ -290,7 +290,11 @@
 		return String(template || "")
 			.replace(/\{(\w+)\}/g, (match, key) => {
 				const value = data[key];
-				return value === undefined || value === null ? "" : String(value);
+				if (value === undefined || value === null) return "";
+				const rendered = String(value);
+				return key === "pedido" || key === "busqueda"
+					? rendered.replace(/\bartist\s*:\s*/gi, "").replace(/\s{2,}/g, " ").trim()
+					: rendered;
 			})
 			// Si quedo alguna llave desconocida (mal escrita a mano o por la IA), se va:
 			// nunca tiene que llegar un "{cosa}" al chat.
@@ -394,12 +398,33 @@
 			body: JSON.stringify({
 				message: String(message).slice(0, 500),
 				requester: requesterFirstName(data),
+				source: data?.type === 'auto' ? 'auto' : 'request',
+				triggerId: data?.ruloAnimationTriggerId || '',
+				animationStarted: data?.ruloAnimationStarted === true,
 				mood: mood || "success",
 				// Un provisorio se muestra enseguida pero no queda como respuesta definitiva.
 				provisional: provisional === true,
 				timestamp: Date.now()
 			})
 		}).catch(error => console.debug("[Rulo] No se pudo enviar la respuesta al overlay:", error.message));
+	}
+
+	async function prepareRuloSpeechForPlayback(integration, data) {
+		if (!boolSetting(integration, "announce", true) || data?.type === "auto" || !boolSetting(integration, "ruloEnabled", true)) return;
+		try {
+			const response = await fetch(CORTEX_BASE_URL + "/api/rulo-speech-start", {
+				method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({})
+			});
+			if (!response.ok) return;
+			const sync = await response.json().catch(() => null);
+			if (!sync?.started || !sync.triggerId) return;
+			data.ruloAnimationTriggerId = String(sync.triggerId);
+			data.ruloAnimationStarted = true;
+			const delayMs = Math.max(0, Math.min(120000, Number(sync.delayMs) || 0));
+			if (delayMs) await new Promise(resolve => setTimeout(resolve, delayMs));
+		} catch (error) {
+			console.debug("[Rulo] No se pudo sincronizar la música con la respuesta:", error.message);
+		}
 	}
 
 	// Texto del aviso "pensando" que se muestra mientras se busca en Spotify.
@@ -1207,6 +1232,7 @@
 	}
 
 	async function applyTenSecondPlaybackRule(integration, track, state) {
+		if (integration.cortexSilentTransition) return;
 		const offsetConfig = await getPlaybackOffsetConfig(integration);
 		if (!track?.uri) return;
 		// Si la biblioteca definio start_at/end_at para esta cancion, mandan ellos.
@@ -1307,11 +1333,11 @@
 
 	async function queueContinuation(integration, track) {
 		const state = getContinuationState(integration);
-		if (!state.active || state.inFlight || !track?.uri) return;
+		if (!boolSetting(integration, "ruloEnabled", true) || !state.active || state.inFlight || !track?.uri) return;
 		state.inFlight = true;
 		try {
 			const nextTrack = await getSimilarTrack(integration, track);
-			if (!nextTrack?.uri || state.playedUris.has(nextTrack.uri)) return;
+			if (!boolSetting(integration, "ruloEnabled", true) || !state.active || !nextTrack?.uri || state.playedUris.has(nextTrack.uri)) return;
 			const response = await spotifyFetch(
 				integration,
 				`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(nextTrack.uri)}`,
@@ -1422,7 +1448,132 @@
 		} catch (_) { /* si falla, se sigue con el flujo normal */ }
 	}
 
-	async function startTrackOnDevice(integration, device, track, startPositionMs = 0, strictTarget = false) {
+	// /next no admite position_ms. Ocultamos el inicio hasta confirmar el seek,
+	// conservando la cola y restaurando el volumen incluso si falla el cambio.
+	async function withSilentSpotifyTransition(integration, device, track, run) {
+		const headers = { Authorization: `Bearer ${integration.accessToken}` };
+		const readDevice = async () => {
+			const response = await spotifyFetch(integration, "https://api.spotify.com/v1/me/player/devices", { headers });
+			const data = response.ok ? await response.json() : null;
+			return data?.devices?.find(item => item.id === device.id);
+		};
+		const setVolume = volume => spotifyFetch(integration,
+			`https://api.spotify.com/v1/me/player/volume?volume_percent=${volume}&device_id=${encodeURIComponent(device.id)}`,
+			{ method: "PUT", headers });
+		const waitVolume = async volume => {
+			for (let attempt = 0; attempt < 8; attempt += 1) {
+				if ((await readDevice())?.volume_percent === volume) return true;
+				await waitForSpotify(150);
+			}
+			return false;
+		};
+		const initialDevice = await readDevice();
+		const originalVolume = initialDevice?.volume_percent;
+		if (initialDevice?.supports_volume === false || !Number.isInteger(originalVolume) || originalVolume < 0 || originalVolume > 100) {
+			throw new Error("No se puede confirmar el volumen de Spotify para ocultar la intro. No se avanzo la cola.");
+		}
+		let restoreNeeded = false;
+		let changeStarted = false;
+		let completed = false;
+		integration.cortexSilentTransition = true;
+		try {
+			if (originalVolume > 0) {
+				restoreNeeded = true;
+				const muted = await setVolume(0);
+				if (!muted.ok || !await waitVolume(0)) throw new Error("Spotify no confirmo el silencio previo; no se avanzo la cola.");
+			}
+			changeStarted = true;
+			const result = await run();
+			completed = result.ok === true;
+			return result;
+		} finally {
+			try {
+				if (changeStarted && !completed) {
+					// Si fallo el seek, no dejar oir la intro al recuperar el volumen.
+					const response = await spotifyFetch(integration, "https://api.spotify.com/v1/me/player", { headers });
+					const state = response.ok ? await response.json() : null;
+					if (state?.item?.uri === track.uri && state?.device?.id === device.id) {
+						await spotifyFetch(integration, `https://api.spotify.com/v1/me/player/pause?device_id=${encodeURIComponent(device.id)}`, { method: "PUT", headers });
+					}
+				}
+			} finally {
+				try {
+					if (restoreNeeded) {
+						let restored = false;
+						for (let attempt = 0; attempt < 2 && !restored; attempt += 1) {
+							try {
+								const response = await setVolume(originalVolume);
+								restored = response.ok && await waitVolume(originalVolume);
+							} catch (_) { /* un segundo intento para recuperar el volumen */ }
+						}
+						if (!restored) throw new Error(`Spotify no confirmo la restauracion del volumen a ${originalVolume}%. Revisar el volumen de la app.`);
+					}
+				} finally {
+					integration.cortexSilentTransition = false;
+				}
+			}
+		}
+	}
+
+	async function transportWithConfiguredStart(integration, direction) {
+		const methodName = direction === "next" ? "skip" : "previous";
+		const offset = await getPlaybackOffsetConfig(integration);
+		if (!offset.enabled) return integration[methodName]();
+		const playbackBefore = await estadoDelReproductor(integration);
+		const before = playbackBefore ? JSON.parse(JSON.stringify(playbackBefore)) : null;
+		if (!before?.item?.uri || !Number.isFinite(Number(before.progress_ms))) {
+			return { success: false, message: "No pude confirmar el tema actual; no aplique el salto." };
+		}
+		const preferredName = await getRemoteDeviceTarget();
+		const device = chooseSpotifyDevice(integration, await getSpotifyDevices(integration), preferredName);
+		if (!device?.id) return { success: false, message: "No encontre el dispositivo Spotify para hacer el cambio." };
+		const changingTrack = { uri: before.item.uri };
+		try {
+			const result = await withSilentSpotifyTransition(integration, device, changingTrack, async () => {
+				const moved = await integration[methodName]();
+				if (moved?.success === false) return { ok: false, success: false, message: moved.message || "Spotify no acepto el cambio." };
+				let after = null;
+				let changed = false;
+				for (let attempt = 0; attempt < 24; attempt += 1) {
+					await waitForSpotify(150);
+					after = await estadoDelReproductor(integration);
+					if (!after?.item?.uri) continue;
+					const uriChanged = after.item.uri !== before.item.uri;
+					const restarted = Number(after.progress_ms) < Number(before.progress_ms) - 1000;
+					if (uriChanged || restarted) { changed = true; break; }
+				}
+				if (!changed || !after) return { ok: true, success: true, message: "Spotify recibio el cambio." };
+				changingTrack.uri = after.item.uri;
+				const duration = Number(after.item.duration_ms);
+				const targetMs = Number.isFinite(duration) && duration > 1000
+					? Math.min(offset.seconds * 1000, duration - 1000)
+					: offset.seconds * 1000;
+				if (!(Number(after.progress_ms) >= targetMs)) {
+					const seek = await spotifyFetch(integration,
+						`https://api.spotify.com/v1/me/player/seek?position_ms=${targetMs}&device_id=${encodeURIComponent(device.id)}`,
+						{ method: "PUT", headers: { Authorization: `Bearer ${integration.accessToken}` } });
+					if (!seek.ok) return { ok: false, success: false, message: "Spotify no pudo aplicar el salto inicial." };
+					let confirmed = false;
+					for (let attempt = 0; attempt < 16; attempt += 1) {
+						await waitForSpotify(150);
+						after = await estadoDelReproductor(integration);
+						if (after?.item?.uri === changingTrack.uri && Number(after.progress_ms) >= targetMs) { confirmed = true; break; }
+					}
+					if (!confirmed) return { ok: false, success: false, message: "Spotify no confirmo el salto; pause el tema para que no se oiga la intro." };
+				}
+				if (!integration.spotifyPlaybackOffsetState) integration.spotifyPlaybackOffsetState = { startedUris: new Set(), endedUris: new Set() };
+				integration.spotifyPlaybackOffsetState.startedUris.add(changingTrack.uri);
+				return { ok: true, success: true, message: "Cambio aplicado con el salto inicial." };
+			});
+			return { success: result?.ok === true, message: result?.message || (result?.ok ? "Cambio aplicado." : "No se pudo cambiar el tema.") };
+		} catch (error) {
+			integration.cortexUltimoMotivo = integration.cortexUltimoMotivo || [];
+			integration.cortexUltimoMotivo.push(String(error.message || error));
+			return { success: false, message: String(error.message || "No se pudo cambiar el tema.") };
+		}
+	}
+
+	async function startTrackOnDevice(integration, device, track, startPositionMs = 0, strictTarget = false, queueAsNext = false) {
 		// Motivos reales de Spotify de cada intento: van al registro para diagnosticar
 		// sin adivinar (igual que pausa/reanudar).
 		integration.cortexUltimoMotivo = [];
@@ -1473,6 +1624,142 @@
 		const confirmsPlayback = state => state?.is_playing === true && state?.item?.uri === track.uri &&
 			(!strictTarget || state?.device?.id === device.id ||
 				String(state?.device?.name || "").toLowerCase() === String(device.name || "").toLowerCase());
+
+		if (queueAsNext) {
+			// Los pedidos manuales se agregan con la API de cola (Spotify los coloca
+			// como siguiente tema); avanzar después conserva el contexto/playlist actual.
+			const queueUrl = `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(track.uri)}&device_id=${encodeURIComponent(device.id)}`;
+			let currentState = await readPlaybackState();
+			if (currentState?.is_playing === true && currentState?.item?.uri === track.uri) {
+				console.log(`[Spotify Auto Music] ${track.name} ya estaba sonando; no se vuelve a encolar ni a avanzar.`);
+				return { ok: true, status: 204, spotifyAlreadyPlaying: true, json: async () => ({}) };
+			}
+
+			const queueState = await spotifyFetch(integration, "https://api.spotify.com/v1/me/player/queue", {
+				headers: { Authorization: `Bearer ${integration.accessToken}` }
+			});
+			let queue = queueState.ok ? await queueState.json().catch(() => null) : null;
+			let firstInQueue = queue?.queue?.[0]?.uri === track.uri;
+			if (!firstInQueue) {
+				const queued = await spotifyFetch(integration, queueUrl, {
+					method: "POST",
+					headers: { Authorization: `Bearer ${integration.accessToken}` }
+				});
+				if (!(queued.status === 204 || queued.ok)) {
+					await apuntar(queued, "encolar tema como siguiente");
+					return queued;
+				}
+
+				for (let intento = 0; intento < 4 && !firstInQueue; intento += 1) {
+					await waitForSpotify(450);
+					const queueResponse = await spotifyFetch(integration, "https://api.spotify.com/v1/me/player/queue", {
+						headers: { Authorization: `Bearer ${integration.accessToken}` }
+					});
+					queue = queueResponse.ok ? await queueResponse.json().catch(() => null) : null;
+					firstInQueue = queue?.queue?.[0]?.uri === track.uri;
+				}
+			}
+			if (!firstInQueue) {
+				const detalle = `Spotify encolo "${track.name}", pero no quedo como siguiente tema; no se avanzo para evitar saltar otro tema.`;
+				integration.cortexUltimoMotivo.push(detalle);
+				return { ok: false, status: 409, spotifyPlaybackNotConfirmed: true, json: async () => ({ error: { status: 409, message: detalle } }) };
+			}
+
+			const advanceQueuedTrack = async () => {
+				// En Spotify de escritorio, /next puede empezar a reproducir el tema
+				// antes de que el cliente aplique el volumen 0. Pausamos antes del salto
+				// para que ningun fragmento de la intro pueda salir por los altavoces.
+				if (startPositionMs > 0) {
+					const beforeAdvance = await readPlaybackState();
+					if (beforeAdvance?.is_playing === true) {
+						const paused = await spotifyFetch(integration, `https://api.spotify.com/v1/me/player/pause?device_id=${encodeURIComponent(device.id)}`, {
+							method: "PUT",
+							headers: { Authorization: `Bearer ${integration.accessToken}` }
+						});
+						if (!(paused.status === 204 || paused.ok)) {
+							await apuntar(paused, "pausar antes de avanzar la cola");
+							return paused;
+						}
+						let pauseConfirmed = false;
+						for (let intento = 0; intento < 12; intento += 1) {
+							await waitForSpotify(100);
+							const state = await readPlaybackState();
+							if (state?.device?.id === device.id && state.is_playing === false) { pauseConfirmed = true; break; }
+						}
+						if (!pauseConfirmed) {
+							const detalle = "Spotify no confirmo la pausa previa; no se avanzo la cola para evitar reproducir la intro.";
+							integration.cortexUltimoMotivo.push(detalle);
+							return { ok: false, status: 409, spotifyPlaybackNotConfirmed: true, json: async () => ({ error: { status: 409, message: detalle } }) };
+						}
+					}
+				}
+				const skipped = await spotifyFetch(integration, `https://api.spotify.com/v1/me/player/next?device_id=${encodeURIComponent(device.id)}`, {
+					method: "POST",
+					headers: { Authorization: `Bearer ${integration.accessToken}` }
+				});
+				if (!(skipped.status === 204 || skipped.ok)) {
+					await apuntar(skipped, "siguiente tras encolar tema pedido");
+					return skipped;
+				}
+
+				let state = null;
+				const trackIsCurrent = value => value?.item?.uri === track.uri &&
+					(value?.device?.id === device.id || String(value?.device?.name || "").toLowerCase() === String(device.name || "").toLowerCase());
+				for (let intento = 0; intento < (startPositionMs > 0 ? 20 : 6) && !(startPositionMs > 0 ? trackIsCurrent(state) : confirmsPlayback(state)); intento += 1) {
+					await waitForSpotify(startPositionMs > 0 ? 150 : 500);
+					state = await readPlaybackState();
+				}
+				if (startPositionMs > 0 ? !trackIsCurrent(state) : !confirmsPlayback(state)) {
+					const detalle = `Spotify avanzo la cola, pero no confirmo "${track.name}" sonando en ${device.name}.`;
+					integration.cortexUltimoMotivo.push(detalle);
+					return { ok: false, status: 409, spotifyPlaybackNotConfirmed: true, json: async () => ({ error: { status: 409, message: detalle } }) };
+				}
+				if (startPositionMs > 0 && (state.progress_ms == null || !(Number(state.progress_ms) >= startPositionMs))) {
+					const seek = await spotifyFetch(integration, `https://api.spotify.com/v1/me/player/seek?position_ms=${startPositionMs}&device_id=${encodeURIComponent(device.id)}`, {
+						method: "PUT", headers: { Authorization: `Bearer ${integration.accessToken}` }
+					});
+					if (!seek.ok) {
+						await apuntar(seek, "adelantar el tema antes de devolver el volumen");
+						return seek;
+					}
+					for (let attempt = 0; attempt < 12; attempt += 1) {
+						await waitForSpotify(150);
+						state = await readPlaybackState();
+						if (trackIsCurrent(state) && Number(state.progress_ms) >= startPositionMs) break;
+					}
+					if (!trackIsCurrent(state) || Number(state.progress_ms) < startPositionMs || state.progress_ms == null) {
+						throw new Error("Spotify no confirmo el segundo de inicio del tema; se detuvo el cambio para no reproducir la intro.");
+					}
+				}
+				if (startPositionMs > 0 && state.is_playing !== true) {
+					const resumed = await spotifyFetch(integration, `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(device.id)}`, {
+						method: "PUT",
+						headers: { Authorization: `Bearer ${integration.accessToken}`, "Content-Type": "application/json" },
+						body: "{}"
+					});
+					if (!(resumed.status === 204 || resumed.ok)) {
+						await apuntar(resumed, "reanudar tema pedido despues del salto inicial");
+						return resumed;
+					}
+					let resumedAtOffset = false;
+					for (let intento = 0; intento < 12; intento += 1) {
+						await waitForSpotify(100);
+						state = await readPlaybackState();
+						if (confirmsPlayback(state) && Number(state.progress_ms) >= startPositionMs) { resumedAtOffset = true; break; }
+					}
+					if (!resumedAtOffset) throw new Error("Spotify no confirmo la reproduccion desde el segundo elegido; el tema quedo pausado para proteger la intro.");
+				}
+				if (startPositionMs > 0) {
+					if (!integration.spotifyPlaybackOffsetState) integration.spotifyPlaybackOffsetState = { startedUris: new Set(), endedUris: new Set() };
+					integration.spotifyPlaybackOffsetState.startedUris.add(track.uri);
+				}
+				console.log(`[Spotify Auto Music] ${track.name} agregado como siguiente y reproducido sin reemplazar la playlist.`);
+				return { ok: true, status: 204, json: async () => ({}) };
+			};
+			return startPositionMs > 0
+				? await withSilentSpotifyTransition(integration, device, track, advanceQueuedTrack)
+				: await advanceQueuedTrack();
+		}
 
 		let response = await playRequest(device.id, true);
 		if (!(response.status === 204 || response.ok)) {
@@ -1603,37 +1890,55 @@
 		}).join(" | ");
 	}
 
-	function checkCooldown(integration, data) {
+	function musicCooldownRemaining(integration, data) {
 		const now = Date.now();
-		// Los pedidos del dashboard son del streamer: no consumen esperas.
-		const fromDashboard = data?.dashboard === true;
-		const bypass = fromDashboard || !!(data?.host || data?.admin || data?.mod);
-		const testMode = boolSetting(integration, "testMode", false);
+		if (data?.type === "auto" || boolSetting(integration, "testMode", false)) return 0;
 		const cooldownMs = numSetting(integration, "cooldownSeconds", DEFAULT_COOLDOWN_MS / 1000, 0, 3600) * 1000;
 		const userCooldownMs = numSetting(integration, "userCooldownSeconds", DEFAULT_USER_COOLDOWN_MS / 1000, 0, 7200) * 1000;
-
-		if (integration.autoMusicInFlight) {
-			return { ok: false, message: replyText("busy", { nombre: requesterFirstName(data) }, "Ya estoy procesando un pedido musical. Espera un momento.") };
-		}
-
-		if (bypass || testMode) {
-			// Modo prueba: se saltean las dos esperas (la de un pedido en curso sigue).
-			return { ok: true, cooldownMs, userCooldownMs, testMode };
-		}
-
 		const globalRemaining = cooldownMs - (now - (integration.lastAutoMusicRequestAt || 0));
-		if (globalRemaining > 0) {
-			return { ok: false, message: replyText("waitGlobal", { segundos: Math.ceil(globalRemaining / 1000), nombre: requesterFirstName(data) }, `Espera ${Math.ceil(globalRemaining / 1000)}s para pedir otro tema.`) };
-		}
-
 		if (!integration.autoMusicUserRequests) integration.autoMusicUserRequests = new Map();
 		const key = requesterKey(data);
 		const userRemaining = userCooldownMs - (now - (integration.autoMusicUserRequests.get(key) || 0));
-		if (userRemaining > 0) {
-			return { ok: false, message: replyText("waitUser", { segundos: Math.ceil(userRemaining / 1000), nombre: requesterFirstName(data) }, `Ya pediste un tema hace poco. Espera ${Math.ceil(userRemaining / 1000)}s.`) };
-		}
+		return Math.max(0, globalRemaining, userRemaining);
+	}
 
-		return { ok: true, cooldownMs, userCooldownMs, testMode };
+	// Una tanda comprometida de hasta tres pedidos y los tres más recientes
+	// para la siguiente. Los nuevos pedidos nunca desplazan la tanda en curso.
+	function enqueueMusicRequest(integration, run, skippedValue) {
+		const queue = integration.cortexMusicQueue || (integration.cortexMusicQueue = {
+			batch: [], latest: [], assigned: 0, running: false
+		});
+		return new Promise((resolve, reject) => {
+			const entry = { run, resolve, reject, skippedValue };
+			if (queue.assigned < 3) { queue.batch.push(entry); queue.assigned++; }
+			else {
+				queue.latest.push(entry);
+				if (queue.latest.length > 3) {
+					const skipped = queue.latest.shift();
+					skipped.resolve(skipped.skippedValue);
+				}
+			}
+			if (queue.running) return;
+			queue.running = true;
+			(async () => {
+				try {
+					while (queue.batch.length) {
+						const next = queue.batch.shift();
+						try { next.resolve(await next.run()); } catch (error) { next.reject(error); }
+						if (!queue.batch.length && queue.latest.length) {
+							queue.batch = queue.latest; queue.latest = []; queue.assigned = queue.batch.length;
+						}
+					}
+				} finally { queue.running = false; queue.assigned = 0; }
+			})();
+		});
+	}
+
+	function clearWaitingMusicRequests(integration) {
+		const queue = integration.cortexMusicQueue;
+		if (!queue) return;
+		for (const entry of queue.batch.concat(queue.latest)) entry.resolve(entry.skippedValue);
+		queue.batch = []; queue.latest = [];
 	}
 
 	// Busca una cancion por su URI/id de Spotify (lo usa el modo automatico de la
@@ -1651,15 +1956,31 @@
 	}
 
 	async function playTrackNow(integration, query, data) {
+		if (!boolSetting(integration, "ruloEnabled", true)) return { success: false, message: "Rulo está apagado." };
 		if (!integration.accessToken) {
 			return { success: false, message: replyText("noToken", {}, "Spotify no esta conectado.") };
 		}
+		// Los pedidos que llegan mientras Rulo prepara «Habla» esperan su turno.
+		// Rechazarlos como busy disparaba otra animación y podía reemplazar el
+		// triggerId que estaba esperando el primer pedido (por ejemplo, al despertar).
+		while (integration.autoMusicInFlight) {
+			const running = integration.autoMusicPending;
+			if (running) await running;
+			else await new Promise(resolve => setTimeout(resolve, 0));
+		}
+		if (!boolSetting(integration, "ruloEnabled", true)) return { success: false, message: "Rulo está apagado." };
 
-		const cooldown = checkCooldown(integration, data);
-		if (!cooldown.ok) return { success: false, message: cooldown.message, blockedByCooldown: true };
-
+		let finishPending;
+		integration.autoMusicPending = new Promise(resolve => { finishPending = resolve; });
 		integration.autoMusicInFlight = true;
 		try {
+			// Releer los ajustes durante la espera permite cambiarlos desde el panel.
+			let remaining;
+			while ((remaining = musicCooldownRemaining(integration, data)) > 0) {
+				if (!boolSetting(integration, "ruloEnabled", true)) return { success: false, message: "Rulo está apagado." };
+				await new Promise(resolve => setTimeout(resolve, Math.min(1000, remaining)));
+			}
+			if (!boolSetting(integration, "ruloEnabled", true)) return { success: false, message: "Rulo está apagado." };
 			// Si viene la URI exacta (modo automatico de la biblioteca), se usa esa.
 			const uriPedida = data && (data.uri || (/^(spotify:track:)?[0-9A-Za-z]{22}$/.test(String(query || "").trim()) ? query : ""));
 			const track = uriPedida ? await trackByUri(integration, uriPedida) : await searchTrack(integration, query);
@@ -1729,7 +2050,9 @@
 				? Math.round(propios.startAt * 1000)
 				: (offsetConfig.enabled ? offsetConfig.seconds * 1000 : 0);
 			const configuredTarget = remotePreferredName || settingValue(integration.settings, "spotifyAutoMusicDeviceName", "");
-			const response = await startTrackOnDevice(integration, device, track, arranqueMs, Boolean(configuredTarget));
+			await prepareRuloSpeechForPlayback(integration, data || {});
+			if (!boolSetting(integration, "ruloEnabled", true)) return { success: false, message: "Rulo está apagado." };
+			const response = await startTrackOnDevice(integration, device, track, arranqueMs, Boolean(configuredTarget), data?.type !== "auto");
 			if (response.spotifyPlaybackNotConfirmed) {
 				return {
 					success: false,
@@ -1759,13 +2082,16 @@
 					uri: String(track.uri || ""),
 					at: Date.now()
 				};
-				const continuationState = getContinuationState(integration);
+			const continuationState = getContinuationState(integration);
 				const autoContinue = boolSetting(integration, "autoContinue", true);
-				continuationState.active = autoContinue;
+				const isAutomaticLibraryTrack = data?.type === "auto";
+				// Los pedidos manuales van dentro de la cola/lista que ya está sonando.
+				// No agregamos además una recomendación automática detrás del pedido.
+				continuationState.active = autoContinue && isAutomaticLibraryTrack;
 				continuationState.playedUris.add(track.uri);
-				if (autoContinue) queueContinuation(integration, track).catch(() => {});
-				// Los pedidos lanzados desde el dashboard no consumen esperas del chat.
-				if (data?.dashboard !== true) {
+				if (continuationState.active && !response.spotifyAlreadyPlaying) queueContinuation(integration, track).catch(() => {});
+				// Toda petición manual cuenta, también la simulada y la del streamer.
+				if (data?.type !== "auto") {
 					const now = Date.now();
 					integration.lastAutoMusicRequestAt = now;
 					if (!integration.autoMusicUserRequests) integration.autoMusicUserRequests = new Map();
@@ -1792,9 +2118,14 @@
 			return { success: false, message };
 		} catch (error) {
 			console.warn("[Spotify Auto Music] Error:", error);
+			if (integration.cortexUltimoMotivo) integration.cortexUltimoMotivo.push(String(error.message || error));
 			return { success: false, message: replyText("error", {}, "Error procesando el pedido musical.") };
 		} finally {
 			integration.autoMusicInFlight = false;
+			const finish = finishPending;
+			finishPending = null;
+			integration.autoMusicPending = null;
+			if (finish) finish();
 		}
 	}
 
@@ -1942,8 +2273,9 @@
 		const isFirst = !integration.cortexSpotifySettings;
 		integration.cortexSpotifySettings = settings;
 		integration.cortexSpotifySettingsAt = Date.now();
+		if (settings.ruloEnabled === false || settings.enabled === false) clearWaitingMusicRequests(integration);
 		// Si se apago la continuidad, se corta la que este en curso.
-		if (settings.autoContinue === false && integration.autoMusicContinuation) {
+		if ((settings.autoContinue === false || settings.ruloEnabled === false) && integration.autoMusicContinuation) {
 			integration.autoMusicContinuation.active = false;
 		}
 		if (isFirst) {
@@ -1959,25 +2291,32 @@
 	}
 
 	// Los comandos pueden venir sueltos o en lote: se ejecutan en orden.
-	async function runClaimedDashboardCommand(integration, command) {
-		if (!command?.id) return runDashboardCommand(integration, command);
-		const response = await fetch(CORTEX_BASE_URL + "/api/spotify-command-claim", {
-			method: "POST",
-			headers: { "Content-Type": "application/json" },
-			body: JSON.stringify({ id: command.id })
+	function runClaimedDashboardCommand(integration, command, waitForPlayback = true) {
+		const admission = (integration.cortexCommandAdmission || Promise.resolve()).then(async () => {
+			if (command?.id) {
+				const response = await fetch(CORTEX_BASE_URL + "/api/spotify-command-claim", {
+					method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: command.id })
+				});
+				if (!response.ok) throw new Error("No se pudo reclamar el comando de Spotify");
+				const result = await response.json().catch(() => null);
+				if (!result?.claimed) return null;
+			}
+			return { playback: runDashboardCommand(integration, command) };
 		});
-		if (!response.ok) throw new Error("No se pudo reclamar el comando de Spotify");
-		const result = await response.json().catch(() => null);
-		if (!result?.claimed) return null;
-		return runDashboardCommand(integration, command);
+		integration.cortexCommandAdmission = admission.catch(() => {});
+		return admission.then(result => {
+			if (!result) return null;
+			if (waitForPlayback) return result.playback;
+			result.playback.catch(error => console.debug("[Spotify Auto Music] Error en pedido en cola:", error.message));
+			return null;
+		});
 	}
 
 	function runCommandList(integration, list) {
 		const commands = Array.isArray(list) ? list.filter(Boolean) : [];
-		return commands.reduce(
-			(chain, command) => chain.then(() => runClaimedDashboardCommand(integration, command)),
-			Promise.resolve()
-		);
+		// Admitir todo el lote permite seleccionar los últimos tres antes de tocarlos.
+		// El poll sigue recibiendo pedidos y ajustes mientras la cola espera su turno.
+		return Promise.all(commands.map(command => runClaimedDashboardCommand(integration, command, false)));
 	}
 
 	// Enlace directo: evita la demora del poll (Brave estrangula los timers de
@@ -2069,16 +2408,30 @@
 
 	// Comandos del dashboard: probar un tema, simular un comentario real,
 	// listar dispositivos o mover el transporte (pausa, siguiente...).
-	async function runDashboardCommand(integration, command) {
+	function runDashboardCommand(integration, command) {
+		const isMusic = command?.type === "play" || (command?.type === "simulate" && !command.parseOnly && parseRequest(command.comment, requestLimits(integration)));
+		const skipped = { success: false, skipped: true, message: "Pedido omitido para conservar los tres más recientes." };
+		if (command?.auto === true) {
+			return integration.cortexMusicQueue?.running ? Promise.resolve(skipped) : executeDashboardCommand(integration, command);
+		}
+		return isMusic
+			? enqueueMusicRequest(integration, () => executeDashboardCommand(integration, command), skipped)
+			: executeDashboardCommand(integration, command);
+	}
+
+	async function executeDashboardCommand(integration, command) {
+		const type = String(command?.type || "");
+		const transportAllowedWhenMascotOff = type === "next" || type === "previous";
+		const mascotIsOn = boolSetting(integration, "ruloEnabled", true);
+		if (!mascotIsOn && !transportAllowedWhenMascotOff) return null;
 		beginInteraction(integration, {
 			comment: command?.comment || command?.query || "",
 			platform: "dashboard",
 			requesterId: "dashboard"
 		});
-		const type = String(command?.type || "");
 		const requester = String(command?.requester || "Dashboard").slice(0, 80);
 		const data = { dashboard: true, chatname: requester, type: "dashboard", host: true };
-		const announce = boolSetting(integration, "announce", true);
+		const announce = mascotIsOn && boolSetting(integration, "announce", true);
 
 		if (type === "play") {
 			const esAuto = command.auto === true;
@@ -2201,7 +2554,9 @@
 			// previous funcionan bien, asi que siguen usando la de SocialStream.
 			const result = (type === "pause" || type === "resume")
 				? await controlarReproduccion(integration, type)
-				: await integration[method]();
+				: ((type === "next" || type === "previous")
+					? await transportWithConfiguredStart(integration, type)
+					: await integration[method]());
 			const ok = result?.success !== false;
 			// Si saltan o pausan el tema que Rulo acaba de poner, queda guardado como
 			// enganche: sirve para ver que temas y que respuestas funcionan mejor.
@@ -2334,6 +2689,7 @@
 			SpotifyClass.prototype.__cortexBotNamePatched = true;
 		}
 		SpotifyClass.prototype.playAutoMusicTrackNow = function(query, data) {
+			if (!boolSetting(this, "ruloEnabled", true)) return null;
 			return playTrackNow(this, query, data);
 		};
 		SpotifyClass.prototype.describeAutoMusicDevices = function() {
@@ -2412,6 +2768,7 @@
 			SpotifyClass.prototype[marker] = true;
 		});
 		SpotifyClass.prototype.handleCommand = async function(command, data = {}) {
+			if (!boolSetting(this, "ruloEnabled", true)) return null;
 			beginInteraction(this, {
 				comment: command,
 				platform: data?.type || "",
@@ -2472,6 +2829,20 @@
 				track: result.track
 			});
 			return response;
+		};
+		const handleRuloCommand = SpotifyClass.prototype.handleCommand;
+		SpotifyClass.prototype.handleCommand = function(command, data = {}) {
+			if (!boolSetting(this, "ruloEnabled", true) || data.bot || data.event || data.private || data.history || data.replay || data.reflection) return Promise.resolve(null);
+			const limits = requestLimits(this);
+			const parsed = parseRequest(command, limits);
+			const ai = limits.vocab.ai || DEFAULT_VOCABULARY.ai;
+			const text = normalizeText(command);
+			const aiCandidate = ai.enabled === true && (ai.requireSignal === false ||
+				regex("\\b" + limits.regexes.musicWords + "\\b").test(text) || regex("\\b" + limits.regexes.requestVerbs + "\\b").test(text));
+			if ((parsed && !parsed.error) || aiCandidate) {
+				return enqueueMusicRequest(this, () => handleRuloCommand.call(this, command, data), null);
+			}
+			return handleRuloCommand.call(this, command, data);
 		};
 
 		const originalGetCurrentTrack = SpotifyClass.prototype.getCurrentTrack;

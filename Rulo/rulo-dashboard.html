@@ -72,17 +72,21 @@
       <div class="url-line"><input id="ngrokUrl" readonly placeholder="Túnel apagado"><button id="copyNgrok" type="button">Copiar</button><button id="openNgrokPanel" class="secondary" type="button">Panel de ngrok</button></div>
       <small id="ngrokInfo">Para que otra persona maneje el historial desde afuera. La dirección cambia cada vez que reiniciás el túnel: acá se actualiza sola.</small>
     </section>
-    <section class="url-box">
-      <span class="url-label">Facebook: contador de espectadores</span>
-      <div class="url-line"><input id="fbVideoInput" placeholder="URL o ID del video en vivo"><button id="fbVideoOpen" type="button">Abrir el video</button><button id="fbVideoCopy" class="secondary" type="button">Copiar URL</button></div>
-      <div class="url-line url-extra"><input id="fbPageInput" placeholder="Page ID (solo si transmitís desde una Página)"><button id="fbPageCopy" class="secondary" type="button">Copiar URL del bridge</button></div>
-      <small id="fbVideoInfo">Con la página del video abierta en una pestaña, SSN lee el contador y lo manda al historial. No hace falta token. El bridge con token es solo para Páginas que administrás.</small>
+    <section class="url-box" id="fbBox">
+      <span class="url-label">Facebook: contador de espectadores y alertas</span>
+      <div class="url-line"><input id="fbVideoInput" placeholder="URL o ID del video / Live Producer / Alertas (ej: https://www.facebook.com/live/producer/dashboard/.../ALERTS/)"><button id="fbVideoOpen" type="button">Abrir en Facebook</button><button id="fbVideoCopy" class="secondary" type="button">Copiar URL</button></div>
+      <div class="url-line url-extra"><input id="fbPageInput" placeholder="Page ID (solo si transmitís desde una Página con token)"><button id="fbPageCopy" class="secondary" type="button">Copiar URL del bridge</button></div>
+      <small id="fbVideoInfo">Con la pestaña del video o de Live Producer / Alertas abierta, Social Stream lee los espectadores y las alertas en tiempo real (reacciones, compartidos, estrellas) y las manda al historial.</small>
+      <div style="margin-top:8px; display:flex; align-items:center; gap:8px;">
+        <span class="chip" id="fbViewerChip">Facebook: esperando datos...</span>
+      </div>
     </section>
     <form id="configForm">
       <div class="field"><label for="botName">Nombre visible</label><input id="botName" maxlength="80"><small>Fuente única de verdad: el nombre del overlay y del historial sale de acá. Las respuestas del módulo de Spotify ya no lo pisan.</small></div>
       <div class="field"><label for="avatarLetter">Avatar o inicial</label><input id="avatarLetter" maxlength="2"><small>Se usa cuando la mascota está desactivada o cuando falta el asset del estado actual.</small></div>
       <div class="field"><label for="accent">Color principal</label><input id="accent" type="color"><small>Borde, avatar y nombre del bot.</small></div>
       <div class="field"><label for="animation">Animación</label><select id="animation"><option value="slide">Deslizamiento</option><option value="pop">Aparición elástica</option><option value="soft">Suave</option></select></div>
+      <div class="field"><label for="tailPosition">Posición de la punta de la nube</label><select id="tailPosition"><option value="right-upper">Diagonal arriba (lado derecho)</option><option value="right-middle">Centro del lado derecho</option><option value="right-lower">Diagonal abajo (lado derecho)</option><option value="bottom-left">Abajo a la izquierda</option><option value="bottom-center">Centro abajo</option><option value="bottom-right">Abajo a la derecha</option></select><small>La vista previa cambia al elegir; pulsa «Guardar cambios» para aplicarlo en OBS.</small></div>
       <div class="field"><label for="visibleSeconds">Tiempo visible de la respuesta (segundos)</label><input id="visibleSeconds" type="number" min="2" max="60" step="0.5" inputmode="decimal"><small>Escribe cuánto tiempo permanece visible la respuesta en OBS. Puedes usar medios segundos; el rango es de 2 a 60 segundos.</small></div>
       <div class="field"><label for="replyDelaySeconds">Delay Segundos para que aparezca cartel respuesta</label><input id="replyDelaySeconds" type="number" min="0" max="120" step="0.1" inputmode="decimal" value="0"><small>Se cuenta desde el primer fotograma de «Habla». Usa 0 para que el cartel aparezca junto con la animación; admite décimas de segundo.</small></div>
       <div class="field"><label for="maxWidth">Ancho máximo (px)</label><input id="maxWidth" type="number" min="320" max="1200" step="10"></div>
@@ -114,7 +118,7 @@
   </main>
   <script>
     (function () {
-      const ids = ['botName','avatarLetter','accent','visibleSeconds','replyDelaySeconds','maxWidth','fontSize','panelOpacity','showRequester','showMascot','showBotName','showAvatar','overlayTheme','animation'];
+      const ids = ['botName','avatarLetter','accent','visibleSeconds','replyDelaySeconds','maxWidth','fontSize','panelOpacity','showRequester','showMascot','showBotName','showAvatar','overlayTheme','animation','tailPosition'];
       const form = id => document.getElementById(id);
       const notice = form('notice');
       const status = form('status');
@@ -200,7 +204,7 @@
         const crudo = String(fbInput.value || '').trim();
         if (/^https?:\/\//i.test(crudo)) return crudo;
         const id = extraerVideoId(crudo);
-        return id ? 'https://www.facebook.com/watch/?v=' + encodeURIComponent(id) : '';
+        return id ? 'https://www.facebook.com/live/producer/dashboard/' + encodeURIComponent(id) + '/ALERTS/' : '';
       }
       // URL del bridge (necesita Page + token).
       function fbBridgeUrl() {
@@ -214,7 +218,7 @@
         const crudo = String(fbInput.value || '').trim();
         const video = extraerVideoId(crudo);
         if (!crudo) {
-          fbInfo.textContent = 'Con la página del video abierta en una pestaña, SSN lee el contador y lo manda al historial. No hace falta token. El bridge con token es solo para Páginas que administrás.';
+          fbInfo.textContent = 'Con la pestaña del video o de Live Producer / Alertas abierta, Social Stream lee los espectadores y las alertas en tiempo real (reacciones, compartidos, estrellas) y las manda al historial.';
           return;
         }
         if (!video) {
@@ -222,7 +226,7 @@
           return;
         }
         try { localStorage.setItem(FB_KEY, crudo); } catch (_) {}
-        fbInfo.textContent = 'Video ' + video + ': tocá "Abrir el video" y dejá esa pestaña abierta mientras transmitís. El contador aparece en el historial.';
+        fbInfo.textContent = 'Video ' + video + ': tocá "Abrir en Facebook" para abrir Live Producer / Alertas o el video. Los espectadores y alertas aparecen en el historial.';
       }
       fbInput.addEventListener('input', fbRefresh);
       fbPageInput.addEventListener('input', () => { try { localStorage.setItem(FB_PAGE_KEY, primerNumero(fbPageInput.value)); } catch (_) {} });
@@ -250,10 +254,10 @@
       form('openDock').onclick = () => window.open(dockUrl, '_blank', 'noopener');
       form('copyChat').onclick = () => navigator.clipboard.writeText(chatUrl).then(() => showNotice('URL del chat copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openChat').onclick = () => window.open(chatUrl, '_blank', 'noopener');
-      function fill(data) { config = data; ids.forEach(id => { if (id === 'visibleSeconds') form(id).value = (Number(data.visibleMs) / 1000).toString(); else if (id === 'replyDelaySeconds') form(id).value = (Number(data.replyDelayMs || 0) / 1000).toString(); else if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = data[id]; }); }
+      function fill(data) { config = data; ids.forEach(id => { if (id === 'visibleSeconds') form(id).value = (Number(data.visibleMs) / 1000).toString(); else if (id === 'replyDelaySeconds') form(id).value = (Number(data.replyDelayMs || 0) / 1000).toString(); else if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = id === 'tailPosition' ? (data.tailPosition || 'right-lower') : data[id]; }); }
       function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Math.round(Number(value.visibleSeconds)*1000); delete value.visibleSeconds; value.replyDelayMs=Math.round(Number(value.replyDelaySeconds)*1000); delete value.replyDelaySeconds; value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
       function showNotice(text, error) { notice.textContent=text; notice.style.color=error?'#ff7d7d':'var(--accent)'; setTimeout(() => notice.textContent='',3000); }
-      function updatePreview() { preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + encodeURIComponent(form('previewMood').value || 'success') + '&theme=' + encodeURIComponent(form('overlayTheme').value || 'dark') + '&v=' + Date.now(); }
+      function updatePreview() { preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + encodeURIComponent(form('previewMood').value || 'success') + '&theme=' + encodeURIComponent(form('overlayTheme').value || 'dark') + '&tailPosition=' + encodeURIComponent(form('tailPosition').value || 'right-lower') + '&v=' + Date.now(); }
       form('mascotLink').href = location.origin + '/rulo-mascota.html?session=' + encodeURIComponent(session);
       function applyBrandName(name) {
         const label = name || 'Rulo';
@@ -265,17 +269,39 @@
       configSocket.addEventListener('message', event => {
         try {
           const data = JSON.parse(event.data);
+          if (data.type === 'viewer_count') {
+            const counts = data.counts || data;
+            const fb = counts.facebook !== undefined ? counts.facebook : null;
+            const chip = form('fbViewerChip');
+            if (chip) {
+              if (fb !== null && fb !== undefined && fb > 0) {
+                chip.textContent = 'Facebook en vivo: ' + fb + ' espectador' + (fb === 1 ? '' : 'es');
+                chip.className = 'chip ok';
+              } else if (fb === 0) {
+                chip.textContent = 'Facebook: 0 espectadores';
+                chip.className = 'chip';
+              } else {
+                chip.textContent = 'Facebook: esperando conexión del directo';
+                chip.className = 'chip';
+              }
+            }
+          }
           if (data.type !== 'rulo_config_updated' || !data.config) return;
           config = data.config;
           if (document.activeElement !== form('visibleSeconds')) form('visibleSeconds').value = (Number(data.config.visibleMs) / 1000).toString();
           if (document.activeElement !== form('replyDelaySeconds')) form('replyDelaySeconds').value = (Number(data.config.replyDelayMs || 0) / 1000).toString();
           ['showBotName','showAvatar'].forEach(id => { if (document.activeElement !== form(id)) form(id).checked = data.config[id] !== false; });
+          if (document.activeElement !== form('tailPosition')) {
+            const tailPosition = data.config.tailPosition || 'right-lower';
+            if (form('tailPosition').value !== tailPosition) { form('tailPosition').value = tailPosition; updatePreview(); }
+          }
         } catch (_) {}
       });
       form('save').onclick = () => { if (!form('visibleSeconds').reportValidity() || !form('replyDelaySeconds').reportValidity()) return; return fetch('/api/rulo-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(read())}).then(r=>r.json()).then(data => { if (!data.success) throw new Error(); fill(data.config); applyBrandName(data.config.botName); updatePreview(); showNotice('Guardado'); }).catch(() => showNotice('No se pudo guardar',true)); };
       form('test').onclick = () => fetch('/api/rulo-bot-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Esta es una respuesta de prueba de ' + (read().botName || 'Rulo') + '.',requester:'Matias',mood:form('previewMood').value || 'success',timestamp:Date.now()})}).then(() => { updatePreview(); showNotice('Respuesta de prueba enviada'); }).catch(() => showNotice('No se pudo probar',true));
       form('previewMood').onchange = updatePreview;
       form('overlayTheme').onchange = updatePreview;
+      form('tailPosition').onchange = updatePreview;
     }());
   </script>
 </body>

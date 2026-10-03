@@ -8,47 +8,177 @@
     :root{color-scheme:dark;--accent:#9fd50b;--bg:#0d1014;--panel:#171c24;--line:#303a46;--text:#f4f6f8;--muted:#a9b3c0}
     *{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#202a34,var(--bg) 68%);color:var(--text);font:15px "Segoe UI",Arial,sans-serif}
     main{width:min(900px,100%);margin:auto;padding:32px 20px 60px}h1{margin:0 0 7px;font-size:1.8rem}h1 span{color:var(--accent)}h2{font-size:1.05rem;margin:23px 0 12px}p{color:var(--muted);line-height:1.5}.lead{margin:0 0 22px}.card{border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#1b232c,#151a21);padding:20px;margin:16px 0}.connection{display:inline-flex;margin-left:8px;padding:4px 10px;border-radius:20px;background:#333c45;color:var(--muted);font-size:.78rem;vertical-align:middle}.connection.on{background:#28451c;color:#d0ff9b}
-    .url-row{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.url{flex:1;min-width:240px;padding:11px;background:#0b0e13;border:1px solid var(--line);border-radius:7px;overflow-wrap:anywhere;color:#e5efdb;font:13px ui-monospace,monospace}.buttons,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px}.control,.upload{background:#10151b;border:1px solid var(--line);border-radius:9px;padding:14px}.control strong,.upload strong{display:block;margin-bottom:6px}.control small,.upload small{display:block;min-height:38px;color:var(--muted);line-height:1.4;margin-bottom:10px}
+    .url-row{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.url{flex:1;min-width:240px;padding:11px;background:#0b0e13;border:1px solid var(--line);border-radius:7px;overflow-wrap:anywhere;color:#e5efdb;font:13px ui-monospace,monospace}.buttons,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px}.control,.upload{background:#10151b;border:1px solid var(--line);border-radius:9px;padding:14px}.control strong,.upload strong{display:block;margin-bottom:6px}.control small,.upload small{display:block;min-height:38px;color:var(--muted);line-height:1.4;margin-bottom:10px}.power-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px;border:1px solid var(--line);border-radius:10px;background:#10151b;cursor:pointer}.power-row strong,.power-row small{display:block}.power-row small{color:var(--muted);margin-top:4px}.power-row input{appearance:none;width:58px;height:32px;border-radius:20px;background:#46515d;position:relative;cursor:pointer;transition:background .2s}.power-row input:before{content:"";position:absolute;width:24px;height:24px;top:4px;left:4px;border-radius:50%;background:#fff;transition:transform .2s}.power-row input:checked{background:var(--accent)}.power-row input:checked:before{transform:translateX(26px)}.power-row input:disabled{opacity:.5;cursor:wait}
     button,.open-link{border:1px solid #465261;border-radius:7px;padding:10px 12px;background:#26313c;color:var(--text);font:700 14px "Segoe UI",Arial,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}button.primary{background:var(--accent);color:#111;border-color:var(--accent)}button.hide{background:#633d42}button:disabled{opacity:.6;cursor:wait}.open-link{background:#34472a;border-color:#526d3d}.upload input{display:block;width:100%;margin:8px 0 12px;color:var(--muted)}#status{min-height:24px;margin-bottom:0;color:var(--accent)}.note{font-size:.88rem}.status-label{font-weight:700;color:var(--text)}
-    @media(max-width:560px){main{padding:22px 14px 40px}.card{padding:15px}.url{min-width:100%}}
+    .chat-test-form{display:grid;grid-template-columns:minmax(180px,1fr) minmax(280px,2fr) auto;gap:11px;align-items:end}.chat-test-form label{display:block;color:var(--muted);font-size:.88rem}.chat-test-form input,.chat-test-form textarea{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--line);border-radius:7px;background:#0b0e13;color:var(--text);font:inherit}.chat-test-form textarea{min-height:42px;resize:vertical}.chat-test-status{min-height:22px;margin:12px 0 0;color:var(--accent)}
+    @media(max-width:560px){main{padding:22px 14px 40px}.card{padding:15px}.url{min-width:100%}.chat-test-form{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <main>
     <h1><span>Rulo</span> | Animaciones</h1>
-    <p class="lead">Controla la aparición de Rulo en OBS y reemplaza sus clips WebM desde este panel.</p>
+      <p class="lead">Controla si Rulo está activo en OBS y reemplaza sus animaciones desde este panel.</p>
+    <section class="card"><h2>Biblioteca de clips</h2><p class="note">Importa MP4 con FFmpeg, administra familias y poses, y controla la máquina de estados.</p><a class="open-link" href="/rulo-library.html" target="_blank" rel="noopener">Abrir biblioteca de animaciones ↗</a></section>
+    <section class="card" aria-labelledby="powerTitle">
+      <h2 id="powerTitle">Mascota de Rulo</h2>
+      <p class="note">Al apagarla, Rulo se oculta, deja de responder y no procesa pedidos o controles de música. Al encenderla, reproduce la animación de inicio.</p>
+      <label class="power-row" for="mascotEnabled"><span><strong id="powerLabel">Cargando estado…</strong><small id="powerHint">Consultando Control Cortex</small></span><input id="mascotEnabled" type="checkbox" role="switch" disabled></label>
+    </section>
     <section class="card" aria-labelledby="obsTitle">
       <h2 id="obsTitle">Fuente para OBS <span class="connection" id="connection">Conectando…</span></h2>
       <p class="note">Copia esta dirección en una fuente de tipo Navegador. Para transparencia, el video debe tener canal alfa; si el clip tiene fondo negro, seguirá viéndose negro en OBS.</p>
       <div class="url-row"><code class="url" id="url"></code><a class="open-link" id="openUrl" href="#" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>
       <div class="buttons">
-        <div class="control"><strong>Entrada</strong><small>Reproduce «aparece de abajo» una vez y deja a Rulo visible al terminar.</small><button class="primary" type="button" data-trigger="aparecer">Mostrar / repetir entrada</button></div>
-        <div class="control"><strong>Habla</strong><small>Prueba «hablando». Las respuestas reales también la activan si Rulo está visible.</small><button type="button" data-trigger="hablar">Probar hablando</button></div>
+        <div class="control"><strong>Inicio</strong><small>Vuelve a reproducir «Start_Apareciendo». Rulo debe estar encendido.</small><button type="button" data-trigger="iniciar">Probar inicio</button></div>
+        <div class="control"><strong>Entrada</strong><small>Si está oculto, vuelve con Start_Apareciendo. Si ya está visible, repite «aparece de abajo».</small><button class="primary" type="button" data-trigger="aparecer">Mostrar / repetir entrada</button></div>
+        <div class="control"><strong>Habla</strong><small>Prueba «hablando». Al terminar, Rulo continúa en estado normal en bucle.</small><button type="button" data-trigger="hablar">Probar hablando</button></div>
+        <div class="control"><strong>Estado normal</strong><small>Reproduce «Estado normal - Esperando» en bucle hasta la próxima acción.</small><button type="button" data-trigger="normal">Probar estado normal</button></div>
         <div class="control"><strong>Durmiendo</strong><small>Entrada de 0 a 9 s; después repite de 9 a 28 s. Puedes probarlo sin esperar.</small><button type="button" data-trigger="dormir">Probar sueño</button></div>
-        <div class="control"><strong>Visibilidad</strong><small>Oculta a Rulo; las respuestas posteriores no lo mostrarán automáticamente.</small><button class="hide" type="button" data-trigger="ocultar">Ocultar a Rulo</button></div>
+        <div class="control"><strong>Visibilidad</strong><small>Oculta a Rulo. Un nuevo pedido o un control manual lo hará volver con su animación de inicio.</small><button class="hide" type="button" data-trigger="ocultar">Ocultar a Rulo</button></div>
       </div>
-      <p class="note">Rulo se duerme automáticamente tras una espera aleatoria de 4 a 6 minutos sin pedidos ni acciones, mientras esté visible. Los pedidos de música y las respuestas reinician esa espera. Un comentario general del chat no cuenta como pedido a Rulo.</p>
-      <p class="note">Solo se reproduce un video a la vez. Si Rulo está durmiendo, cualquier cambio —incluso ocultarlo— espera hasta el segundo 28 del tramo actual. Durante la entrada al sueño también espera hasta ese punto. Si llegan varias acciones, conserva la más reciente. Las otras animaciones terminan antes de reproducir la siguiente.</p>
+      <p class="note">Rulo se mantiene en su estado normal en bucle mientras está visible. Se duerme automáticamente tras una espera aleatoria de 4 a 6 minutos sin pedidos ni acciones. Los pedidos de música y las respuestas reinician esa espera.</p>
+      <p class="note">Solo se reproduce un video a la vez. Cuando recibe otra acción mientras duerme, termina el video completo antes de cambiar. Al terminar de hablar o ingresar, continúa en estado normal en bucle.</p>
+    </section>
+    <section class="card" aria-labelledby="chatTestTitle">
+      <h2 id="chatTestTitle">Prueba de respuesta en el overlay de Rulo</h2>
+      <p class="note">Envía una respuesta de prueba a <code>rulo-bot-overlay.html</code>. Fuerza su aparición inmediata y activa «Habla»; Rulo debe estar encendida. No se agrega al historial del chat.</p>
+      <div class="url-row"><code class="url" id="botOverlayUrl"></code><button type="button" id="copyBotOverlayUrl">Copiar enlace</button><a class="open-link" id="openBotOverlayUrl" href="#" target="_blank" rel="noopener">Abrir overlay ↗</a></div>
+      <form id="chatTestForm" class="chat-test-form">
+        <label for="chatTestName">Solicitante (opcional)<input id="chatTestName" maxlength="80" value="Prueba"></label>
+        <label for="chatTestMessage">Respuesta de Rulo<textarea id="chatTestMessage" maxlength="500" required>¡Hola! Esta es una respuesta de prueba de Rulo.</textarea></label>
+        <button class="primary" id="sendChatTest" type="submit">Forzar respuesta en overlay</button>
+      </form>
+      <p><a class="open-link" id="openBotDashboard" href="#" target="_blank" rel="noopener">Editar diseño del cartel y respuestas ↗</a></p>
+      <p id="chatTestStatus" class="chat-test-status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card" aria-labelledby="sleepTitle">
+      <h2 id="sleepTitle">Ocultarse después de dormir</h2>
+      <p class="note">Después de dormir sin interrupciones durante un tiempo aleatorio entre estos valores, termina el video de sueño, reproduce el inicio en reversa y queda oculto. Pon el mismo valor en ambos campos para usar un tiempo fijo.</p>
+      <form id="sleepForm">
+        <div class="grid">
+          <label class="control">Mínimo (minutos) <input id="sleepMin" type="number" min="1" max="1440" step="0.1" value="10" required></label>
+          <label class="control">Máximo (minutos) <input id="sleepMax" type="number" min="1" max="1440" step="0.1" value="15" required></label>
+        </div>
+        <p><button type="submit" class="primary" id="saveSleep">Guardar tiempo de sueño</button></p>
+        <p id="sleepStatus" role="status" aria-live="polite" class="note"></p>
+      </form>
+      <p class="note">Ocultarse mantiene a Rulo habilitado para recibir pedidos. Cuando vuelve, siempre reproduce Start_Apareciendo y luego continúa en estado normal o responde al pedido. El interruptor de apagado bloquea también los pedidos de música.</p>
     </section>
     <section class="card" aria-labelledby="uploadTitle">
       <h2 id="uploadTitle">Actualizar animaciones</h2>
       <p class="note">Sube un archivo `.webm` de hasta 100 MB. Al guardarlo, reemplaza el clip actual con el mismo nombre.</p>
       <div class="grid">
+        <div class="upload"><strong>Inicio y salida</strong><small>Reemplaza Start_Apareciendo.webm y genera su reversa para la salida. Se usa siempre al volver a aparecer.</small><input type="file" accept=".webm,video/webm" id="startFile"><button type="button" data-upload="iniciar">Subir y reemplazar</button></div>
         <div class="upload"><strong>Entrada desde abajo</strong><small>Reemplaza `aparece de abajo.webm`.</small><input type="file" accept=".webm,video/webm" id="entranceFile"><button type="button" data-upload="aparecer">Subir y reemplazar</button></div>
         <div class="upload"><strong>Hablando</strong><small>Reemplaza `hablando.webm`.</small><input type="file" accept=".webm,video/webm" id="speakingFile"><button type="button" data-upload="hablar">Subir y reemplazar</button></div>
+        <div class="upload"><strong>Estado normal / Esperando</strong><small>Reemplaza `Estado Normal - Esperando.webm`.</small><input type="file" accept=".webm,video/webm" id="normalFile"><button type="button" data-upload="normal">Subir y reemplazar</button></div>
         <div class="upload"><strong>Durmiendo</strong><small>Reemplaza Rulo Durmiendo.webm. Debe durar al menos 28 segundos y permitir repetir el tramo 9–28.</small><input type="file" accept=".webm,video/webm" id="sleepingFile"><button type="button" data-upload="dormir">Subir y reemplazar</button></div>
       </div>
       <p id="status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card" aria-labelledby="presentationTitle">
+      <h2 id="presentationTitle">Presentación <span class="connection" id="presentationConnection">Consultando fuente…</span></h2>
+      <p class="note">La entrada se reproduce una vez; después el video de espera queda en bucle. Una nueva acción de Rulo oculta esta fuente. Puedes subir MP4 o WebM de hasta 100 MB.</p>
+      <h3>Fuente independiente para OBS</h3>
+      <p class="note">Agrega esta URL como una segunda fuente de tipo Navegador. Esta fuente muestra solo Presentación y se oculta cuando Rulo recibe otra acción.</p>
+      <div class="url-row"><code class="url" id="presentationUrl"></code><a class="open-link" id="openPresentationUrl" href="#" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>
+      <div class="buttons">
+        <div class="control"><strong>Disparador manual</strong><small>Inicia la entrada y, al terminar, deja la espera en bucle en esta fuente independiente.</small><button class="primary" type="button" data-trigger="presentacion">Probar presentación</button></div>
+        <div class="control"><strong>Despedida manual</strong><small>Deja terminar el ciclo actual de espera, reproduce la despedida y luego oculta esta fuente.</small><button type="button" data-trigger="despedida">Probar despedida</button></div>
+      </div>
+      <h3>Actualizar videos de presentación</h3>
+      <div class="grid">
+        <div class="upload"><strong>1. Entrada</strong><small>Presentacion - Entrada.mp4. Se reproduce una vez al iniciar «Probar presentación».</small><input type="file" accept=".webm,.mp4,video/webm,video/mp4" id="presentationEntryFile"><button type="button" data-upload="presentacion-entrada">Subir / reemplazar</button></div>
+        <div class="upload"><strong>2. Espera en bucle</strong><small>Presentacion - Espera.mp4. Se repite hasta que Rulo reciba otra acción.</small><input type="file" accept=".webm,.mp4,video/webm,video/mp4" id="presentationWaitFile"><button type="button" data-upload="presentacion-espera">Subir / reemplazar</button></div>
+        <div class="upload"><strong>3. Despedida</strong><small>Presentacion - Tercera.mp4. Termina el ciclo de espera, se reproduce una vez y después se oculta.</small><input type="file" accept=".webm,.mp4,video/webm,video/mp4" id="presentationThirdFile"><button type="button" data-upload="presentacion-tercera">Subir / reemplazar</button></div>
+      </div>
     </section>
   </main>
   <script>
     (() => {
       const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
       const sourceUrl = location.origin + '/rulo-animaciones.html?session=' + encodeURIComponent(session);
+      const presentationUrl = location.origin + '/rulo-presentacion.html?session=' + encodeURIComponent(session);
+      const botOverlayUrl = location.origin + '/rulo-bot-overlay.html?session=' + encodeURIComponent(session);
+      const botDashboardUrl = location.origin + '/rulo-dashboard.html?session=' + encodeURIComponent(session);
       document.getElementById('url').textContent = sourceUrl;
       document.getElementById('openUrl').href = sourceUrl;
+      document.getElementById('presentationUrl').textContent = presentationUrl;
+      document.getElementById('openPresentationUrl').href = presentationUrl;
+      document.getElementById('botOverlayUrl').textContent = botOverlayUrl;
+      document.getElementById('openBotOverlayUrl').href = botOverlayUrl;
+      document.getElementById('openBotDashboard').href = botDashboardUrl;
       const status = document.getElementById('status');
       const connection = document.getElementById('connection');
+      const power = document.getElementById('mascotEnabled');
+      const powerLabel = document.getElementById('powerLabel');
+      const powerHint = document.getElementById('powerHint');
+      const sleepMin = document.getElementById('sleepMin');
+      const sleepMax = document.getElementById('sleepMax');
+      const sleepStatus = document.getElementById('sleepStatus');
+      const chatTestForm = document.getElementById('chatTestForm');
+      const chatTestStatus = document.getElementById('chatTestStatus');
+      const sendChatTest = document.getElementById('sendChatTest');
+      document.getElementById('copyBotOverlayUrl').addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(botOverlayUrl);
+          chatTestStatus.textContent = 'Enlace de rulo-bot-overlay.html copiado.';
+        } catch (_) { chatTestStatus.textContent = 'No se pudo copiar el enlace.'; }
+      });
+      chatTestForm.addEventListener('submit', async event => {
+        event.preventDefault();
+        const chatname = document.getElementById('chatTestName').value.trim();
+        const chatmessage = document.getElementById('chatTestMessage').value.trim();
+        if (!chatname || !chatmessage) { chatTestStatus.textContent = 'Escribe el nombre y el comentario.'; return; }
+        sendChatTest.disabled = true;
+        chatTestStatus.textContent = 'Enviando…';
+        try {
+          const response = await fetch('/api/rulo-repeat-response', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ requester:chatname, response:chatmessage, forceOverlay:true }) });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo enviar la prueba.');
+          if (result.ignored) throw new Error('Rulo está apagada. Enciéndela para probar su respuesta en el overlay.');
+          chatTestStatus.textContent = 'Respuesta enviada a rulo-bot-overlay.html.';
+        } catch (error) { chatTestStatus.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
+        finally { sendChatTest.disabled = false; }
+      });
+      function fillSleep(config) {
+        sleepMin.value = config.sleepHideMinMinutes ?? 10;
+        sleepMax.value = config.sleepHideMaxMinutes ?? 15;
+      }
+      fetch('/api/rulo-config').then(r => r.json()).then(data => fillSleep(data.config)).catch(() => { sleepStatus.textContent = 'No se pudo cargar el tiempo guardado.'; });
+      document.getElementById('sleepForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        const min = Number(sleepMin.value), max = Number(sleepMax.value);
+        if (max < min) { sleepStatus.textContent = 'El máximo debe ser mayor o igual al mínimo.'; return; }
+        const button = document.getElementById('saveSleep'); button.disabled = true;
+        try {
+          const response = await fetch('/api/rulo-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({sleepHideMinMinutes:min,sleepHideMaxMinutes:max}) });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo guardar.');
+          fillSleep(result.config);
+          sleepStatus.textContent = 'Guardado. Se aplica también si Rulo ya está durmiendo.';
+        } catch (error) { sleepStatus.textContent = error.message; }
+        finally { button.disabled = false; }
+      });
+      function renderPower(enabled) {
+        power.checked = enabled === true;
+        power.disabled = false;
+        powerLabel.textContent = power.checked ? 'Rulo está encendido' : 'Rulo está apagado';
+        powerHint.textContent = power.checked ? 'Animaciones y pedidos de música habilitados' : 'Animaciones y pedidos de música detenidos';
+      }
+      fetch('/api/rulo-mascota-state').then(response => response.json()).then(data => renderPower(data.enabled)).catch(() => { powerLabel.textContent = 'No se pudo cargar el estado'; powerHint.textContent = 'Comprueba que Control Cortex esté iniciado'; });
+      power.addEventListener('change', async () => {
+        const enabled = power.checked;
+        power.disabled = true;
+        powerHint.textContent = enabled ? 'Encendiendo y reproduciendo el inicio…' : 'Apagando…';
+        try {
+          const response = await fetch('/api/rulo-mascota-state', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'No se pudo cambiar el estado.');
+          renderPower(result.enabled);
+          if (result.shuttingDown) powerHint.textContent = 'Reproduciendo la despedida antes de ocultarse…';
+        } catch (error) { renderPower(!enabled); status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
+      });
 
       document.querySelectorAll('[data-trigger]').forEach(button => {
         button.addEventListener('click', async () => {
@@ -57,6 +187,12 @@
             const response = await fetch('/api/rulo-animation-trigger', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:button.dataset.trigger}) });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'No se pudo enviar el control.');
+            if(button.dataset.trigger === 'presentacion' || button.dataset.trigger === 'despedida') {
+              status.textContent = result.presentationClients
+                ? (button.dataset.trigger === 'despedida' ? 'Despedida enviada: terminará el ciclo actual de espera antes de ocultar esta fuente.' : 'Presentación enviada a su fuente OBS independiente.')
+                : 'No hay una fuente independiente de Presentación conectada. Agrégala en OBS con la URL indicada arriba y vuelve a probar.';
+              return;
+            }
             status.textContent = result.overlayClients
               ? 'Prueba enviada a la fuente OBS conectada. Si Rulo está durmiendo, terminará el video completo antes de cambiar.'
               : 'No hay una fuente de animaciones conectada. Recarga en OBS la fuente Navegador de rulo-animaciones.html y vuelve a probar.';
@@ -68,11 +204,13 @@
       document.querySelectorAll('[data-upload]').forEach(button => {
         button.addEventListener('click', async () => {
           const kind = button.dataset.upload;
-          const input = document.getElementById(({aparecer:'entranceFile',hablar:'speakingFile',dormir:'sleepingFile'})[kind]);
+          const input = document.getElementById(({iniciar:'startFile',aparecer:'entranceFile',hablar:'speakingFile',dormir:'sleepingFile',normal:'normalFile','presentacion-entrada':'presentationEntryFile','presentacion-espera':'presentationWaitFile','presentacion-tercera':'presentationThirdFile'})[kind]);
           const file = input.files && input.files[0];
-          if (!file) { status.textContent = 'Elige primero un archivo .webm.'; return; }
-          if (!file.name.toLowerCase().endsWith('.webm') || file.size > 100 * 1024 * 1024) { status.textContent = 'Elige un archivo .webm de hasta 100 MB.'; return; }
-          button.disabled = true; button.textContent = 'Subiendo…'; status.textContent = 'Subiendo ' + file.name + '…';
+          const presentation = kind.startsWith('presentacion-');
+          const extension = file?.name.toLowerCase().split('.').pop();
+          if (!file) { status.textContent = presentation ? 'Elige primero un archivo .mp4 o .webm.' : 'Elige primero un archivo .webm.'; return; }
+          if (!(presentation ? ['mp4','webm'].includes(extension) : extension === 'webm') || file.size > 100 * 1024 * 1024) { status.textContent = presentation ? 'Elige un archivo .mp4 o .webm de hasta 100 MB.' : 'Elige un archivo .webm de hasta 100 MB.'; return; }
+          button.disabled = true; button.textContent = 'Subiendo…'; status.textContent = 'Subiendo ' + file.name + (kind === 'iniciar' ? ' y preparando su reversa. Puede tardar unos momentos…' : '…');
           try {
             if(kind === 'dormir') {
               await new Promise((resolve,reject) => {
@@ -86,7 +224,7 @@
                 probe.preload = 'metadata'; probe.src = objectUrl;
               });
             }
-            const response = await fetch('/api/rulo-animation-upload/' + kind, { method:'POST', headers:{'Content-Type':'video/webm'}, body:file });
+            const response = await fetch('/api/rulo-animation-upload/' + kind, { method:'POST', headers:{'Content-Type': extension === 'mp4' ? 'video/mp4' : 'video/webm'}, body:file });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'No se pudo guardar el video.');
             status.textContent = 'Video actualizado: ' + result.filename + '. Se usará en la próxima reproducción.';
@@ -99,10 +237,13 @@
       const socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
       socket.onopen = () => { connection.textContent = 'Cortex conectado'; connection.classList.add('on'); };
       socket.onclose = () => { connection.textContent = 'Desconectado'; connection.classList.remove('on'); };
-      socket.onmessage = event => { try { const data = JSON.parse(event.data); if(data.type === 'rulo_animation_clients') connection.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; } catch (_) {} };
+      socket.onmessage = event => { try { const data = JSON.parse(event.data); if(data.type === 'rulo_animation_clients') connection.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; if(data.type === 'rulo_presentation_clients') { const target = document.getElementById('presentationConnection'); target.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; target.classList.toggle('on', data.count > 0); } if(data.type === 'rulo_config_updated' && data.config) renderPower(data.config.mascotEnabled !== false); if(data.type === 'rulo_mascota_shutdown_complete') powerHint.textContent = 'Animaciones y pedidos de música detenidos'; } catch (_) {} };
       fetch('/api/rulo-animation-status').then(response => response.json()).then(data => {
         connection.textContent = data.overlayClients ? 'Fuente OBS conectada' : 'Fuente OBS desconectada';
         connection.classList.toggle('on', data.overlayClients > 0);
+        const presentationConnection = document.getElementById('presentationConnection');
+        presentationConnection.textContent = data.presentationClients ? 'Fuente OBS conectada' : 'Fuente OBS desconectada';
+        presentationConnection.classList.toggle('on', data.presentationClients > 0);
       }).catch(() => {});
     })();
   </script>

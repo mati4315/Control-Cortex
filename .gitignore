@@ -22,3 +22,15 @@ Thumbs.db
 Control Cortex/backend/cortex-home.json*
 Control Cortex/backend/cortex-project-context.json*
 Control Cortex/backend/cortex-assistant-history.json*
+
+# Medios locales de Rulo: se distribuyen fuera del repositorio
+Rulo/animaciones/**/*.mp4
+Rulo/animaciones/**/*.webm
+Rulo/animaciones/**/*.rar
+Rulo/animaciones/source/
+Rulo/animaciones/thumbnails/
+Rulo/animaciones/.temp/
+Rulo/animaciones/.trash/
+Rulo/animaciones/.history/
+Rulo/Spotify/Respaldo-pre-programa-*/
+Temas Originales/

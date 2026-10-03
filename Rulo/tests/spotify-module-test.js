@@ -26,8 +26,8 @@ const DEVICE = { id: 'd1', name: 'NOTEBOOK-MATI', type: 'Computer', is_active: t
 const REMOTE_DEFAULTS = {
   enabled: true,
   testMode: false,
-  cooldownSeconds: 40,
-  userCooldownSeconds: 120,
+  cooldownSeconds: 0,
+  userCooldownSeconds: 0,
   minTextLength: 8,
   requireCommand: false,
   personalize: true,
@@ -54,6 +54,14 @@ function loadModule(options) {
     extraCommands: [],
     lastPlayedUri: null,
     lastPlayBody: null,
+    lastPlayAt: 0,
+    playerActions: [],
+    volume: options?.initialVolume ?? 70,
+    audibleStarts: [],
+    seeks: [],
+    speechStartRequestedAt: 0,
+    plays: [],
+    speechStarts: [],
     cortexCalls: [],
     skipCalls: 0,
     aliases: opts.aliases || null,
@@ -65,9 +73,9 @@ function loadModule(options) {
     lastOffsets: [],
     lastTrackById: [],
     nextCalls: 0,
-    queue: [],
+    queue: (opts.initialQueue || []).slice(),
     claimedCommands: new Set(),
-    player: null,
+    player: opts.initialPlayer ? JSON.parse(JSON.stringify(opts.initialPlayer)) : null,
     currentTrack: null
   };
 
@@ -77,6 +85,12 @@ function loadModule(options) {
     pretendToBeVisual: true
   });
   const { window } = dom;
+  if (opts.timeScale) {
+    const epoch = Date.now();
+    window.Date.now = () => epoch + (Date.now() - epoch) * opts.timeScale;
+    const schedule = window.setTimeout.bind(window);
+    window.setTimeout = (callback, ms, ...args) => schedule(callback, ms / opts.timeScale, ...args);
+  }
   window.CORTEX_BASE_URL = 'http://127.0.0.1:4000';
   window.console.debug = () => {};
   // WebSocket simulado: nunca se conecta de verdad (podria tocar el backend vivo).
@@ -124,12 +138,35 @@ function loadModule(options) {
       if (!state.aiInterpretation) return jsonResponse({ ok: false, error: 'La IA esta desactivada.' });
       return jsonResponse({ ok: true, interpretation: state.aiInterpretation });
     }
+    if (target.indexOf('/api/rulo-speech-start') !== -1) {
+      state.speechStartRequestedAt = Date.now();
+      state.speechStarts.push(window.Date.now());
+      state.cortexCalls.push({ url: target, body });
+      if (opts.onSpeechStart) return opts.onSpeechStart(state);
+      return new Promise(resolve => setTimeout(() => resolve({
+        ok: true, status: 200,
+        json: () => Promise.resolve({ success: true, started: true, triggerId: 'sync-trigger', delayMs: opts.speechDelayMs || 0 })
+      }), opts.speechStartWaitMs || 0));
+    }
     if (target.indexOf('http://127.0.0.1:4000/') === 0) {
       state.cortexCalls.push({ url: target, body });
       return jsonResponse({ ok: true, success: true });
     }
 
     // --- Spotify Web API simulada ---
+    if (target.includes('/me/player/volume')) {
+      const volume = Number(new URL(target).searchParams.get('volume_percent'));
+      state.playerActions.push('volume:' + volume);
+      if (opts.muteFails && volume === 0) return emptyResponse(403);
+      if (volume > 0 && opts.restoreFailsOnce && !state.restoreRetried) {
+        state.restoreRetried = true;
+        return emptyResponse(500);
+      }
+      state.volume = volume;
+      if (state.player) state.player.device.volume_percent = volume;
+      if (volume > 0 && state.player?.is_playing) state.audibleStarts.push({ uri: state.player.item.uri, position: state.player.progress_ms });
+      return emptyResponse(204);
+    }
     if (target.indexOf('/v1/search') !== -1 && target.indexOf('type=artist') !== -1) {
       const q = decodeURIComponent((target.split('q=')[1] || '').split('&')[0]);
       state.artistSearches.push(q);
@@ -187,11 +224,11 @@ function loadModule(options) {
     }
     if (target.indexOf('/me/player/devices') !== -1) {
       const dispositivo = opts.deviceActive === false ? Object.assign({}, DEVICE, { is_active: false }) : DEVICE;
-      return jsonResponse({ devices: [dispositivo] });
+      return jsonResponse({ devices: [{ ...dispositivo, volume_percent: state.volume }] });
     }
     // Traspaso de reproduccion (PUT /me/player sin /play): el modulo lo usa para
     // "despertar" el dispositivo cuando quedo inactivo.
-    if (target.indexOf('/me/player') !== -1 && (config.method || '').toUpperCase() === 'PUT' && target.indexOf('/player/play') === -1 && target.indexOf('/pause') === -1) {
+    if (target.indexOf('/me/player') !== -1 && (config.method || '').toUpperCase() === 'PUT' && target.indexOf('/player/play') === -1 && target.indexOf('/pause') === -1 && target.indexOf('/seek') === -1) {
       state.transfers = (state.transfers || 0) + 1;
       state.transferBodies = state.transferBodies || [];
       state.transferBodies.push(body);
@@ -221,40 +258,65 @@ function loadModule(options) {
           json: () => Promise.resolve({ error: { status, message: 'Player command failed: ' + (status === 403 ? 'Restriction violated' : 'No active device found'), reason: 'UNKNOWN' } })
         });
       }
+      if (state.player) state.player.is_playing = false;
       return emptyResponse(204);
     }
     if (target.indexOf('/me/player/play') !== -1) {
+      state.playerActions.push('play');
       if (opts.playStatus) {
         const mensaje = opts.playStatus === 403 ? 'Player command failed: Restriction violated' : 'Player command failed';
         return Promise.resolve({ ok: false, status: opts.playStatus, headers: { get: () => null }, json: () => Promise.resolve({ error: { status: opts.playStatus, message: mensaje, reason: 'UNKNOWN' } }) });
       }
       if (!opts.ignoreDirectPlay) state.lastPlayedUri = (body && Array.isArray(body.uris) && body.uris[0]) || TRACK.uri;
       state.lastPlayBody = body;
+      state.lastPlayAt = Date.now();
+      state.plays.push({ uri: state.lastPlayedUri, at: window.Date.now() });
       return emptyResponse(204);
     }
     if (target.indexOf('/me/player/queue') !== -1) {
       if ((config.method || 'GET').toUpperCase() === 'POST') {
+        state.playerActions.push('queue');
+        if (opts.queueStatus) return Promise.resolve({ ok: false, status: opts.queueStatus, headers: { get: () => null }, json: () => Promise.resolve({ error: { status: opts.queueStatus, message: 'Queue command failed' } }) });
         state.queue.unshift(decodeURIComponent((target.split('uri=')[1] || '').split('&')[0]));
         return emptyResponse(204);
       }
       return jsonResponse({ queue: state.queue.map(uri => ({ uri })) });
     }
-    if (target.indexOf('/me/player/seek') !== -1) return emptyResponse(204);
+    if (target.indexOf('/me/player/seek') !== -1) {
+      state.seeks.push(target);
+      state.playerActions.push('seek');
+      if (opts.seekFails) return emptyResponse(403);
+      const position = Number(new URL(target).searchParams.get('position_ms'));
+      if (state.player && !opts.seekIgnored) {
+        if (opts.seekDelayReads) state.pendingSeek = { position, reads: opts.seekDelayReads };
+        else state.player.progress_ms = position;
+      }
+      return emptyResponse(204);
+    }
     if (target.indexOf('/me/player/next') !== -1) {
+      state.playerActions.push('next');
       state.nextCalls += 1;
-      if (opts.queueWorks && state.queue.length) {
+      if (opts.queueWorks !== false && state.queue.length) {
         const uri = state.queue.shift();
-        state.player = { is_playing: true, progress_ms: 0, item: { uri, name: TRACK.name }, device: DEVICE };
+        state.lastPlayedUri = uri;
+        state.lastPlayAt = Date.now();
+        state.plays.push({ uri, at: window.Date.now() });
+        state.player = { ...(state.player || {}), is_playing: true, progress_ms: 0, item: { uri, name: TRACK.name }, device: { ...DEVICE, volume_percent: state.volume } };
+        if (state.volume > 0) state.audibleStarts.push({ uri, position: 0 });
       }
       return emptyResponse(204);
     }
     if (target.indexOf('/recommendations') !== -1) return jsonResponse({ tracks: [CONTINUATION] });
     if (target.indexOf('/me/player') !== -1) {
+      if (state.pendingSeek && --state.pendingSeek.reads <= 0) {
+        state.player.progress_ms = state.pendingSeek.position;
+        state.pendingSeek = null;
+      }
       if (state.player) return jsonResponse(state.player);     // estado a medida para las pruebas
       return jsonResponse({
         is_playing: true,
         progress_ms: 12000,
-        item: { uri: state.lastPlayedUri || TRACK.uri },
+        item: { uri: state.lastPlayedUri || 'spotify:track:anterior' },
         device: { id: DEVICE.id }
       });
     }
@@ -270,8 +332,8 @@ function loadModule(options) {
     async initialize() { return true; }
     async handleCommand() { return null; }
     async getCurrentTrack() { return state.currentTrack || null; }
-    async skip() { state.skipCalls += 1; return { success: true }; }
-    async previous() { return { success: true }; }
+    async skip() { state.skipCalls += 1; return opts.onSkip ? opts.onSkip(state) : { success: true }; }
+    async previous() { state.previousCalls = (state.previousCalls || 0) + 1; return opts.onPrevious ? opts.onPrevious(state) : { success: true }; }
     async pause() { return { success: true }; }
     async resume() { return { success: true }; }
   }
@@ -296,10 +358,11 @@ async function waitFor(predicate, timeoutMs, stepMs) {
   return -1;
 }
 
-(async () => {
+module.exports = { loadModule, TRACK, cortexCall, wait, waitFor, jsonResponse };
+if (require.main === module) (async () => {
   // ---------- A) parser y limites del dashboard ----------
   {
-    const { dom, integration, state } = loadModule({});
+    const { dom, integration, state } = loadModule({ remote: { cooldownSeconds: 40, userCooldownSeconds: 120 } });
     check('modulo: version declarada expuesta', integration.__cortexModuleVersion === DECLARED_VERSION, integration.__cortexModuleVersion + ' vs ' + DECLARED_VERSION);
 
     const parsed = integration.parseAutoMusicRequest('quiero escuchar Ke Personajes');
@@ -332,18 +395,21 @@ async function waitFor(predicate, timeoutMs, stepMs) {
 
   // ---------- B) esperas normales, modo prueba y registro ----------
   {
-    const { dom, integration, state } = loadModule({});
+    const { dom, integration, state } = loadModule({ timeScale: 1000, remote: { cooldownSeconds: 40, userCooldownSeconds: 120 } });
     await integration.syncSpotifySettings();
 
     const first = await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati', type: 'youtube' });
     check('chat: primer pedido se reproduce', /Yo Tomo Licor/.test(String(first)), first);
 
+    // El mock de busqueda devuelve siempre el mismo tema; simula que entre pedidos
+    // hubo otra pista para comprobar la espera, no el guard de reintento duplicado.
+    state.player.item.uri = 'spotify:track:anterior';
     const second = await integration.handleCommand('!tema Damas Gratis', { chatname: 'Mati', type: 'youtube' });
-    check('chat: segundo pedido espera (40s)', /espera \d+s/i.test(String(second)), second);
+    check('chat: segundo pedido se reproduce respetando ambas esperas', /Yo Tomo Licor/.test(String(second)) && state.plays[1].at - state.plays[0].at >= 120000, second);
 
     const log = cortexCall(state, '/api/spotify-request-log').map(call => call.body);
     check('registro: pedido exitoso reportado', log.some(entry => entry.ok === true && /Yo Tomo Licor/.test(entry.message)), JSON.stringify(log[0]));
-    check('registro: pedido rechazado tambien se reporta', log.some(entry => entry.ok === false && /espera/i.test(entry.message)), 'faltaba el rechazo');
+    check('registro: el pedido que espero tambien se reporta', log.filter(entry => entry.ok === true && entry.source === 'chat').length === 2, log.length);
     check('registro: source chat', log[0] && log[0].source === 'chat', JSON.stringify(log[0] && log[0].source));
     check('registro: guarda el tema elegido', log[0] && log[0].track && log[0].track.name === 'Yo Tomo Licor', JSON.stringify(log[0] && log[0].track));
 
@@ -353,6 +419,7 @@ async function waitFor(predicate, timeoutMs, stepMs) {
     // Modo prueba encendido desde el dashboard: sin esperas.
     state.settings = { ...state.settings, testMode: true };
     await integration.syncSpotifySettings();
+    state.player.item.uri = 'spotify:track:anterior';
     const third = await integration.handleCommand('!tema Damas Gratis', { chatname: 'Mati', type: 'youtube' });
     check('modo prueba: el mismo usuario pide de nuevo sin esperar', /Yo Tomo Licor/.test(String(third)), third);
 
@@ -366,13 +433,40 @@ async function waitFor(predicate, timeoutMs, stepMs) {
 
   // ---------- C) modo prueba apagado del dashboard, personalizacion y salto ----------
   {
+    const { dom, integration, state } = loadModule({ speechDelayMs: 80 });
+    await integration.syncSpotifySettings();
+    await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati', type: 'youtube' });
+    const speech = cortexCall(state, '/api/rulo-speech-start');
+    const finalReply = cortexCall(state, '/api/rulo-bot-message').find(call => call.body && !call.body.provisional);
+    check('sincronizacion: espera el retraso antes de cambiar la musica', state.lastPlayAt - state.speechStartRequestedAt >= 70, `${state.lastPlayAt - state.speechStartRequestedAt} ms`);
+    check('sincronizacion: reutiliza el inicio de Habla para el cartel', speech.length === 1 && finalReply && finalReply.body.triggerId === 'sync-trigger' && finalReply.body.animationStarted === true, JSON.stringify(finalReply && finalReply.body));
+    dom.window.close();
+  }
+
+  {
+    const { dom, integration, state } = loadModule({ speechStartWaitMs: 100, speechDelayMs: 50, search: query => /damas/i.test(query) ? CONTINUATION : TRACK });
+    await integration.syncSpotifySettings();
+    state.player = { is_playing: true, progress_ms: 1000, item: { uri: 'spotify:track:anterior' }, device: DEVICE };
+    const firstPromise = integration.handleCommand('!tema Amar Azul', { chatname: 'Usuario 1', type: 'youtube' });
+    await waitFor(() => state.speechStartRequestedAt, 500, 5);
+    const secondPromise = integration.handleCommand('!tema Damas Gratis', { chatname: 'Usuario 2', type: 'youtube' });
+    const [first, second] = await Promise.all([firstPromise, secondPromise]);
+    const finalReplies = cortexCall(state, '/api/rulo-bot-message').filter(call => call.body && !call.body.provisional);
+    check('concurrencia: el primer pedido termina de cambiar la musica', /reproduciendo:/i.test(String(first)) && state.plays[0]?.uri === TRACK.uri, String(first));
+    check('concurrencia: el segundo se reproduce despues del primero', /Continuacion/.test(String(second)) && state.plays.length === 2 && state.lastPlayedUri === CONTINUATION.uri, String(second));
+    check('concurrencia: cada pedido tiene su propia animacion', cortexCall(state, '/api/rulo-speech-start').length === 2 && finalReplies.length === 2, JSON.stringify(finalReplies.map(call => call.body.message)));
+    dom.window.close();
+  }
+
+  // ---------- C) modo prueba apagado del dashboard, personalizacion y salto ----------
+  {
     const { dom, integration, state } = loadModule({ remote: { personalize: true, announce: true, skipEnabled: true, skipSeconds: 10 } });
     await integration.syncSpotifySettings();
     await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati Perez', type: 'tiktok' });
     const announced = cortexCall(state, '/api/rulo-bot-message').map(call => call.body.message);
     check('overlay: aviso thinking enviado', announced.some(message => /Buscando/.test(message)), JSON.stringify(announced));
     check('overlay: respuesta personalizada', announced.some(message => /^Listo Mati,/.test(message)), JSON.stringify(announced));
-    check('salto: arranca en el segundo 10', state.lastPlayBody && state.lastPlayBody.position_ms === 10000, JSON.stringify(state.lastPlayBody));
+    check('salto: adelanta al segundo 10 despues de encolar', state.seeks.some(url => url.includes('position_ms=10000')), JSON.stringify(state.seeks));
     dom.window.close();
   }
 
@@ -397,7 +491,7 @@ async function waitFor(predicate, timeoutMs, stepMs) {
     check('dashboard: la prueba queda en el registro', dashboardLog.some(entry => entry.source === 'dashboard' && entry.ok === true), JSON.stringify(dashboardLog));
 
     const chatAfter = await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati', type: 'youtube' });
-    check('dashboard: la prueba no consume la espera del chat', /Yo Tomo Licor/.test(String(chatAfter)), chatAfter);
+    check('dashboard: con espera cero el chat puede continuar', /Yo Tomo Licor/.test(String(chatAfter)), chatAfter);
 
     state.skipCalls = 0;
     await integration.runDashboardSpotifyCommand({ type: 'next' });
@@ -730,13 +824,19 @@ async function waitFor(predicate, timeoutMs, stepMs) {
     const delChat = await integration.handleCommand('!tema Amar Azul', { chatname: 'Mati', type: 'youtube' });
     check('respuestas: el chat usa la variante configurada', /^VAR-[ABC] Mati: Yo Tomo Licor - Amar Azul$/.test(String(delChat)), delChat);
 
+    integration.cortexSpotifyVocabulary = Object.assign({}, base, { responses: Object.assign({}, RESPONSES, {
+      contexts: Object.assign({}, RESPONSES.contexts, { notFound: { label: 'no encontre', variants: ['NO-ESTA {pedido} / {busqueda}'] } })
+    }) });
+    const limpio = integration.describeBotReply('notFound', { pedido: 'artist:disfruto', busqueda: 'artist:nombrenuevo', nombre: 'Mati' });
+    check('respuestas: oculta artist: en pedido y busqueda', !/artist:/i.test(limpio) && /disfruto/.test(limpio) && /nombrenuevo/.test(limpio), limpio);
+
     // Pedidos rechazados por espera: tambien salen del contexto configurado.
     state.settings = { ...state.settings, cooldownSeconds: 300 };
     integration.cortexSpotifyVocabulary = Object.assign({}, base, {
       responses: Object.assign({}, RESPONSES, { contexts: Object.assign({}, RESPONSES.contexts, { waitGlobal: { label: 'espera', variants: ['CALMA {segundos}s {nombre}'] } }) })
     });
     await integration.syncSpotifySettings();
-    const espera = await integration.handleCommand('!tema Damas Gratis', { chatname: 'Mati', type: 'youtube' });
+    const espera = integration.describeBotReply('waitGlobal', { segundos: 300, nombre: 'Mati' });
     check('respuestas: el aviso de espera tambien es configurable', /^CALMA \d+s Mati$/.test(String(espera)), espera);
 
     // Sin respuestas configuradas vuelve el texto de siempre (compatibilidad).
@@ -1063,17 +1163,24 @@ async function waitFor(predicate, timeoutMs, stepMs) {
     dom.window.close();
   }
   {
-    const { dom, integration, state } = loadModule({ ignoreDirectPlay: true, queueWorks: true });
-    state.player = { is_playing: true, progress_ms: 12000, item: { uri: 'spotify:track:anterior', name: 'Tema anterior' }, device: DEVICE };
+    const { dom, integration, state } = loadModule({ queueWorks: true, initialQueue: ['spotify:track:cola-anterior'], initialPlayer: {
+      is_playing: true, progress_ms: 12000, item: { uri: 'spotify:track:anterior', name: 'Tema anterior' }, device: DEVICE,
+      context: { uri: 'spotify:playlist:actual', type: 'playlist' }
+    } });
     await integration.initialize();
     const result = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Mati' });
-    check('reproducir: si play no cambia la app, encola y avanza al tema pedido',
-      result && result.success === true && state.nextCalls === 1 && state.player.item.uri === TRACK.uri,
+    check('pedido manual: encola como siguiente y avanza sin reemplazar la playlist',
+      result && result.success === true && state.nextCalls === 1 && state.player.item.uri === TRACK.uri && state.player.context.uri === 'spotify:playlist:actual',
       JSON.stringify({ result: result && result.message, nextCalls: state.nextCalls, player: state.player }));
+    check('pedido manual: usa cola y siguiente sin mandar play directo', state.playerActions.join(',') === 'queue,next', state.playerActions.join(','));
+    check('pedido manual: conserva lo que ya estaba detras en la cola', state.queue.includes('spotify:track:cola-anterior'), JSON.stringify(state.queue));
+    const playsBeforeDuplicate = state.playerActions.join(',');
+    const duplicate = await integration.runDashboardSpotifyCommand({ type: 'play', query: 'Amar Azul Yo Tomo Licor', requester: 'Mati' });
+    check('pedido manual duplicado: reconoce que ya suena y no lo vuelve a agregar', duplicate && duplicate.success === true && state.playerActions.join(',') === playsBeforeDuplicate && !state.queue.includes(TRACK.uri), JSON.stringify({ actions: state.playerActions, queue: state.queue }));
     dom.window.close();
   }
   {
-    const { dom, integration, state } = loadModule({ playStatus: 404 });
+    const { dom, integration, state } = loadModule({ queueStatus: 404 });
     await integration.initialize();
     // El reproductor esta en otro tema: el fallo no se puede confundir con "ya suena".
     state.player = { is_playing: false, item: { uri: 'spotify:track:otro' }, device: { id: DEVICE.id } };

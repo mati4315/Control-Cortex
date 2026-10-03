@@ -129,6 +129,15 @@ Importante: si el chip muestra una versión vieja (por ejemplo v19 cuando el arc
 quedó una pestaña de SocialStream Ninja abierta con el código anterior. Recargá la extensión en
 `brave://extensions` → Actualizar y recargá también esa pestaña.
 
+## Spotify Desktop en Windows no cambia de tema
+
+Para los pedidos manuales, Rulo agrega el tema como próximo en la cola, comprueba que quede primero y
+manda **Siguiente**. Así cambia la canción sin reemplazar el contexto de la playlist que ya estaba
+sonando. Si el tema ya suena o ya está primero, no se agrega otra copia. Las recomendaciones de
+continuidad automática se reservan para la biblioteca de Rulo; no se agregan detrás de un pedido
+manual. El diagnóstico técnico y la prueba de regresión están en
+[`Control Cortex/integrations/spotify-auto-music/README.md`](../../Control%20Cortex/integrations/spotify-auto-music/README.md#spotify-de-escritorio-en-windows-conservar-la-playlist-al-cambiar-el-tema).
+
 ## Archivos de esta carpeta
 
 | Archivo | Contenido |
