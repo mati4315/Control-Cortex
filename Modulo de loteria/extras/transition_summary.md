@@ -19,6 +19,7 @@ Este documento resume la implementación y arquitectura de los widgets interacti
    - Sliders para configurar en caliente velocidades físicas (caída, deslizamiento, salida), tiempos de parada (`STOP_MS`), y pausas de reinicio.
    - Panel de disparo manual de número (1-99) y nombre de ganador con registro de lanzamientos histórico.
    - Soporte nativo para WebSockets y API Polling con indicadores de estado de conexión visuales ("Online", "Conectando...", "Desconectado").
+   - Lista consultable de bolillas compradas en Firestore. Al volver a lanzar una compra desde el dashboard, el overlay usa una segunda trayectoria desde arriba a la izquierda hacia abajo a la derecha, sin cambiar el número asignado.
 
 3. **[developer_brief.md](file:///d:/usuario/Desktop/testear%20plugins%20para%20obss/loteria/developer_brief.md):** 
    - Guía técnica detallada y preguntas formateadas en español que puedes enviarle a tu desarrollador web para integrar el sistema dinámicamente con tu sitio web.
@@ -31,6 +32,7 @@ Este documento resume la implementación y arquitectura de los widgets interacti
 - **La Rotación Realista:** La bolilla gira continuamente mientras cae verticalmente y se desliza hacia la izquierda. Al llegar a su posición de parada, la clase `.rolling` se remueve y el número se endereza automáticamente (retorna a 0 grados), logrando una legibilidad perfecta al detenerse.
 - **El Banner del Ganador:** Diseñado con un gradiente oscuro metálico (`#0d1b2a` a `#1b2d42`), borde dorado brillante y el texto personalizado `"Numero selecionado por:"` en la etiqueta superior, seguido del nombre del comprador destacado en tamaño premium.
 - **El Anillo de Cuenta Regresiva:** Un anillo circular SVG dorado se rellena gradualmente alrededor de la bolilla durante los 10 segundos de parada (`STOP_MS`), dando a los espectadores una clara indicación visual del tiempo que queda antes de que el widget se limpie.
+- La trayectoria normal cae desde arriba a la derecha y desliza hacia la izquierda. El relanzamiento desde la lista de compras invierte el recorrido y el sentido de salida.
 
 ---
 

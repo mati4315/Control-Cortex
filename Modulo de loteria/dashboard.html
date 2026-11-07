@@ -257,6 +257,68 @@
       transform: none;
     }
 
+    .purchased-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: -4px 0 14px;
+    }
+
+    .btn-refresh-purchases {
+      border: 1px solid rgba(255, 214, 0, 0.35);
+      border-radius: 9px;
+      padding: 10px 14px;
+      background: rgba(255, 214, 0, 0.1);
+      color: var(--primary);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .btn-refresh-purchases:hover { background: rgba(255, 214, 0, 0.18); }
+    .btn-refresh-purchases:disabled { opacity: 0.5; cursor: wait; }
+
+    .purchased-entry-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+      gap: 10px;
+      max-height: 360px;
+      overflow-y: auto;
+      padding: 2px;
+    }
+
+    .purchased-entry-button {
+      display: grid;
+      grid-template-columns: 48px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+      padding: 11px 12px;
+      border: 1px solid rgba(255, 214, 0, 0.18);
+      border-radius: 12px;
+      background: rgba(4, 8, 20, 0.52);
+      color: var(--text-main);
+      text-align: left;
+      cursor: pointer;
+      transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+    }
+
+    .purchased-entry-button:hover:not(:disabled) {
+      border-color: rgba(255, 214, 0, 0.65);
+      background: rgba(255, 214, 0, 0.09);
+      transform: translateY(-1px);
+    }
+
+    .purchased-entry-button:disabled { opacity: 0.48; cursor: not-allowed; }
+    .purchased-entry-number { color: var(--primary); font-size: 1.2rem; font-weight: 900; }
+    .purchased-entry-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
+    .purchased-entry-lottery { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.72rem; }
+    .purchased-entry-action { color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
+    .purchased-empty { grid-column: 1 / -1; padding: 20px; color: var(--text-muted); text-align: center; }
+
     /* Number Selector widget inside Manual trigger */
     .number-selector-wrap {
       display: flex;
@@ -629,6 +691,18 @@
         <div class="event-feedback" id="event-feedback"></div>
       </div>
 
+      <div class="card card-full" id="card-purchased-entries">
+        <h2 class="card-title">🎟️ Números comprados</h2>
+        <div class="purchased-toolbar">
+          <span class="help-text" id="purchased-entries-status" aria-live="polite">Conectando para cargar las compras…</span>
+          <button class="btn-refresh-purchases" id="btn-refresh-purchases" type="button">↻ Actualizar</button>
+        </div>
+        <div class="purchased-entry-list" id="purchased-entry-list" aria-live="polite">
+          <div class="purchased-empty">La lista aparecerá cuando el servidor WebSocket esté conectado.</div>
+        </div>
+        <p class="help-text">Haz clic en una compra para volver a lanzar esa bolilla. La repetición sale desde arriba a la izquierda y se desplaza hacia la derecha. Guardá el dashboard en modo manual o integración web.</p>
+      </div>
+
       <!-- CARD 3: CONFIGURACIONES DINÁMICAS (WEBSOCKET/API) -->
       <div class="card" id="card-dynamic">
         <h2 class="card-title">
@@ -836,6 +910,9 @@
       TICKER_SCROLL_MS: 28000
     };
     let config = { ...DEFAULT_CONFIG };
+    let purchasedEntries = [];
+    let purchasedEntriesRequestId = '';
+    let purchasedEntriesRequestTimer = null;
 
     let channel = null;
     let wsClient = null;
@@ -913,6 +990,7 @@
 
       renderTickerEditor();
       setMode(config.MODE); // Carga el modo guardado sin aplicarlo de nuevo
+      document.getElementById('btn-refresh-purchases').addEventListener('click', requestPurchasedEntries);
       connectDynamicWS();
     }
 
@@ -938,6 +1016,7 @@
 
       // Hasta guardar, el modo operativo sigue siendo el último modo persistido.
       document.getElementById('btn-shoot').disabled = config.MODE === 'test';
+      renderPurchasedEntries();
       updateModeSaveState();
     }
 
@@ -1000,6 +1079,7 @@
       disconnectDynamicWS();
 
       if (!config.WEBSOCKET_URL) {
+        setPurchasedEntriesStatus('Configura el servidor WebSocket para consultar las compras.', true);
         return;
       }
 
@@ -1020,6 +1100,7 @@
           }
           console.log("WebSocket Dashboard conectado a", config.WEBSOCKET_URL);
           sendConfigSnapshotWS('dashboard_onopen');
+          setTimeout(requestPurchasedEntries, 500);
         };
 
         wsClient.onmessage = (event) => {
@@ -1029,13 +1110,43 @@
               sendConfigSnapshotWS('widget_request');
               return;
             }
+            if (data?.type === 'PURCHASED_ENTRIES' && data.requestId === purchasedEntriesRequestId) {
+              clearTimeout(purchasedEntriesRequestTimer);
+              purchasedEntriesRequestTimer = null;
+              purchasedEntriesRequestId = '';
+              purchasedEntries = Array.isArray(data.entries) ? data.entries : [];
+              renderPurchasedEntries();
+              setPurchasedEntriesStatus(`${purchasedEntries.length} compra(s) cargada(s). Actualizado ${new Date(data.generatedAt || Date.now()).toLocaleTimeString()}.`);
+              return;
+            }
+            if (data?.type === 'PURCHASED_ENTRIES_ERROR' && data.requestId === purchasedEntriesRequestId) {
+              clearTimeout(purchasedEntriesRequestTimer);
+              purchasedEntriesRequestTimer = null;
+              purchasedEntriesRequestId = '';
+              renderPurchasedEntries();
+              setPurchasedEntriesStatus(data.error || 'No se pudo cargar la lista de compras.', true);
+              return;
+            }
             if (data && data.number && data.name) {
               // Recibimos compra y la disparamos
+              if (data.entryKey) {
+                upsertPurchasedEntry({
+                  entryKey: data.entryKey,
+                  lotteryName: data.lotteryName || 'Compra nueva',
+                  number: Number(data.number),
+                  name: data.name,
+                  profilePicUrl: data.profilePicUrl || '',
+                  createdAt: Number(data.createdAt) || Date.now()
+                });
+              }
               broadcast({
                 type: 'TRIGGER_BALL',
                 number: data.number,
                 name: data.name,
-                profilePicUrl: data.profilePicUrl || ''
+                profilePicUrl: data.profilePicUrl || '',
+                eventId: data.eventId || '',
+                direction: data.direction || 'rightToLeft',
+                forceReplay: data.forceReplay === true
               }, { sendWs: false });
               addLog(data.number, data.name, 'dynamic');
             }
@@ -1047,11 +1158,17 @@
         wsClient.onerror = () => {
           statusBadge.className = 'status-badge status-disconnected';
           statusBadge.textContent = config.MODE === 'dynamic' ? 'Error' : 'Sync WS error';
+          setPurchasedEntriesStatus('No se pudo conectar al servidor WebSocket.', true);
         };
 
         wsClient.onclose = () => {
           statusBadge.className = 'status-badge status-disconnected';
           statusBadge.textContent = config.MODE === 'dynamic' ? 'Desconectado' : 'Sync WS offline';
+          if (purchasedEntriesRequestTimer) clearTimeout(purchasedEntriesRequestTimer);
+          purchasedEntriesRequestTimer = null;
+          purchasedEntriesRequestId = '';
+          renderPurchasedEntries();
+          setPurchasedEntriesStatus('Servidor WebSocket desconectado. Reintentando…', true);
           // Reintentar en 5 segundos
           setTimeout(connectDynamicWS, 5000);
         };
@@ -1059,7 +1176,117 @@
       } catch(e) {
         statusBadge.className = 'status-badge status-disconnected';
         statusBadge.textContent = 'Error';
+        setPurchasedEntriesStatus('No se pudo abrir la conexión WebSocket.', true);
       }
+    }
+
+    function setPurchasedEntriesStatus(message, isError = false) {
+      const status = document.getElementById('purchased-entries-status');
+      if (!status) return;
+      status.textContent = message;
+      status.style.color = isError ? 'var(--error)' : 'var(--text-muted)';
+    }
+
+    function requestPurchasedEntries() {
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
+        setPurchasedEntriesStatus('Conecta el servidor WebSocket para actualizar la lista.', true);
+        return;
+      }
+      clearTimeout(purchasedEntriesRequestTimer);
+      purchasedEntriesRequestId = `purchases-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const requestId = purchasedEntriesRequestId;
+      const refreshButton = document.getElementById('btn-refresh-purchases');
+      refreshButton.disabled = true;
+      setPurchasedEntriesStatus('Consultando números comprados…');
+      sendMessageWS({
+        type: 'REQUEST_PURCHASED_ENTRIES',
+        requestId,
+        token: config.WS_TOKEN || ''
+      });
+      purchasedEntriesRequestTimer = setTimeout(() => {
+        if (purchasedEntriesRequestId !== requestId) return;
+        purchasedEntriesRequestId = '';
+        purchasedEntriesRequestTimer = null;
+        refreshButton.disabled = false;
+        setPurchasedEntriesStatus('La consulta tardó demasiado. Comprueba Firestore y vuelve a actualizar.', true);
+      }, 15000);
+    }
+
+    function renderPurchasedEntries() {
+      const list = document.getElementById('purchased-entry-list');
+      const refreshButton = document.getElementById('btn-refresh-purchases');
+      if (!list || !refreshButton) return;
+      refreshButton.disabled = Boolean(purchasedEntriesRequestId);
+      list.replaceChildren();
+      if (!purchasedEntries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'purchased-empty';
+        empty.textContent = 'No hay números comprados cargados. Pulsa Actualizar para consultar Firestore.';
+        list.appendChild(empty);
+        return;
+      }
+
+      for (const entry of purchasedEntries) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'purchased-entry-button';
+        button.disabled = config.MODE === 'test';
+        button.title = button.disabled
+          ? 'Guarda el dashboard en modo Manual o Integración Web para relanzar.'
+          : `Volver a lanzar la bolilla ${entry.number} de ${entry.name} en sentido inverso`;
+
+        const number = document.createElement('span');
+        number.className = 'purchased-entry-number';
+        number.textContent = `#${String(entry.number).padStart(2, '0')}`;
+        const info = document.createElement('span');
+        info.style.minWidth = '0';
+        const name = document.createElement('span');
+        name.className = 'purchased-entry-name';
+        name.textContent = entry.name || 'Alguien';
+        const lottery = document.createElement('span');
+        lottery.className = 'purchased-entry-lottery';
+        lottery.textContent = entry.lotteryName || 'Lotería activa';
+        info.append(name, document.createElement('br'), lottery);
+        const action = document.createElement('span');
+        action.className = 'purchased-entry-action';
+        action.textContent = 'Relanzar';
+        button.append(number, info, action);
+        button.addEventListener('click', () => replayPurchasedEntry(entry));
+        list.appendChild(button);
+      }
+    }
+
+    function replayPurchasedEntry(entry) {
+      if (config.MODE === 'test') {
+        showEventFeedback('Guarda el dashboard en modo Manual o Integración Web para relanzar.', 'warn');
+        return;
+      }
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
+        showEventFeedback('No hay conexión con el servidor WebSocket.', 'warn');
+        return;
+      }
+      const msg = {
+        type: 'TRIGGER_BALL',
+        number: Number(entry.number),
+        name: String(entry.name || 'Alguien'),
+        profilePicUrl: entry.profilePicUrl || '',
+        direction: 'leftToRight',
+        forceReplay: true,
+        eventId: `replay-${entry.entryKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+      };
+      // No guardes el token del WS en localStorage: solo viaja por el socket.
+      broadcast(msg, { sendWs: false });
+      sendMessageWS({ ...msg, ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
+      addLog(msg.number, msg.name, config.MODE);
+      showEventFeedback(`Relanzando bolilla #${msg.number} de ${msg.name} hacia la derecha.`);
+    }
+
+    function upsertPurchasedEntry(entry) {
+      const number = Number(entry?.number);
+      const key = String(entry?.entryKey || '');
+      if (!key || !Number.isInteger(number) || number < 1 || number > 99) return;
+      purchasedEntries = [entry, ...purchasedEntries.filter(item => item.entryKey !== key)];
+      renderPurchasedEntries();
     }
 
     function disconnectDynamicWS() {
@@ -1070,16 +1297,22 @@
         } catch(e){}
         wsClient = null;
       }
+      if (purchasedEntriesRequestTimer) clearTimeout(purchasedEntriesRequestTimer);
+      purchasedEntriesRequestTimer = null;
+      purchasedEntriesRequestId = '';
+      renderPurchasedEntries();
     }
 
     function sendConfigSnapshotWS(reason = 'update') {
       if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
       try {
+        const publicConfig = { ...config };
+        delete publicConfig.WS_TOKEN;
         wsClient.send(JSON.stringify({
           type: 'CONFIG_SNAPSHOT',
           source: 'dashboard',
           reason,
-          config
+          config: publicConfig
         }));
       } catch (e) {
         console.error("No se pudo enviar CONFIG_SNAPSHOT por WS:", e);
@@ -1352,15 +1585,21 @@
     // Helpers
     function broadcast(msg, options = {}) {
       const { sendWs = true } = options;
+      let publicMessage = msg;
+      if (msg?.config && ['UPDATE_CONFIG', 'CONFIG_SNAPSHOT'].includes(msg.type)) {
+        const publicConfig = { ...msg.config };
+        delete publicConfig.WS_TOKEN;
+        publicMessage = { ...msg, config: publicConfig };
+      }
       if (channel) {
-        channel.postMessage(msg);
+        channel.postMessage(publicMessage);
       }
       if (sendWs) {
-        sendMessageWS(msg);
+        sendMessageWS(publicMessage);
       }
       // También guardar en localStorage para activar storage handlers de fallback
       localStorage.setItem('lottery_ball_msg', JSON.stringify({
-        msg: msg,
+        msg: publicMessage,
         timestamp: Date.now()
       }));
     }
@@ -1427,13 +1666,20 @@
         tagLabel = 'TEST';
       }
 
-      li.innerHTML = `
-        <div>
-          <span class="log-tag ${tagClass}">${tagLabel}</span>
-          <strong>Bolilla #${number}</strong> asignada a <em>${name}</em>
-        </div>
-        <span class="log-time">${timeStr}</span>
-      `;
+      const details = document.createElement('div');
+      const tag = document.createElement('span');
+      tag.className = `log-tag ${tagClass}`;
+      tag.textContent = tagLabel;
+      const ball = document.createElement('strong');
+      ball.textContent = ` Bolilla #${number}`;
+      const assigned = document.createTextNode(' asignada a ');
+      const buyer = document.createElement('em');
+      buyer.textContent = name;
+      details.append(tag, ball, assigned, buyer);
+      const time = document.createElement('span');
+      time.className = 'log-time';
+      time.textContent = timeStr;
+      li.append(details, time);
 
       logList.insertBefore(li, logList.firstChild);
 

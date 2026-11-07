@@ -15,6 +15,8 @@ Modos soportados:
 - `manual`: solo dispara cuando se envia evento.
 - `dynamic`: escucha compras externas (WS/API polling).
 
+En el dashboard, **Números comprados** consulta las entradas de las loterías activas en Firestore. El botón **Actualizar** vuelve a leer la lista; al pulsar una compra, se vuelve a mostrar su bolilla en el mismo overlay con una trayectoria inversa: empieza arriba a la izquierda, cae y se desplaza hacia la derecha. Esta repetición es visual y no cambia la compra ni el número asignado. Para usarla, guarda el dashboard en modo `manual` o `dynamic`.
+
 Sincronizacion robusta ya implementada:
 - `BroadcastChannel` + `localStorage` (mismo navegador/perfil).
 - WebSocket para sincronizar entre OBS, incognito y otros programas/perfiles.
@@ -77,6 +79,10 @@ Notas:
 ```
 
 El servidor guarda el ultimo `CONFIG_SNAPSHOT` y se lo envia automaticamente a clientes nuevos.
+
+### 4) Consultar compras y relanzar una bolilla
+
+El dashboard envía `REQUEST_PURCHASED_ENTRIES` por WebSocket. El servidor consulta Firestore y responde por esa misma conexión con `PURCHASED_ENTRIES` (o `PURCHASED_ENTRIES_ERROR`). La respuesta incluye número, nombre, avatar y lotería. Para proteger los nombres, esta consulta exige `WS_TOKEN` tanto en el `.env` del servidor como en el campo **Token de Seguridad WS** del dashboard; el token se valida en el servidor y nunca se devuelve en la respuesta. El clic de relanzamiento envía `TRIGGER_BALL` con `direction: "leftToRight"` y un `eventId` nuevo para que una repetición manual de la misma compra no se descarte como duplicada.
 
 ---
 

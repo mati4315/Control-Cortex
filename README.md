@@ -20,7 +20,7 @@ Guía rápida del workspace de Windows. El proyecto está repartido en servicios
 | `Rulo` | Interfaz conversacional, overlays, historial y entrenamiento | servido por Cortex | [`Rulo/README.md`](Rulo/README.md), [`Rulo/README-SIMULACION-VIVOS.md`](Rulo/README-SIMULACION-VIVOS.md) |
 | `Control Cortex/integrations/spotify-auto-music` | Integración heredada con SocialStream Ninja | — | Su [`README.md`](Control%20Cortex/integrations/spotify-auto-music/README.md) documenta el flujo de Spotify Desktop que también conserva el módulo propio. |
 | `Trigger Studio` | Triggers y acciones de OBS | 2188; OBS WebSocket 4455 | `Trigger Studio/README.md`, `Trigger Studio/AGENTS.md` |
-| `Modulo de loteria` | Servidor y sincronización de lotería | 688 | Revisar su `package.json` y scripts antes de operarlo. |
+| `Modulo de loteria` | Overlay de bolilla para OBS, dashboard y consulta de compras Firestore | 688 | Revisar su `package.json` y scripts antes de operarlo. |
 | `Modulo de sorteo scraping` | Dashboard y seguimiento de sorteos | 8872 | Revisar su README o `package.json` local. |
 | `Bienvendos y Banner` | Overlay y administración de bienvenida | 9344 | Revisar su `package.json` local. |
 | `luces`, `modulo de tiempo y clima` | Overlays y controles independientes | 3758, 3757 | Revisar sus dashboards y `package.json`. |

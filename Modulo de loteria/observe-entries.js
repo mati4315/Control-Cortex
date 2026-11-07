@@ -72,12 +72,16 @@ try {
 } catch {}
 
 // ── Helpers ──────────────────────────────────────────────
-function publishToOBS(number, name, entryId, profilePicUrl) {
+function publishToOBS(number, name, entryId, profilePicUrl, createdAt) {
   const ws = new WebSocket(WS_URL);
   const timeout = setTimeout(() => { try { ws.close(); } catch {} }, 3000);
   ws.on('open', () => {
     clearTimeout(timeout);
-    const payload = { type: 'TRIGGER_BALL', number, name, profilePicUrl, eventId: `obs_${entryId}` };
+    const payload = {
+      type: 'TRIGGER_BALL', number, name, profilePicUrl,
+      entryKey: entryId, createdAt: Number(createdAt) || Date.now(),
+      eventId: `obs_${entryId}`
+    };
     if (WS_TOKEN) payload.token = WS_TOKEN;
     ws.send(JSON.stringify(payload));
     ws.close();
@@ -194,9 +198,10 @@ async function processEntry(entryDoc, lotteryId) {
   saveWatcherState();
 
   const profilePicUrl = await resolveObsProfilePicUrl(sourceProfilePicUrl, name);
+  const createdAt = data.createdAt?.toMillis?.() || (data.createdAt instanceof Date ? data.createdAt.getTime() : Date.now());
 
   console.log(`[+] #${number} - ${name} | pic-obs: ${profilePicUrl ? 'si' : 'no'}`);
-  publishToOBS(number, name, uid, profilePicUrl);
+  publishToOBS(number, name, uid, profilePicUrl, createdAt);
   return true;
 }
 

@@ -261,7 +261,7 @@
     }
 
     /* ══════════════════════════════════════
-       NAME BANNER  (slides out to the right of the ball)
+       NAME BANNER (opens toward the ball's travel direction)
        ══════════════════════════════════════ */
     #name-banner {
       position: absolute;
@@ -293,6 +293,18 @@
         0 0 20px rgba(255,214,0,0.18),
         inset 0 1px 0 rgba(255,255,255,0.06);
       overflow: hidden;
+    }
+
+    #name-banner.reverse .banner-card {
+      flex-direction: row-reverse;
+      border-right: 0;
+      border-left: 2px solid #ffd600;
+      border-radius: 14px 0 0 14px;
+      background: linear-gradient(75deg, #0d1b2a 0%, #1b2d42 55%, #0d1b2a 100%);
+    }
+
+    #name-banner.reverse .banner-avatar {
+      margin: 0 16px 0 12px;
     }
 
     /* Avatar circular */
@@ -523,6 +535,7 @@
 
     let x = 0, y = 0;
     let phase = 'pausing';   // falling | sliding | stopped | exit | pausing
+    let currentDirection = 'rightToLeft';
     let lastTime  = null;
     let trailTimer = null;
     let stopTimer  = null;
@@ -587,7 +600,7 @@
       tickerOverlay.setAttribute('aria-hidden', 'true');
     }
 
-    function shouldAcceptTrigger(number, name, eventId) {
+    function shouldAcceptTrigger(number, name, eventId, forceReplay = false) {
       const now = Date.now();
       const signature = `${String(number)}::${String(name)}`;
 
@@ -599,7 +612,7 @@
         setTimeout(() => recentTriggerIds.delete(eventId), 30000);
       }
 
-      if (signature === lastTriggerSignature && (now - lastTriggerAt) < TRIGGER_DEDUP_MS) {
+      if (!forceReplay && signature === lastTriggerSignature && (now - lastTriggerAt) < TRIGGER_DEDUP_MS) {
         return false;
       }
 
@@ -687,11 +700,17 @@
     }
 
     function syncBannerPos() {
-      // Banner left edge = right edge of ball stop position
-      const bannerLeft = CONFIG.STOP_X + CONFIG.BALL_SIZE;
-      // Banner vertical: aligned with ball centre
+      const reverse = currentDirection === 'leftToRight';
+      const rightStopX = CONFIG.W - CONFIG.BALL_SIZE - CONFIG.STOP_X;
       const bannerTop  = CONFIG.BOTTOM_Y + (CONFIG.BALL_SIZE / 2) - (82 / 2);
-      banner.style.left = bannerLeft + 'px';
+      banner.classList.toggle('reverse', reverse);
+      if (reverse) {
+        banner.style.left = 'auto';
+        banner.style.right = (CONFIG.W - rightStopX) + 'px';
+      } else {
+        banner.style.right = 'auto';
+        banner.style.left = (CONFIG.STOP_X + CONFIG.BALL_SIZE) + 'px';
+      }
       banner.style.top  = bannerTop  + 'px';
     }
 
@@ -796,7 +815,10 @@
     }
 
     function spawnSparkles() {
-      const bLeft = CONFIG.STOP_X + CONFIG.BALL_SIZE;
+      const rightStopX = CONFIG.W - CONFIG.BALL_SIZE - CONFIG.STOP_X;
+      const bannerLeft = currentDirection === 'leftToRight'
+        ? rightStopX - 408
+        : CONFIG.STOP_X + CONFIG.BALL_SIZE;
       const bTop  = CONFIG.BOTTOM_Y + (CONFIG.BALL_SIZE / 2) - (82 / 2);
       for (let i = 0; i < 10; i++) {
         setTimeout(() => {
@@ -805,7 +827,7 @@
           const sz = (4 + Math.random() * 8) | 0;
           s.style.cssText = `
             width:${sz}px; height:${sz}px;
-            left:${bLeft + Math.random() * 200}px;
+            left:${bannerLeft + Math.random() * 200}px;
             top:${bTop  + (Math.random() - 0.5) * 60}px;
           `;
           document.body.appendChild(s);
@@ -856,26 +878,28 @@
         }
       }
 
-      /* ── SLIDING LEFT ── */
+      /* ── SLIDE TOWARD THE STOP SIDE ── */
       else if (phase === 'sliding') {
-        const nx = x - CONFIG.SLIDE_SPEED * dt;
+        const movingRight = currentDirection === 'leftToRight';
+        const rightStopX = CONFIG.W - CONFIG.BALL_SIZE - CONFIG.STOP_X;
+        const stopX = movingRight ? rightStopX : CONFIG.STOP_X;
+        const revealX = movingRight ? CONFIG.W - CONFIG.REVEAL_X - CONFIG.BALL_SIZE : CONFIG.REVEAL_X;
+        const nx = x + (movingRight ? 1 : -1) * CONFIG.SLIDE_SPEED * dt;
         updateShadow(nx, y, 0.05);
 
-        // Trigger banner when ball crosses REVEAL_X threshold
-        if (!bannerOpen && nx <= CONFIG.REVEAL_X) {
+        if (!bannerOpen && (movingRight ? nx >= revealX : nx <= revealX)) {
           openBanner();
         }
 
-        // Ball reaches its stop position
-        if (nx <= CONFIG.STOP_X) {
-          setPos(CONFIG.STOP_X, y);
-          updateShadow(CONFIG.STOP_X, y, 0.12);
+        if (movingRight ? nx >= stopX : nx <= stopX) {
+          setPos(stopX, y);
+          updateShadow(stopX, y, 0.12);
           phase = 'stopped';
           stopTrail();
           startCountdownRing();
           setSpinState('stop');
 
-          // After STOP_MS, exit to the left
+          // After STOP_MS, leave through the side where this path ends.
           stopTimer = setTimeout(() => {
             phase = 'exit';
             setSpinState('fast');
@@ -886,13 +910,14 @@
         }
       }
 
-      /* ── EXIT (slide off left after stop) ── */
+      /* ── EXIT THROUGH THE STOP SIDE ── */
       else if (phase === 'exit') {
-        const nx = x - CONFIG.EXIT_SPEED * dt;
+        const movingRight = currentDirection === 'leftToRight';
+        const nx = x + (movingRight ? 1 : -1) * CONFIG.EXIT_SPEED * dt;
         const exitBoost = Math.max(-0.4, 0.08 - (1.35 * dt));
         updateShadow(nx, y, exitBoost);
 
-        if (nx + CONFIG.BALL_SIZE <= 0) {
+        if (movingRight ? nx >= CONFIG.W : nx + CONFIG.BALL_SIZE <= 0) {
           // Ball gone — close banner & reset
           closeBanner();
           hideCountdownRing();
@@ -925,10 +950,11 @@
       bannerAvatar.style.display = 'block';
     }
 
-    function triggerBall(number, name, profilePicUrl, eventId = '') {
-      if (!shouldAcceptTrigger(number, name, eventId)) {
+    function triggerBall(number, name, profilePicUrl, eventId = '', direction = 'rightToLeft', forceReplay = false) {
+      if (!shouldAcceptTrigger(number, name, eventId, forceReplay)) {
         return false;
       }
+      currentDirection = direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft';
       if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
       closeBanner();
       hideCountdownRing();
@@ -943,8 +969,9 @@
 
       setSpinState('fast');
 
-      // Randomise start X slightly (right side)
-      const startX = CONFIG.W - CONFIG.BALL_SIZE - (20 + (Math.random() * 30 | 0));
+      const startX = currentDirection === 'leftToRight'
+        ? 20 + (Math.random() * 30 | 0)
+        : CONFIG.W - CONFIG.BALL_SIZE - (20 + (Math.random() * 30 | 0));
       setPos(startX, CONFIG.START_Y);
       shadow.style.left    = (startX + 10) + 'px';
       shadow.style.opacity = '0';
@@ -998,7 +1025,7 @@
               return;
             }
             if (data && data.number && data.name) {
-              const accepted = triggerBall(data.number, data.name, data.profilePicUrl, data.eventId || '');
+              const accepted = triggerBall(data.number, data.name, data.profilePicUrl, data.eventId || '', data.direction || 'rightToLeft', data.forceReplay === true);
               if (accepted) {
                 console.log('TRIGGER_BALL recibido:', {
                   number: data.number,
@@ -1064,7 +1091,7 @@
       
       if (msg.type === 'TRIGGER_BALL') {
         resolveInitialSync();
-        triggerBall(msg.number, msg.name, msg.profilePicUrl, msg.eventId || '');
+        triggerBall(msg.number, msg.name, msg.profilePicUrl, msg.eventId || '', msg.direction || 'rightToLeft', msg.forceReplay === true);
       } else if (msg.type === 'CHANGE_MODE') {
         const oldMode = CONFIG.MODE;
         CONFIG.MODE = msg.mode;
