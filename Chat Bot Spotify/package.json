@@ -1,0 +1,14 @@
+{
+  "name": "chat-bot-spotify",
+  "version": "1.3.0",
+  "private": true,
+  "description": "Captura local de comentarios de Facebook y bot de pedidos Spotify, independiente de Social Stream Ninja.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/facebook-stats.test.cjs tests/spotify-playback.test.cjs"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -9,12 +9,27 @@ Espacio independiente para las funciones y overlays propios del bot. Todo lo nue
 | Overlay de respuestas | `http://192.168.4.100:4000/rulo-bot-overlay.html?session=XJ9hQ2JDHH` | Fuente Navegador de OBS. Solo respuestas del bot. |
 | Dashboard | `http://192.168.4.100:4000/rulo-dashboard.html?session=XJ9hQ2JDHH` | Configuración visual, URLs para OBS y vista previa por estado. |
 | Historial | `http://192.168.4.100:4000/rulo-chat-historial.html?session=XJ9hQ2JDHH` | Comentarios de audiencia + respuestas, con filtros y limpieza. |
-| Animaciones de Rulo | `http://localhost:4000/rulo-mascota.html?session=XJ9hQ2JDHH` | Panel: disparadores, URL para OBS y carga de clips WebM. |
+| Animaciones y control de Rulo | `http://192.168.4.100:4000/rulo-mascota.html` | Panel: WebM para OBS o control del ejecutable Rulo 3D en la LAN. Desde otra PC, usa la IP de la PC donde corre Cortex. |
 | Dashboard de Spotify | `http://192.168.4.100:4000/rulo-spotify.html` | Ajustes del cambio automático de música: esperas, modo prueba sin esperas, dispositivo, pruebas y registro. |
 | Entrenamiento del bot | `http://192.168.4.100:4000/rulo-spotify-training.html` | Vocabulario (palabras clave, verbos, géneros, correcciones) con analizador en vivo y el cerebro (IA) opcional. |
 | Redirección legada | `http://192.168.4.100:4000/rulo-chat-dock.html` | 302 a `rulo-chat-historial.html` para no romper enlaces viejos. |
 
+La conversación de prueba y simulación histórica de participantes está documentada en [README-SIMULACION-VIVOS.md](README-SIMULACION-VIVOS.md). Resume el propósito de evaluación, el contexto SQLite, el aislamiento de mensajes, los pedidos de Spotify con el nombre e ID histórico del participante y credenciales solo en el servidor, la lotería en solo lectura y el flujo de mejoras manuales en Entrenamiento e IA.
+
 La URL base ya no está escrita a mano en varios archivos: el backend la detecta (`GET /api/cortex-base-url`) y genera `SocialStream Ninja/local-overrides/cortex-base-url.js` en cada arranque. Si cambia la IP LAN, se actualiza sola (los overrides la consumen con respaldo).
+
+## Control del ejecutable Rulo 3D
+
+El primer card de `/rulo-mascota.html` incluye el selector **Método activo para este panel**. **Clips WebM en OBS** conserva el método anterior; **Ejecutable Rulo 3D** conecta el navegador directamente a `RULO.exe` por WebSocket/TCP 4101. Esta conexión no requiere cambiar el servidor de Control Cortex.
+
+1. Ejecuta `D:\Codot Model Rulo\FORMATO WINDOWS\RULO.exe` en la PC que renderiza el modelo (junto a `RULO.pck`).
+2. Abre este panel y selecciona **Ejecutable Rulo 3D**. Debe aparecer **RULO.exe conectado**.
+3. El interruptor de Rulo enciende/apaga el modelo. Al encenderlo se reproduce `Start_Apareciendo_01`; por ahora **Iniciar** y **Aparecer** usan esa misma animación, **Ocultar** esconde el personaje.
+4. Desde otra PC abre `http://192.168.4.100:4000/rulo-mascota.html` (reemplaza la IP cuando cambie la PC de Cortex). Permite entrada TCP 4101 a `RULO.exe` en el perfil de red privada de Windows Firewall.
+
+El modo 3D no llama al control histórico de energía de Cortex: los pedidos de música y el bot siguen bajo Cortex. Cambiar de método no apaga el otro motor; el panel exige apagar Rulo 3D antes de volver a WebM. Hablar, normal, dormir, presentación, segundo objeto y tomar mate con animación todavía requieren animaciones y acciones 3D. La opción **Interacción con mate 3D** solo activa detección por proximidad y emite un evento; no mueve el personaje ni agarra el mate.
+
+El WebSocket de RULO.exe exige la clave compartida `RULO_CONTROL_TOKEN` que configura el lanzador protegido. El panel pide esa clave para autenticar la conexión. Mantén además la regla de Firewall limitada a una red privada confiable y no publiques el puerto 4101 hacia Internet.
 
 ## Nombre visible: una sola fuente de verdad
 
@@ -61,7 +76,7 @@ El overlay usa el estado para color, animación y (si está activado) el asset `
 | GET/POST | `/api/rulo-bot-message` | Última respuesta del bot (con `mood`) y publicación al overlay. |
 | GET | `/api/rulo-chat-messages` | Últimos 50 comentarios (`items` + `total`). |
 | POST | `/api/rulo-chat-message` | Alta de comentario de audiencia (lo usa `rulo-chat-relay.js`). |
-| POST | `/api/rulo-chat-clear` | Vacía historial en memoria y en disco; emite `rulo_chat_cleared`. |
+| POST | `/api/rulo-chat-clear` | Vacía solo el historial reciente visible; el archivo permanente de audiencia se conserva. Emite `rulo_chat_cleared`. |
 | POST | `/api/rulo-repeat-response` | Repite una respuesta en el overlay (mood `speaking`). |
 | POST | `/api/rulo-animation-trigger` | Disparador manual: `aparecer`, `hablar` u `ocultar`. |
 | POST | `/api/rulo-animation-upload/aparecer` o `/hablar` | Reemplaza el clip WebM correspondiente (máximo 100 MB). |
@@ -73,7 +88,19 @@ Eventos WebSocket: `rulo_bot_message`, `rulo_chat_item`, `rulo_chat_cleared`, `r
 
 - Se guardan hasta 200 comentarios en `Rulo/rulo-chat-history.json` (se escriben con retardo de 400 ms para no golpear el disco).
 - Al arrancar el backend se restauran; el WS y el GET entregan los últimos 50.
-- El botón **Limpiar historial** del historial pide confirmación (segundo clic en 4 s) y borra memoria + archivo.
+- Todos los comentarios recibidos también se agregan a `Rulo/Spotify/spotify-analytics.db`, tabla `audience_comments`, sin límite de retención ni eliminación automática. Se guardan fecha local del programa, plataforma, nombre/ID del usuario cuando está disponible, comentario, evento y respuesta asociada de Rulo.
+- En Inicio de Cortex → Asistente IA hay una sección separada para consultar el archivo de audiencia en modo de solo lectura: ranking por cantidad de comentarios, participación en más fechas, total del archivo, fechas de actividad por nombre y palabras frecuentes. Las consultas usan SQLite con operaciones fijas; no ejecutan SQL escrito por usuarios ni aplican cambios a overlays. El proveedor de IA recibe la pregunta y solo el agregado necesario, nunca el texto completo de los comentarios.
+- Rulo saluda una vez por fecha a cada participante que vuelve y que ya aparece en otra fecha archivada. Para no pisar una respuesta reciente, espera si Rulo habló en los últimos 2 minutos y limita los saludos globales a uno cada 3 minutos. Este saludo requiere que Rulo esté encendido y que la identidad coincida; si cambia de nombre y no hay ID estable, puede no reconocerlo.
+- En esa misma sección, **Resumen del último programa** resume la fecha más reciente archivada: comentarios, participantes, respuestas de Rulo, reacciones, palabras repetidas y tramos de cinco minutos con más actividad. El archivo agrupa por fecha local de Argentina, por eso dos emisiones en el mismo día aparecen juntas. Los momentos son picos de actividad, no una transcripción ni una valoración automática de cada comentario.
+- Las consultas admiten preguntas abiertas y perfiles básicos, por ejemplo “¿Qué suele pedir Ana?”. Para resumir intereses se cuentan palabras repetidas de sus comentarios. La IA recibe nombres y estadísticas agregadas, nunca el texto completo de comentarios, imágenes ni IDs; cuando no hay evidencia suficiente debe indicarlo.
+- Para Facebook, la identidad prioriza el ID numérico de cuenta cuando Social Stream puede leerlo del enlace de perfil o del hovercard del comentario; se guarda en `facebook_user_id`. Para las demás plataformas se usa `userid`, separado por plataforma. Si no llega un ID verificable, se usa una clave aproximada basada en nombre. Facebook no expone ese ID en todos los comentarios; en esos casos queda vacío y se conserva el nombre como alternativa.
+- La tabla SQLite `user` conserva solo identidades con al menos un comentario cuyo `program_number` está asignado; `audience_comments.audience_user_id` la vincula con sus comentarios. Los comentarios sin número no crean usuarios nuevos hasta que se les asigne un programa. Incluye `facebook_user_id` y `ID_facebook`, únicos cuando tienen valor; `ID_facebook` queda `NULL` hasta que se indique cómo obtenerlo. La limpieza dejó 18 identidades de programas numerados: 8 tienen `facebook_user_id` y 10 son históricas sin ese dato. No se inventan IDs ni se fusionan usuarios solo por el nombre.
+- Las fotos de perfil recibidas como WebP se guardan localmente en `Rulo/profile-avatars/` con nombre basado en el hash del archivo. SQLite conserva la ruta local en `audience_comments.avatar_path`, y `/api/rulo-chat-archives/:program` la devuelve como `avatarUrl` para que la Ruleta pueda importarla. Si una persona vuelve a comentar, se completan sus registros antiguos cuando coincide el ID estable; el cruce por nombre se limita a casos sin otra identidad con ese mismo nombre y plataforma.
+- Recuperación inicial: pude asociar siete fotos ya existentes al programa 9 porque sus horas de archivo coinciden de forma única, con diferencia de milisegundos, con `received_at` de comentarios. No encontré una relación confiable para el programa 8; las fotos sin coincidencia quedan sin asignar.
+- En esa sección también se muestra el porcentaje de comentarios que llegaron con ID estable. Los registros históricos importados no lo incluían; el porcentaje debe crecer con los nuevos comentarios si la plataforma entrega el campo.
+- Al arrancar el backend, el archivo SQLite importa el historial JSON existente y los comentarios de pedidos musicales ya registrados en `interactions`; la clave de contenido evita volver a insertar el mismo mensaje.
+- Social Stream conserva temporalmente en IndexedDB del navegador los comentarios que Cortex no pudo confirmar y los reenvía al reconectarse. Si IndexedDB no está disponible, el respaldo temporal queda en memoria hasta que se recargue la página.
+- El botón **Limpiar historial** pide confirmación y limpia únicamente la vista reciente (memoria + JSON). El archivo permanente SQLite no se borra con ese botón.
 
 ## Archivos
 
@@ -87,17 +114,19 @@ Eventos WebSocket: `rulo_bot_message`, `rulo_chat_item`, `rulo_chat_cleared`, `r
 | `rulo-animaciones-dashboard.html` | URL antigua; redirige al panel unificado de `rulo-mascota.html`. |
 | `rulo-chat-relay.js` | Override SSN que replica mensajes no-bot hacia Cortex. |
 | `rulo-config.json` | Configuración persistente de Rulo. |
-| `rulo-chat-history.json` | Historial persistente (generado). |
+| `rulo-chat-history.json` | Historial reciente persistente (máximo 200); el archivo completo vive en la tabla `audience_comments` de SQLite. |
+| `profile-avatars/` | Fotos WebP locales, identificadas por hash y vinculadas a cada comentario en SQLite. |
 | `assets/` | `states.json` + `README.md` de la mascota (sin arte todavía). |
 | `Spotify/` | `spotify-dashboard.html` (ajustes), `spotify-training.html` (entrenamiento del bot), `spotify-settings.json` + `spotify-vocabulary.json` + `spotify-aliases.json` (datos editables) y los generados (`spotify-request-log.json`, `spotify-devices.json`) + su `README.md`. |
 
 ## Ajustes de música (Spotify)
 
 La fuente única de verdad de los pedidos de música es `Rulo/Spotify/spotify-settings.json`, controlada
-desde `/rulo-spotify.html`. El módulo de la extensión (`spotify-auto-music.js`, v26) consulta
-`GET /api/spotify-client-state` cada 4 s: recibe los ajustes en vivo y ejecuta los comandos que
-encola el dashboard (probar tema, simular comentario, pausa/siguiente/anterior). Detalle completo en
-`Rulo/Spotify/README.md`.
+desde `/rulo-spotify.html`. Chat Bot Spotify consulta esos ajustes y procesa los comentarios con su
+OAuth propio. El dashboard envía búsquedas, pruebas aisladas, simulaciones, transporte y dispositivos
+por un proxy del backend de Cortex, que conserva el bearer token en el servidor. La cola de
+`GET /api/spotify-client-state` y `spotify-auto-music.js` siguen disponibles solo para instalaciones
+viejas de SSN; los pedidos actuales no los usan. Detalle completo en `Rulo/Spotify/README.md`.
 
 ## Después de tocar un override
 
@@ -115,5 +144,5 @@ node --check "D:/plugins para mi OBS/Control Cortex/integrations/spotify-auto-mu
 
 ## Pendiente conocido
 
-- El clic en un comentario del historial hacia `featured.html` usa el puente P2P de VDO/SSN: hace falta `featured.html` abierto con el mismo Session ID y al menos un peer distinto de `dock`. El historial ahora muestra "Peers P2P: N" y avisa cuando no hay ninguno.
+- La ruta actual de destacado usa el overlay propio de Chat Bot Spotify mediante `POST /api/featured`; el puente P2P de VDO/SSN queda como referencia heredada. Falta conservar una comprobación de extremo a extremo después de cambios en el historial, el proxy de Cortex o el overlay.
 - No hay arte de mascota todavía (ver `rulo-mascota.html` para elegir dirección).

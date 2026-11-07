@@ -64,6 +64,15 @@
     .viewer-count { display:inline-flex; align-items:center; gap:5px; flex-shrink:0; padding:4px 9px; border:1px solid var(--line); border-radius:999px; background:var(--btn); color:var(--accent-ink); font-size:.82rem; font-weight:800; }
     .viewer-count svg { width:16px; height:16px; }
     .viewer-count[hidden] { display:none; }
+    .comment-count { display:inline-flex; align-items:center; gap:5px; flex-shrink:0; padding:4px 9px; border:1px solid var(--line); border-radius:999px; background:var(--btn); color:var(--accent-ink); font-size:.82rem; font-weight:800; }
+    .comment-count svg { width:16px; height:16px; }
+    .comment-count[hidden] { display:none; }
+    #facebookTotalsSeparator { color:var(--muted); font-size:.9rem; font-weight:800; padding:0 1px; }
+    #facebookTotals { display:inline-flex; align-items:center; gap:6px; flex:0 0 auto; }
+    #facebookTotals[hidden], #facebookTotalsSeparator[hidden] { display:none; }
+    .facebook-total-count { border-color:rgba(222,55,66,.45); background:rgba(222,55,66,.08); color:#c72e3c; }
+    .facebook-total-count svg { color:#d83242; }
+    .facebook-total-count[hidden] { display:none; }
     .stream-activity { display:inline-flex; align-items:center; gap:6px; flex:0 1 auto; min-width:0; max-width:min(42vw,340px); padding:4px 9px; border:1px solid var(--line); border-radius:999px; background:var(--btn); color:var(--text); font-size:.76rem; }
     .stream-activity svg { width:15px; height:15px; flex:0 0 auto; color:var(--accent-ink); }
     .stream-activity span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -84,6 +93,7 @@
     button.danger { color:var(--text); background:var(--danger-bg); border:1px solid rgba(239,95,95,.5); }
     button.danger.armed { color:#111; background:var(--bad); }
     #counter { margin-left:auto; color:var(--muted); font-size:.78rem; }
+    .archive-note { flex:1 0 100%; color:var(--muted); font-size:.76rem; line-height:1.35; }
     #list { flex:1 1 auto; min-height:0; overflow:auto; padding:10px; }
     /* Barra de aviso del destacado: abajo de todo, en el flujo (no tapa el chat). */
     #p2pToast { position:relative; z-index:50; flex:0 0 auto; padding:8px 14px; border-top:1px solid var(--line); background:var(--panel); color:var(--text); font-size:.84rem; font-weight:700; text-align:center; }
@@ -107,6 +117,9 @@
     .cell.zebra-cell { background:var(--panel-alt); }
     .label { margin-bottom:5px; color:var(--muted); font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
     .badge { padding:1px 6px; border:1px solid var(--line); border-radius:999px; font-size:.62rem; color:var(--muted); letter-spacing:0; text-transform:none; }
+    .badge.test-mode { color:#ff9298; border-color:rgba(239,95,95,.55); background:rgba(239,95,95,.12); font-weight:900; }
+    .row.test-row .cell.comment { border-color:rgba(239,95,95,.55); }
+    .row.test-row .cell.comment { cursor:pointer; }
     .stamp { margin-left:auto; color:var(--muted); font-size:.66rem; letter-spacing:0; text-transform:none; }
     .name { color:var(--accent-ink); font-weight:800; }
     .text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.3; }
@@ -170,6 +183,8 @@
       .scene-btn { width:30px; height:30px; }
       .viewer-count { padding:3px 8px; font-size:.76rem; }
       .viewer-count svg { width:14px; height:14px; }
+      .comment-count { padding:3px 8px; font-size:.76rem; }
+      .comment-count svg { width:14px; height:14px; }
       .stream-activity { max-width:40vw; padding:3px 7px; font-size:.7rem; }
       /* Colapsado no hay titulo ni boton: la fila de arriba del grid quedaba vacia
          y empujaba los controles hacia abajo. Se saca y queda una sola linea. */
@@ -261,18 +276,48 @@
       </svg>
       <span id="viewerCountValue">0</span>
     </span>
+    <span id="commentCount" class="comment-count" title="Comentarios totales del vivo en Facebook" aria-label="Comentarios totales del vivo" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20.5 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.95L3 20l1.05-4.3A8.5 8.5 0 1 1 20.5 11.5Z"></path>
+        <path d="M8 11.5h8M8 8.5h5"></path>
+      </svg>
+      <span id="commentCountValue">0</span>
+    </span>
+    <span id="facebookTotalsSeparator" aria-hidden="true" hidden>|</span>
+    <span id="facebookTotals" aria-label="Totales combinados de cuentas Facebook" hidden>
+      <span id="facebookTotalViewers" class="viewer-count facebook-total-count" title="Total de espectadores de las cuentas Facebook activas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2.5 12S6.2 5.6 12 5.6 21.5 12 21.5 12 17.8 18.4 12 18.4 2.5 12 2.5 12Z"></path>
+          <circle cx="12" cy="12" r="3.1"></circle>
+        </svg>
+        <span id="facebookTotalViewersValue">0</span>
+      </span>
+      <span id="facebookTotalComments" class="comment-count facebook-total-count" title="Total de comentarios de las cuentas Facebook activas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20.5 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.95L3 20l1.05-4.3A8.5 8.5 0 1 1 20.5 11.5Z"></path>
+          <path d="M8 11.5h8M8 8.5h5"></path>
+        </svg>
+        <span id="facebookTotalCommentsValue">0</span>
+      </span>
+    </span>
   </section>
   <section id="toolbar" class="collapsed" aria-label="Mas opciones">
     <div class="toolbar-status">
       <span class="chip" id="wsState">Conectando...</span>
-      <span class="chip" id="p2pState">Peers P2P: 0</span>
+      <span class="chip" id="p2pState">Destacado local</span>
       <a id="dashboardLink" class="dash-link" href="#">Dashboard</a>
       <a id="unifiedLink" class="dash-link" href="#">Overlay unificado</a>
     </div>
     <input id="filterText" type="search" placeholder="Buscar en comentarios, usuarios o respuestas">
     <select id="filterSource"><option value="">Todas las plataformas</option></select>
-    <label class="check"><input id="filterPending" type="checkbox" checked> Solo sin respuesta</label>
+    <label class="check"><input id="filterPending" type="checkbox"> Solo sin respuesta</label>
+    <button id="saveCurrentChat" type="button">Guardar Chat actual</button>
+    <select id="savedChatPrograms" aria-label="Abrir chat guardado"><option value="">Chats guardados…</option></select>
     <button id="clearHistory" class="danger" type="button">Limpiar historial</button>
+    <a id="exportAudience" class="dash-link" href="/api/rulo-audience-comments.csv?dias=30">Exportar audiencia (30 días)</a>
+    <button id="backupRuloData" type="button">Crear respaldo</button>
+    <small id="backupStatus" class="archive-note">El respaldo incluye SQLite, historial reciente y avatares; se conservan los 7 últimos.</small>
+    <small class="archive-note">Limpiar la vista reciente no borra el archivo permanente de comentarios.</small>
     <span id="counter"></span>
   </section>
   <div id="p2pToast" role="status" aria-live="polite" hidden></div>
@@ -286,33 +331,22 @@
       const filterSource = document.getElementById('filterSource');
       const filterPending = document.getElementById('filterPending');
       const clearButton = document.getElementById('clearHistory');
+      const saveChatButton = document.getElementById('saveCurrentChat');
+      const savedChatPrograms = document.getElementById('savedChatPrograms');
+      const backupButton = document.getElementById('backupRuloData');
+      const backupStatus = document.getElementById('backupStatus');
       const titleName = document.getElementById('titleName');
       const items = new Map();
+      const testItems = new Map();
       let socket, retry = 500;
       let botName = 'Rulo';
       let clearArmed = false;
       let clearTimer = null;
+      let viewingSavedChat = false;
       const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
       document.getElementById('dashboardLink').href = location.origin + '/rulo-dashboard.html?session=' + encodeURIComponent(session);
       document.getElementById('unifiedLink').href = location.origin + '/rulo-unified-dashboard.html?session=' + encodeURIComponent(session);
 
-      // --- Puente P2P hacia featured.html (mismo Session ID) ---
-      const p2pFrame = document.createElement('iframe');
-      const p2pPeers = {};
-      p2pFrame.style.cssText = 'position:fixed;width:0;height:0;border:0;left:-100px;top:-100px;';
-      // El &password=false no es opcional: sin el, VDO.Ninja une este iframe a otra
-      // sala efectiva y la lista de peers llega vacia ("Sin peers"), asi que destacar
-      // nunca encuentra a que overlay enviar. dock.html, featured.html y events.html
-      // tambien lo mandan siempre.
-      p2pFrame.src = 'https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&password=false&push&notmobile&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room=' + encodeURIComponent(session);
-      document.body.appendChild(p2pFrame);
-      window.addEventListener('message', function (event) {
-        if (event.source !== p2pFrame.contentWindow || !event.data) return;
-        const data = event.data;
-        if ((data.action === 'push-connection-info' || data.action === 'view-connection-info') && data.UUID && data.value) p2pPeers[data.UUID] = data.value.label;
-        if ((data.action === 'push-connection' || data.action === 'view-connection') && data.UUID && !data.value) delete p2pPeers[data.UUID];
-        updateP2pState();
-      });
       const toast = document.getElementById('p2pToast');
       let toastTimer = null;
       function showToast(text, kind) {
@@ -323,25 +357,10 @@
         toastTimer = setTimeout(function () { toast.hidden = true; }, 3500);
       }
 
-      function peerCount() { return Object.keys(p2pPeers).length; }
-      // El aviso de "sin peers" queda fijo (antes se borraba a los 2,6s y era facil no verlo).
-      let p2pWarning = false;
       function updateP2pState() {
-        const total = peerCount();
-        const moreBtn = document.getElementById('moreOptions');
-        if (total > 0) p2pWarning = false;
-        if (moreBtn) moreBtn.classList.toggle('has-warning', p2pWarning);
-        if (p2pWarning) {
-          p2pState.textContent = 'Sin peers: abri featured.html (Session ' + session + ')';
-          p2pState.className = 'chip bad';
-          p2pState.title = 'No hay peers P2P (' + total + ' conectados): el comentario no se puede destacar todavia.';
-          return;
-        }
-        p2pState.textContent = 'Peers P2P: ' + total;
-        p2pState.className = 'chip ' + (total > 0 ? 'ok' : 'warn');
-        p2pState.title = total > 0
-          ? 'Comentarios destacados via ' + Object.values(p2pPeers).join(', ')
-          : 'Sin peers: abri featured.html con el Session ID ' + session + ' para destacar comentarios.';
+        p2pState.textContent = 'Destacado local';
+        p2pState.className = 'chip ok';
+        p2pState.title = 'Los comentarios destacados se envían al overlay local de Chat Bot Spotify.';
       }
       updateP2pState();
 
@@ -351,26 +370,16 @@
       }
 
       function featureComment(item) {
-        const featured = { id:item.messageId || item.id, mid:item.messageId || item.id, chatname:item.requester, chatmessage:item.comment, chatimg:item.chatimg || '', type:item.source || 'chat', textonly:true };
-        let sent = 0;
-        Object.keys(p2pPeers).forEach(function (uuid) {
-          if (p2pPeers[uuid] === 'dock') return;
-          try {
-            p2pFrame.contentWindow.postMessage({ sendData:{ overlayNinja:featured }, type:'pcs', UUID:uuid }, '*');
-            sent += 1;
-          } catch (_) {}
-        });
-        if (sent > 0) {
-          p2pWarning = false;
-          updateP2pState();
-          showToast('Comentario destacado en ' + sent + ' peer' + (sent === 1 ? '' : 's'), 'ok');
-          setState('Comentario destacado en ' + sent + ' peer' + (sent === 1 ? '' : 's'), 'ok');
-          setTimeout(function () { setState('Conectado', 'ok'); }, 2600);
-        } else {
-          p2pWarning = true;
-          updateP2pState();
-          showToast('No hay peers: abri featured.html con el Session ID ' + session, 'bad');
-        }
+        const chatimg = item.chatimg && item.chatimg.startsWith('/rulo-avatars/') ? new URL(item.chatimg, location.origin).href : (item.chatimg || '');
+        const featured = { id:item.messageId || item.id, mid:item.messageId || item.id, chatname:item.requester, chatmessage:item.comment, chatimg, userid:item.facebookUserId || item.userid || '', type:item.source || 'facebook', timestamp:item.timestamp || Date.now(), textonly:true, meta:{ messageId:item.messageId || item.id, captureId:item.captureId || '', accountLabel:item.captureAccount || '', streamId:item.streamId || '' } };
+        fetch('http://' + location.hostname + ':9765/api/featured', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ message:featured }) })
+          .then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || 'Error al enviar el comentario'); return data; }); })
+          .then(function () {
+            showToast('Comentario enviado al overlay local', 'ok');
+            setState('Comentario destacado', 'ok');
+            setTimeout(function () { setState('Conectado', 'ok'); }, 2600);
+          })
+          .catch(function (error) { showToast('No se pudo destacar: ' + error.message, 'bad'); });
       }
 
       function matchesFilters(item) {
@@ -379,29 +388,53 @@
         if (source && (item.source || '') !== source) return false;
         const needle = filterText.value.trim().toLowerCase();
         if (!needle) return true;
-        return [item.requester, item.comment, item.response].some(function (value) {
+        return [item.requester, displayChatComment(item.comment), item.response].some(function (value) {
           return String(value || '').toLowerCase().indexOf(needle) !== -1;
         });
       }
 
+      function decodeChatEntities(value) {
+        const named = { amp:'&', lt:'<', gt:'>', quot:'"', apos:"'", nbsp:' ' };
+        return String(value || '').replace(/&(#x[\da-f]+|#\d+|amp|lt|gt|quot|apos|nbsp);/gi, function (match, entity) {
+          if (entity.charAt(0) !== '#') return named[entity.toLowerCase()] || match;
+          const number = entity.charAt(1).toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+          try { return Number.isFinite(number) && number >= 0 && number <= 0x10ffff ? String.fromCodePoint(number) : '\uFFFD'; }
+          catch (_) { return '\uFFFD'; }
+        });
+      }
+
+      function displayChatComment(value) {
+        let text = String(value || '');
+        // Facebook serializa algunos emojis como etiquetas img con el emoji en alt.
+        text = decodeChatEntities(decodeChatEntities(text));
+        text = text.replace(/<img\b[^>]*(?:>|$)/gi, function (tag) {
+          const alt = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i.exec(tag);
+          return alt ? decodeChatEntities(alt[1] ?? alt[2] ?? alt[3] ?? '') : '';
+        });
+        text = text.replace(/<br\s*\/?>/gi, '\n').replace(/<\/(?:div|p|li)\s*>/gi, '\n').replace(/<[^>]*>/g, '').replace(/<[a-z][^<>]*$/gi, '');
+        text = decodeChatEntities(text).replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n');
+        return text.trim();
+      }
+
       function applyFilters() {
         let visible = 0;
-        items.forEach(function (item) {
-          const row = document.getElementById('rulo-row-' + item.id);
+        const allItems = [...items.values(), ...testItems.values()];
+        allItems.forEach(function (item) {
+          const row = document.getElementById((item.testMode ? 'rulo-test-row-' : 'rulo-row-') + item.id);
           if (!row) return;
           const show = matchesFilters(item);
           row.hidden = !show;
           if (show) visible += 1;
         });
         applyZebra();
-        counter.textContent = visible + ' de ' + items.size + ' comentarios';
+        counter.textContent = visible + ' de ' + allItems.length + ' comentarios' + (testItems.size ? ' · ' + testItems.size + ' de prueba, temporales' : '');
         updateMoreButtonState();
       }
 
       function refreshSourceOptions() {
         const current = filterSource.value;
         const sources = {};
-        items.forEach(function (item) { const s = item.source || ''; if (s) sources[s] = true; });
+        [...items.values(), ...testItems.values()].forEach(function (item) { const s = item.source || ''; if (s) sources[s] = true; });
         const known = Array.prototype.slice.call(filterSource.options).slice(1).map(function (option) { return option.value; });
         Object.keys(sources).forEach(function (source) {
           if (known.indexOf(source) !== -1) return;
@@ -424,19 +457,24 @@
 
       function draw(item) {
         if (!item || !item.id) return;
-        items.set(item.id, item);
-        const old = document.getElementById('rulo-row-' + item.id);
+        const isTestItem = item.testMode === true;
+        const collection = isTestItem ? testItems : items;
+        collection.set(item.id, item);
+        const rowId = (isTestItem ? 'rulo-test-row-' : 'rulo-row-') + item.id;
+        const old = document.getElementById(rowId);
         const row = old || document.createElement('div');
-        row.id = 'rulo-row-' + item.id;
-        row.className = 'row';
+        row.id = rowId;
+        row.className = 'row' + (isTestItem ? ' test-row' : '');
+        row.dataset.itemId = item.id;
+        row.dataset.testMode = isTestItem ? 'true' : 'false';
         if (!old) {
-          row.innerHTML = '<div class="cell comment" title="Hacer clic para destacar este comentario en featured.html"><div class="label"><img class="profile" alt=""><span class="name"></span><span class="commented">comentó</span><span class="badge source"></span><span class="stamp"></span></div><div class="text comment-text"></div></div><div class="cell response" title="Hacer clic para repetir esta respuesta en el overlay de Rulo"><div class="label"><span class="resp-label"></span><span class="stamp resp-stamp"></span></div><div class="text response-text"></div></div>';
+          row.innerHTML = '<div class="cell comment" title="Hacer clic para destacar este comentario en el overlay local"><div class="label"><img class="profile" alt=""><span class="name"></span><span class="commented">comentó</span><span class="badge source"></span><span class="badge capture"></span><span class="stamp"></span></div><div class="text comment-text"></div></div><div class="cell response" title="Hacer clic para repetir esta respuesta en el overlay de Rulo"><div class="label"><span class="resp-label"></span><span class="stamp resp-stamp"></span></div><div class="text response-text"></div></div>';
         }
         const isAlert = item.isAlert === true || item.event === 'alert' || item.event === 'reaction' ||
           /reaccion[oó]|reaccion|shared|comparti[oó]|estrellas|stars|sigui[oó]|followed/i.test(item.comment || '');
         row.classList.toggle('is-alert', isAlert);
         row.querySelector('.name').textContent = escapeText(item.requester);
-        row.querySelector('.comment-text').textContent = escapeText(item.comment);
+        row.querySelector('.comment-text').textContent = displayChatComment(item.comment);
         const commentedSpan = row.querySelector('.commented');
         if (commentedSpan) commentedSpan.textContent = isAlert ? 'alerta' : 'comentó';
         const labelDiv = row.querySelector('.comment .label');
@@ -454,13 +492,35 @@
           }
         }
         row.querySelector('.resp-label').textContent = botName + ' responde';
-        const sourceBadge = row.querySelector('.source');
-        if (item.source) { sourceBadge.textContent = escapeText(item.source); } else sourceBadge.remove();
+        let sourceBadge = row.querySelector('.source');
+        if (item.source) {
+          if (!sourceBadge) { sourceBadge = document.createElement('span'); sourceBadge.className = 'badge source'; row.querySelector('.comment .label').appendChild(sourceBadge); }
+          sourceBadge.textContent = escapeText(item.source);
+        } else if (sourceBadge) sourceBadge.remove();
+        let captureBadge = row.querySelector('.capture');
+        if (item.captureAccount) {
+          if (!captureBadge) { captureBadge = document.createElement('span'); captureBadge.className = 'badge capture'; row.querySelector('.comment .label').appendChild(captureBadge); }
+          captureBadge.textContent = escapeText(item.captureAccount);
+          captureBadge.title = item.streamId ? 'Transmisión: ' + escapeText(item.streamId) : 'Cuenta de captura';
+        } else if (captureBadge) captureBadge.remove();
+        const label = row.querySelector('.comment .label');
+        let testBadge = label.querySelector('.test-mode');
+        if (isTestItem) {
+          if (!testBadge) { testBadge = document.createElement('span'); testBadge.className = 'badge test-mode'; label.insertBefore(testBadge, label.querySelector('.stamp')); }
+          testBadge.textContent = 'PRUEBA · TEMPORAL';
+          testBadge.title = 'Este comentario está aislado y no se guarda en el historial permanente ni en la base de datos.';
+          row.querySelector('.comment').title = testBadge.title + ' Haz clic para destacarlo temporalmente en el overlay.';
+        } else if (testBadge) {
+          testBadge.remove();
+          row.querySelector('.comment').title = 'Hacer clic para destacar este comentario en el overlay local';
+        }
         row.querySelector('.stamp').textContent = stamp(item.timestamp);
-        row.querySelector('.resp-stamp').textContent = item.response ? stamp(item.timestamp) : '';
+        row.querySelector('.resp-stamp').textContent = item.response ? stamp(item.responseTimestamp || item.timestamp) : '';
         const profile = row.querySelector('.profile');
-        if (item.chatimg) { profile.src = item.chatimg; profile.style.display = 'inline-block'; } else profile.style.display = 'none';
-        row.querySelector('.comment').onclick = function () { featureComment(item); };
+        profile.onerror = function () { profile.style.display = 'none'; profile.removeAttribute('src'); };
+        profile.referrerPolicy = 'no-referrer';
+        if (item.chatimg) { profile.src = item.chatimg; profile.style.display = 'inline-block'; } else { profile.removeAttribute('src'); profile.style.display = 'none'; }
+        row.querySelector('.comment').onclick = function () { if (!viewingSavedChat) featureComment(item); };
         const responseCell = row.querySelector('.response');
         const response = row.querySelector('.response-text');
         const hasResponse = !!item.response;
@@ -468,21 +528,91 @@
         responseCell.classList.toggle('is-empty', !hasResponse);
         response.textContent = hasResponse ? item.response : '';
         row.querySelector('.response').onclick = function () {
-          if (!item.response) return;
+          if (viewingSavedChat || !item.response) return;
           fetch('/api/rulo-repeat-response', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ response:item.response, requester:item.requester, forceOverlay:true }) })
             .then(async function (result) { const data = await result.json(); if (!result.ok || !data.success) throw new Error(data.error || 'No se pudo repetir la respuesta'); })
             .then(function () { setState('Respuesta repetida en el overlay', 'ok'); setTimeout(function () { setState('Conectado', 'ok'); }, 2000); })
             .catch(function () { setState('No se pudo repetir la respuesta', 'bad'); });
         };
         if (!old) list.prepend(row);
-        while (list.children.length > 50) list.lastElementChild.remove();
+        while (list.children.length > (viewingSavedChat ? 5000 : 50)) {
+          const last = list.lastElementChild;
+          if (!last) break;
+          if (last.dataset.testMode === 'true') testItems.delete(last.dataset.itemId);
+          else items.delete(last.dataset.itemId);
+          last.remove();
+        }
         refreshSourceOptions();
         applyFilters();
       }
 
       function clearLocal() {
+        items.forEach(function (item) {
+          const row = document.getElementById('rulo-row-' + item.id);
+          if (row) row.remove();
+        });
         items.clear();
-        list.innerHTML = '';
+        refreshSourceOptions();
+        applyFilters();
+      }
+
+      function loadCurrentChat() {
+        viewingSavedChat = false;
+        clearLocal();
+        fetch('/api/rulo-chat-messages').then(function (r) { return r.json(); }).then(function (data) {
+          (data.items || []).forEach(draw);
+          setState('Chat actual', 'ok');
+        }).catch(function () { setState('No se pudo cargar el chat actual', 'bad'); });
+      }
+
+      function refreshSavedChats(selectedProgram) {
+        return fetch('/api/rulo-chat-archives').then(function (r) { return r.json(); }).then(function (data) {
+          savedChatPrograms.innerHTML = '<option value="">Chats guardados…</option><option value="__current__">Volver al chat actual</option>';
+          (data.items || []).forEach(function (archive) {
+            const option = document.createElement('option');
+            option.value = archive.program;
+            option.textContent = 'Programa ' + archive.program + ' · ' + archive.comments + ' comentarios';
+            savedChatPrograms.appendChild(option);
+          });
+          if (selectedProgram) savedChatPrograms.value = selectedProgram;
+        }).catch(function () {});
+      }
+
+      savedChatPrograms.onchange = function () {
+        const program = savedChatPrograms.value;
+        if (program === '__current__') { loadCurrentChat(); return; }
+        if (!program) return;
+        fetch('/api/rulo-chat-archives/' + encodeURIComponent(program)).then(function (r) {
+          return r.json().then(function (data) { if (!r.ok) throw new Error(data.error || 'No se pudo abrir el chat guardado.'); return data; });
+        }).then(function (data) {
+          viewingSavedChat = true;
+          clearLocal();
+          clearTestLocal();
+          (data.items || []).forEach(draw);
+          setState('Programa ' + program + ' · copia guardada', 'ok');
+        }).catch(function (error) { setState(error.message, 'bad'); });
+      };
+
+      saveChatButton.onclick = function () {
+        const program = window.prompt('¿Qué número de programa quieres asignar a este chat? (Ejemplo: 11)');
+        if (program === null) return;
+        const normalizedProgram = program.trim();
+        if (!/^\d{1,20}$/.test(normalizedProgram)) { showToast('Ingresa un número de programa válido.', 'bad'); return; }
+        saveChatButton.disabled = true;
+        fetch('/api/rulo-chat-archives', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ program:normalizedProgram }) })
+          .then(function (r) { return r.json().then(function (data) { if (!r.ok) throw new Error(data.error || 'No se pudo guardar el chat.'); return data; }); })
+          .then(function (data) { showToast('Chat guardado para el programa ' + data.program + ' (' + data.comments + ' comentarios).', 'ok'); return refreshSavedChats(data.program); })
+          .catch(function (error) { showToast(error.message || 'No se pudo guardar el chat.', 'bad'); })
+          .finally(function () { saveChatButton.disabled = false; });
+      };
+      refreshSavedChats();
+
+      function clearTestLocal() {
+        testItems.forEach(function (item) {
+          const row = document.getElementById('rulo-test-row-' + item.id);
+          if (row) row.remove();
+        });
+        testItems.clear();
         refreshSourceOptions();
         applyFilters();
       }
@@ -557,22 +687,39 @@
         clearTimeout(transportNoticeTimer);
         transportNoticeTimer = setTimeout(function () { transportNotice.textContent = ''; }, 2500);
       }
+      function spotifyModuleUrl(path) {
+        const url = new URL(location.origin);
+        url.port = '9765';
+        url.pathname = path;
+        url.search = '';
+        url.hash = '';
+        return url.toString();
+      }
       Array.prototype.slice.call(document.querySelectorAll('#transportBar [data-transport]')).forEach(function (button) {
         button.onclick = function () {
           const action = button.getAttribute('data-transport');
           button.disabled = true;
-          fetch('/api/spotify-transport', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: action })
-          })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-              button.disabled = false;
-              if (!data || data.ok !== true) { showTransportNotice('No se pudo enviar el comando'); return; }
-              showTransportNotice(action === 'next' ? 'Siguiente: aplicando el inicio configurado...' : 'Anterior: aplicando el inicio configurado...');
+          fetch(spotifyModuleUrl('/api/setup'), { cache: 'no-store' })
+            .then(function (r) {
+              return r.json().then(function (data) {
+                if (!r.ok || !data || data.ok !== true || !data.token) throw new Error(data && data.error ? data.error : 'No se pudo autenticar con Chat Bot Spotify');
+                return fetch(spotifyModuleUrl('/api/spotify/transport'), {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + data.token },
+                  body: JSON.stringify({ action: action })
+                }).then(function (response) {
+                  return response.json().then(function (result) {
+                    if (!response.ok || !result || result.ok !== true) throw new Error(result && result.error ? result.error : 'Spotify no pudo ejecutar el comando');
+                    return result;
+                  });
+                });
+              });
             })
-            .catch(function () { button.disabled = false; showTransportNotice('No se pudo enviar el comando'); });
+            .then(function () {
+              button.disabled = false;
+              showTransportNotice(action === 'next' ? 'Spotify: siguiente tema' : action === 'previous' ? 'Spotify: tema anterior' : action === 'pause' ? 'Spotify: pausado' : 'Spotify: reanudado');
+            })
+            .catch(function (error) { button.disabled = false; showTransportNotice(error && error.message ? error.message : 'No se pudo conectar con Chat Bot Spotify'); });
         };
       });
       Array.prototype.slice.call(document.querySelectorAll('#transportBar [data-obs-hotkey]')).forEach(function (button) {
@@ -598,12 +745,23 @@
       });
 
       // --- Espectadores en vivo ---
-      // Los manda el relay de SSN a Cortex y Cortex los reparte por WebSocket.
+      // Los manda el capturador de chat activo a Cortex y Cortex los reparte por WebSocket.
       // Solo se muestran si el conteo es reciente: si el vivo termino, se ocultan.
       const viewerCountEl = document.getElementById('viewerCount');
       const viewerCountValue = document.getElementById('viewerCountValue');
       const VIEWER_TTL_MS = 90000;
+      const MAX_PLAUSIBLE_VIEWERS = 100000000;
       let viewerCountAt = 0;
+      const commentCountEl = document.getElementById('commentCount');
+      const commentCountValue = document.getElementById('commentCountValue');
+      let commentCountAt = 0;
+      const facebookTotalsEl = document.getElementById('facebookTotals');
+      const facebookTotalsSeparator = document.getElementById('facebookTotalsSeparator');
+      const facebookTotalViewersValue = document.getElementById('facebookTotalViewersValue');
+      const facebookTotalCommentsValue = document.getElementById('facebookTotalCommentsValue');
+      const facebookTotalViewersEl = document.getElementById('facebookTotalViewers');
+      const facebookTotalCommentsEl = document.getElementById('facebookTotalComments');
+      let facebookTotalsAt = 0;
       const streamActivityEl = document.getElementById('streamActivity');
       const streamActivityText = document.getElementById('streamActivityText');
       let streamActivityTimer = null;
@@ -622,7 +780,10 @@
       }
       function showViewerCount(data) {
         const total = Number(data && data.total);
-        if (!isFinite(total)) return;
+        if (!isFinite(total) || total < 0 || total > MAX_PLAUSIBLE_VIEWERS) {
+          viewerCountEl.hidden = true;
+          return;
+        }
         const cuando = Number(data.updatedAt) || Date.now();
         viewerCountAt = cuando;
         // Dato viejo (el vivo termino o la pagina se cerro): no se muestra.
@@ -635,6 +796,40 @@
         viewerCountEl.title = 'Espectadores en vivo: ' + formatViewers(total) + (detalle ? ' (' + detalle + ')' : '');
         viewerCountEl.hidden = false;
       }
+      function showCommentCount(data) {
+        const count = Number(data && data.count);
+        if (!Number.isSafeInteger(count) || count < 0) return;
+        const cuando = Number(data.updatedAt) || Date.now();
+        commentCountAt = cuando;
+        if (Date.now() - cuando > VIEWER_TTL_MS) { commentCountEl.hidden = true; return; }
+        commentCountValue.textContent = formatViewers(count);
+        commentCountEl.title = 'Comentarios totales en Facebook: ' + formatViewers(count);
+        commentCountEl.hidden = false;
+      }
+      function showFacebookAccountTotals(data) {
+        const when = Number(data && data.updatedAt) || 0;
+        const viewers = data && data.currentViewers;
+        const comments = data && data.comments;
+        const validViewers = Number.isSafeInteger(viewers) && viewers >= 0 && viewers <= MAX_PLAUSIBLE_VIEWERS;
+        const validComments = Number.isSafeInteger(comments) && comments >= 0 && comments <= MAX_PLAUSIBLE_VIEWERS;
+        if (!when || Date.now() - when > VIEWER_TTL_MS || (!validViewers && !validComments)) {
+          facebookTotalsEl.hidden = true;
+          facebookTotalsSeparator.hidden = true;
+          return;
+        }
+        facebookTotalsAt = when;
+        facebookTotalViewersEl.hidden = !validViewers;
+        facebookTotalCommentsEl.hidden = !validComments;
+        if (validViewers) facebookTotalViewersValue.textContent = formatViewers(viewers);
+        if (validComments) facebookTotalCommentsValue.textContent = formatViewers(comments);
+        const accounts = Number.isSafeInteger(data.activeAccounts) ? data.activeAccounts : 0;
+        const streams = Number.isSafeInteger(data.activeStreams) ? data.activeStreams : 0;
+        facebookTotalViewersEl.title = 'Espectadores totales de Facebook: ' + (validViewers ? formatViewers(viewers) : 'sin dato') + ` · ${accounts} cuentas activas`;
+        facebookTotalCommentsEl.title = 'Comentarios totales de Facebook: ' + (validComments ? formatViewers(comments) : 'sin dato') + ` · ${accounts} cuentas activas`;
+        facebookTotalsEl.title = `Suma de ${accounts} cuentas y ${streams} transmisiones activas`;
+        facebookTotalsEl.hidden = false;
+        facebookTotalsSeparator.hidden = false;
+      }
       setInterval(function () {
         if (!viewerCountEl.hidden && viewerCountAt && Date.now() - viewerCountAt > VIEWER_TTL_MS) viewerCountEl.hidden = true;
       }, 10000);
@@ -645,6 +840,23 @@
           if (d && Number(d.updatedAt) > 0 && Date.now() - Number(d.updatedAt) < VIEWER_TTL_MS) showViewerCount(d);
         })
         .catch(function () {});
+      fetch('/api/stream-comment-count')
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d && Number(d.updatedAt) > 0 && Date.now() - Number(d.updatedAt) < VIEWER_TTL_MS) showCommentCount(d); })
+        .catch(function () {});
+      fetch('/api/facebook-account-totals')
+        .then(function (r) { return r.json(); })
+        .then(showFacebookAccountTotals)
+        .catch(function () {});
+      setInterval(function () {
+        if (!commentCountEl.hidden && commentCountAt && Date.now() - commentCountAt > VIEWER_TTL_MS) commentCountEl.hidden = true;
+      }, 10000);
+      setInterval(function () {
+        if (!facebookTotalsEl.hidden && facebookTotalsAt && Date.now() - facebookTotalsAt > VIEWER_TTL_MS) {
+          facebookTotalsEl.hidden = true;
+          facebookTotalsSeparator.hidden = true;
+        }
+      }, 10000);
 
       // Zebra segun layout: en dos columnas alterna por FILA (comentario+respuesta juntos);
       // apilado (<=620px) alterna por CELDA para que nunca queden dos del mismo color pegados.
@@ -742,16 +954,28 @@
           .catch(function () { setState('No se pudo vaciar el historial', 'bad'); });
       };
 
+      backupButton.onclick = function () {
+        backupButton.disabled = true;
+        backupStatus.textContent = 'Creando copia consistente de comentarios y avatares…';
+        fetch('/api/rulo-data-backup', { method:'POST' })
+          .then(function (response) { return response.json().then(function (data) { if (!response.ok) throw new Error(data.error || 'No se pudo crear el respaldo.'); return data; }); })
+          .then(function (data) { backupStatus.textContent = 'Respaldo guardado: ' + data.name + ' · se conservan los 7 últimos.'; })
+          .catch(function (error) { backupStatus.textContent = error.message || 'No se pudo crear el respaldo.'; })
+          .finally(function () { backupButton.disabled = false; });
+      };
+
       function applyConfig(config) {
         if (!config || !config.botName) return;
         botName = config.botName;
         titleName.textContent = botName;
         document.title = botName + ' | Chat y respuestas';
-        items.forEach(function (item) {
-          const row = document.getElementById('rulo-row-' + item.id);
-          if (!row) return;
-          const label = row.querySelector('.resp-label');
-          if (label) label.textContent = botName + ' responde';
+        [items, testItems].forEach(function (collection) {
+          collection.forEach(function (item) {
+            const row = document.getElementById((item.testMode ? 'rulo-test-row-' : 'rulo-row-') + item.id);
+            if (!row) return;
+            const label = row.querySelector('.resp-label');
+            if (label) label.textContent = botName + ' responde';
+          });
         });
       }
 
@@ -764,10 +988,15 @@
         socket.onmessage = function (event) {
           try {
             const data = JSON.parse(event.data);
-            if (data.type === 'rulo_chat_item') draw(data.item);
+            if (data.type === 'rulo_chat_item' && !viewingSavedChat) draw(data.item);
+            else if (data.type === 'rulo_test_chat_item' && !viewingSavedChat) draw({ ...data.item, testMode: true });
             else if (data.type === 'rulo_config_updated') applyConfig(data.config);
-            else if (data.type === 'rulo_chat_cleared') clearLocal();
+            else if (data.type === 'rulo_chat_cleared' && !viewingSavedChat) clearLocal();
+            else if (data.type === 'rulo_test_chat_cleared') clearTestLocal();
+            else if (data.type === 'global_test_mode' && data.enabled !== true) clearTestLocal();
             else if (data.type === 'viewer_count') showViewerCount(data);
+            else if (data.type === 'stream_comment_count') showCommentCount(data);
+            else if (data.type === 'facebook_account_totals') showFacebookAccountTotals(data);
             else if (data.type === 'stream_activity') showStreamActivity(data.activity);
           } catch (_) {}
         };
@@ -775,7 +1004,13 @@
         socket.onclose = function () { setState('Reconectando...', 'warn'); setTimeout(connect,retry); retry=Math.min(5000,retry*2); };
       }
 
-      fetch('/api/rulo-chat-messages').then(function (r) { return r.json(); }).then(function (data) { (data.items||[]).forEach(draw); }).catch(function () {});
+      fetch('/api/rulo-chat-messages').then(function (r) { return r.json(); }).then(function (data) { if (!viewingSavedChat) (data.items||[]).forEach(draw); }).catch(function () {});
+      fetch('/api/test-mode').then(function (r) { return r.json(); }).then(function (mode) {
+        if (!mode || mode.enabled !== true) return;
+        return fetch('/api/rulo-test-chat-messages').then(function (r) { return r.json(); }).then(function (data) {
+          if (!viewingSavedChat) (data.items || []).forEach(function (item) { draw({ ...item, testMode: true }); });
+        });
+      }).catch(function () {});
       connect();
     }());
   </script>

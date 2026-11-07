@@ -46,12 +46,31 @@
     .url-box small a { color:var(--accent); font-weight:700; }
     @media(max-width:640px){ form{grid-template-columns:1fr;} .wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} }
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
   <main>
     <header>
       <div><h1><span>Rulo</span> Dashboard</h1><p>Configuración del overlay de respuestas del bot <strong id="brandName">Rulo</strong>.</p></div>
-      <nav><a id="historyLink" href="#">Abrir historial</a> <a id="chatLink" class="link-secondary" href="#">Chat</a> <a id="unifiedLink" class="link-secondary" href="#">Unificado</a> <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Spotify</a> <a id="mascotLink" class="link-secondary" href="#">Mascota</a></nav>
+      <nav class="cortex-legacy-module-nav"><a id="historyLink" href="#">Abrir historial</a> <a id="chatLink" class="link-secondary" href="#">Chat</a> <a id="unifiedLink" class="link-secondary" href="#">Unificado</a> <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Spotify</a> <a id="mascotLink" class="link-secondary" href="#">Mascota</a></nav>
       <div class="status" id="status">Cargando configuración...</div>
     </header>
     <section class="url-box">
@@ -87,12 +106,13 @@
       <div class="field"><label for="accent">Color principal</label><input id="accent" type="color"><small>Borde, avatar y nombre del bot.</small></div>
       <div class="field"><label for="animation">Animación</label><select id="animation"><option value="slide">Deslizamiento</option><option value="pop">Aparición elástica</option><option value="soft">Suave</option></select></div>
       <div class="field"><label for="tailPosition">Posición de la punta de la nube</label><select id="tailPosition"><option value="right-upper">Diagonal arriba (lado derecho)</option><option value="right-middle">Centro del lado derecho</option><option value="right-lower">Diagonal abajo (lado derecho)</option><option value="bottom-left">Abajo a la izquierda</option><option value="bottom-center">Centro abajo</option><option value="bottom-right">Abajo a la derecha</option></select><small>La vista previa cambia al elegir; pulsa «Guardar cambios» para aplicarlo en OBS.</small></div>
-      <div class="field"><label for="visibleSeconds">Tiempo visible de la respuesta (segundos)</label><input id="visibleSeconds" type="number" min="2" max="60" step="0.5" inputmode="decimal"><small>Escribe cuánto tiempo permanece visible la respuesta en OBS. Puedes usar medios segundos; el rango es de 2 a 60 segundos.</small></div>
+      <div class="field"><label for="visibleSeconds">Tiempo base visible de la respuesta (segundos)</label><input id="visibleSeconds" type="number" min="2" max="60" step="0.5" inputmode="decimal"><small>Es el tiempo base en OBS. Si la respuesta supera cuatro renglones, Rulo agrega automáticamente unos segundos para desplazarla lentamente y dejarla legible. Puedes usar medios segundos; el valor base admite de 2 a 60.</small></div>
+      <div class="field"><label for="longReplyScrollDelaySeconds">Pausa antes de desplazar respuestas largas (segundos)</label><input id="longReplyScrollDelaySeconds" type="number" min="0" max="30" step="0.5" inputmode="decimal"><small>Para respuestas de más de cuatro renglones. 0 empieza a desplazarlas de inmediato; el valor inicial es 5 segundos.</small></div>
       <div class="field"><label for="replyDelaySeconds">Delay Segundos para que aparezca cartel respuesta</label><input id="replyDelaySeconds" type="number" min="0" max="120" step="0.1" inputmode="decimal" value="0"><small>Se cuenta desde el primer fotograma de «Habla». Usa 0 para que el cartel aparezca junto con la animación; admite décimas de segundo.</small></div>
       <div class="field"><label for="maxWidth">Ancho máximo (px)</label><input id="maxWidth" type="number" min="320" max="1200" step="10"></div>
       <div class="field"><label for="fontSize">Tamaño del mensaje (rem)</label><input id="fontSize" type="number" min="0.7" max="2.5" step="0.05"></div>
       <div class="field"><label for="panelOpacity">Opacidad del panel</label><input id="panelOpacity" type="number" min="0.2" max="1" step="0.05"></div>
-      <div class="field wide"><label class="check"><input id="showRequester" type="checkbox"> Mostrar “Pedido de ...” debajo de la respuesta</label></div>
+      <div class="field wide"><label class="check"><input id="showRequester" type="checkbox"> Mostrar «En respuesta a: …» debajo de la respuesta</label></div>
       <div class="field wide"><label class="check"><input id="showBotName" type="checkbox"> Mostrar el nombre “Rulo” en la respuesta</label></div>
       <div class="field wide"><label class="check"><input id="showAvatar" type="checkbox"> Mostrar el avatar (inicial o imagen) de la respuesta</label></div>
       <div class="field wide"><label class="check"><input id="showMascot" type="checkbox"> Mostrar mascota en lugar de la inicial</label><small>Busca <code>/rulo-assets/&lt;estado&gt;.svg</code>. Si el archivo no existe, vuelve a la inicial sin romper el overlay.</small></div>
@@ -118,7 +138,7 @@
   </main>
   <script>
     (function () {
-      const ids = ['botName','avatarLetter','accent','visibleSeconds','replyDelaySeconds','maxWidth','fontSize','panelOpacity','showRequester','showMascot','showBotName','showAvatar','overlayTheme','animation','tailPosition'];
+      const ids = ['botName','avatarLetter','accent','visibleSeconds','longReplyScrollDelaySeconds','replyDelaySeconds','maxWidth','fontSize','panelOpacity','showRequester','showMascot','showBotName','showAvatar','overlayTheme','animation','tailPosition'];
       const form = id => document.getElementById(id);
       const notice = form('notice');
       const status = form('status');
@@ -254,8 +274,8 @@
       form('openDock').onclick = () => window.open(dockUrl, '_blank', 'noopener');
       form('copyChat').onclick = () => navigator.clipboard.writeText(chatUrl).then(() => showNotice('URL del chat copiada')).catch(() => showNotice('No se pudo copiar', true));
       form('openChat').onclick = () => window.open(chatUrl, '_blank', 'noopener');
-      function fill(data) { config = data; ids.forEach(id => { if (id === 'visibleSeconds') form(id).value = (Number(data.visibleMs) / 1000).toString(); else if (id === 'replyDelaySeconds') form(id).value = (Number(data.replyDelayMs || 0) / 1000).toString(); else if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = id === 'tailPosition' ? (data.tailPosition || 'right-lower') : data[id]; }); }
-      function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Math.round(Number(value.visibleSeconds)*1000); delete value.visibleSeconds; value.replyDelayMs=Math.round(Number(value.replyDelaySeconds)*1000); delete value.replyDelaySeconds; value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
+      function fill(data) { config = data; ids.forEach(id => { if (id === 'visibleSeconds') form(id).value = (Number(data.visibleMs) / 1000).toString(); else if (id === 'longReplyScrollDelaySeconds') form(id).value = (Number(data.longReplyScrollDelayMs ?? 5000) / 1000).toString(); else if (id === 'replyDelaySeconds') form(id).value = (Number(data.replyDelayMs || 0) / 1000).toString(); else if (form(id).type === 'checkbox') form(id).checked = !!data[id]; else form(id).value = id === 'tailPosition' ? (data.tailPosition || 'right-lower') : data[id]; }); }
+      function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Math.round(Number(value.visibleSeconds)*1000); delete value.visibleSeconds; value.longReplyScrollDelayMs=Math.round(Number(value.longReplyScrollDelaySeconds)*1000); delete value.longReplyScrollDelaySeconds; value.replyDelayMs=Math.round(Number(value.replyDelaySeconds)*1000); delete value.replyDelaySeconds; value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
       function showNotice(text, error) { notice.textContent=text; notice.style.color=error?'#ff7d7d':'var(--accent)'; setTimeout(() => notice.textContent='',3000); }
       function updatePreview() { preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + encodeURIComponent(form('previewMood').value || 'success') + '&theme=' + encodeURIComponent(form('overlayTheme').value || 'dark') + '&tailPosition=' + encodeURIComponent(form('tailPosition').value || 'right-lower') + '&v=' + Date.now(); }
       form('mascotLink').href = location.origin + '/rulo-mascota.html?session=' + encodeURIComponent(session);
@@ -289,6 +309,7 @@
           if (data.type !== 'rulo_config_updated' || !data.config) return;
           config = data.config;
           if (document.activeElement !== form('visibleSeconds')) form('visibleSeconds').value = (Number(data.config.visibleMs) / 1000).toString();
+          if (document.activeElement !== form('longReplyScrollDelaySeconds')) form('longReplyScrollDelaySeconds').value = (Number(data.config.longReplyScrollDelayMs ?? 5000) / 1000).toString();
           if (document.activeElement !== form('replyDelaySeconds')) form('replyDelaySeconds').value = (Number(data.config.replyDelayMs || 0) / 1000).toString();
           ['showBotName','showAvatar'].forEach(id => { if (document.activeElement !== form(id)) form(id).checked = data.config[id] !== false; });
           if (document.activeElement !== form('tailPosition')) {
@@ -297,7 +318,7 @@
           }
         } catch (_) {}
       });
-      form('save').onclick = () => { if (!form('visibleSeconds').reportValidity() || !form('replyDelaySeconds').reportValidity()) return; return fetch('/api/rulo-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(read())}).then(r=>r.json()).then(data => { if (!data.success) throw new Error(); fill(data.config); applyBrandName(data.config.botName); updatePreview(); showNotice('Guardado'); }).catch(() => showNotice('No se pudo guardar',true)); };
+      form('save').onclick = () => { if (!form('visibleSeconds').reportValidity() || !form('longReplyScrollDelaySeconds').reportValidity() || !form('replyDelaySeconds').reportValidity()) return; return fetch('/api/rulo-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(read())}).then(r=>r.json()).then(data => { if (!data.success) throw new Error(); fill(data.config); applyBrandName(data.config.botName); updatePreview(); showNotice('Guardado'); }).catch(() => showNotice('No se pudo guardar',true)); };
       form('test').onclick = () => fetch('/api/rulo-bot-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Esta es una respuesta de prueba de ' + (read().botName || 'Rulo') + '.',requester:'Matias',mood:form('previewMood').value || 'success',timestamp:Date.now()})}).then(() => { updatePreview(); showNotice('Respuesta de prueba enviada'); }).catch(() => showNotice('No se pudo probar',true));
       form('previewMood').onchange = updatePreview;
       form('overlayTheme').onchange = updatePreview;

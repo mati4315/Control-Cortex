@@ -5,6 +5,7 @@ node_modules/
 .env.*
 # Estado y datos de chat generados en tiempo de ejecucion
 Rulo/rulo-chat-history.json
+Rulo/profile-avatars/
 Rulo/Spotify/spotify-analytics.db*
 Rulo/Spotify/spotify-request-log.json
 Rulo/Spotify/spotify-devices.json
@@ -34,3 +35,4 @@ Rulo/animaciones/.trash/
 Rulo/animaciones/.history/
 Rulo/Spotify/Respaldo-pre-programa-*/
 Temas Originales/
+/Multi-Streaming upcloud/

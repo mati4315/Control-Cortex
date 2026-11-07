@@ -14,6 +14,7 @@ function binary(name) {
 const defaults = () => ({ version: 2, revision: 0,
   video: { width: 1920, height: 1080, fps: 30, codec: 'libvpx-vp9', crf: 28, preserveSource: false, audio: false, anchorX: 0.5, anchorY: 1 },
   behavior: { idleMinMinutes: 4, idleMaxMinutes: 6, recentCount: 3, queueLimit: 30 },
+  mateDrinkIntervalMinutes: 1,
   fallback: '', animations: {} });
 function number(value, min, max, name) {
   const n = Number(value);
@@ -33,11 +34,20 @@ function metadata(data) {
   const chroma = data.chroma || {};
   const color = chroma.color || '#00ff00';
   if (!/^#[a-f0-9]{6}$/i.test(color)) throw Error('Color de chroma inválido.');
+  let segmentLoop;
+  if (data.segmentLoop) {
+    const from = number(data.segmentLoop.from ?? 0, 0, 299, 'Inicio del bucle parcial');
+    const to = number(data.segmentLoop.to, from + 0.01, 300, 'Fin del bucle parcial');
+    const repeats = number(data.segmentLoop.repeats, 1, 100, 'Repeticiones del bucle parcial');
+    if (!Number.isInteger(repeats)) throw Error('Las repeticiones del bucle parcial deben ser un número entero.');
+    segmentLoop = { from, to, repeats };
+  }
   return { id, family: data.family, from: identifier(data.from, 'Pose inicial'), to: identifier(data.to, 'Pose final'),
-    role, loop: data.loop === true, interruptible: data.interruptible === true, enabled: data.enabled !== false,
+    role, loop: data.loop === true, interruptible: data.interruptible === true, enabled: data.enabled !== false, manualOnly: data.manualOnly === true,
     weight: number(data.weight ?? 10, 0, 10000, 'Peso'), priority: number(data.priority ?? 1, 0, 100, 'Prioridad'),
     cooldown: number(data.cooldown ?? 0, 0, 86400, 'Cooldown'),
-    chroma: { enabled: chroma.enabled === true, color, similarity: number(chroma.similarity ?? 0.18, 0.01, 1, 'Tolerancia chroma'), blend: number(chroma.blend ?? 0.06, 0, 1, 'Suavizado chroma') } };
+    chroma: { enabled: chroma.enabled === true, color, similarity: number(chroma.similarity ?? 0.18, 0.01, 1, 'Tolerancia chroma'), blend: number(chroma.blend ?? 0.06, 0, 1, 'Suavizado chroma') },
+    ...(segmentLoop ? { segmentLoop } : {}) };
 }
 async function probe(file) {
   const result = await run(binary('ffprobe'), ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { windowsHide: true, timeout: 30000, maxBuffer: 1024 * 1024 });
@@ -74,6 +84,31 @@ function createLibrary(root, changed = () => {}) {
   }
   function read() { return structuredClone(manifest); }
   if (!fs.existsSync(manifestPath)) save(manifest);
+  function unreferencedAssets(animation, nextManifest) {
+    if (!animation) return [];
+    const referenced = new Set();
+    for (const item of Object.values(nextManifest.animations || {})) {
+      for (const relative of [item.file, item.source, item.thumbnail]) {
+        if (typeof relative !== 'string' || !relative || relative.includes('\\') || path.isAbsolute(relative)) continue;
+        referenced.add(path.resolve(root, ...relative.split('/')).toLowerCase());
+      }
+    }
+    const base = path.resolve(root) + path.sep;
+    return [...new Set([animation.file, animation.source, animation.thumbnail].filter(Boolean))].flatMap(relative => {
+      if (typeof relative !== 'string' || relative.includes('\\') || path.isAbsolute(relative)) return [];
+      const target = path.resolve(root, ...relative.split('/'));
+      if (!target.toLowerCase().startsWith(base.toLowerCase()) || referenced.has(target.toLowerCase())) return [];
+      try { return fs.lstatSync(target).isFile() ? [target] : []; } catch (_) { return []; }
+    });
+  }
+  async function sendToRecycleBin(files) {
+    if (!files.length) return;
+    if (process.platform !== 'win32') throw Error('El envío automático a la Papelera de Windows solo está disponible en Windows.');
+    const json = JSON.stringify(files).replace(/'/g, "''");
+    const script = `$ErrorActionPreference = 'Stop'; Add-Type -AssemblyName Microsoft.VisualBasic; $paths = ConvertFrom-Json -InputObject '${json}'; foreach ($p in $paths) { [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($p, [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs, [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin) }`;
+    const encoded = Buffer.from(script, 'utf16le').toString('base64');
+    await run('powershell.exe', ['-NoProfile', '-NonInteractive', '-EncodedCommand', encoded], { windowsHide: true, timeout: 60000, maxBuffer: 1024 * 1024 });
+  }
   function url(file) { return '/rulo-animaciones/' + file.split('/').map(encodeURIComponent).join('/'); }
   function publicManifest() {
     const m = read();
@@ -145,7 +180,7 @@ function createLibrary(root, changed = () => {}) {
       if (!animation.enabled) continue;
       if (!animation.from || !animation.to) issues.push({ level: 'error', animationId: animation.id, message: `${animation.id} no tiene poses inicial y final.` });
       if (animation.role === 'behavior' && basePose && routeTo(basePose, animation.from, animations) === null) issues.push({ level: 'warning', animationId: animation.id, message: `No hay transición desde ${basePose} hasta la pose inicial ${animation.from} de ${animation.id}.` });
-      if (animation.role === 'behavior' && basePose && routeTo(animation.to, basePose, animations) === null && animation.to !== basePose) issues.push({ level: 'warning', animationId: animation.id, message: `No hay retorno desde ${animation.to} al Idle seguro ${basePose} después de ${animation.id}.` });
+      if (animation.role === 'behavior' && basePose && routeTo(animation.to, basePose, animations) === null && animation.to !== basePose) issues.push({ level: 'warning', animationId: animation.id, message: `No hay retorno desde ${animation.to} al Idle seguro ${basePose} después de ${animation.id}; una reproducción de una sola pasada puede quedarse congelada. Registra una transición de salida.` });
       if (['entry', 'exit', 'transition'].includes(animation.role) && animation.from === animation.to) issues.push({ level: 'warning', animationId: animation.id, message: `${animation.id} figura como transición, pero sus dos poses son iguales.` });
       if (animation.source && !fs.existsSync(path.resolve(root, ...String(animation.source).split('/')))) issues.push({ level: 'info', animationId: animation.id, message: `No se encuentra el original MP4 de ${animation.id}; el WebM publicado sigue disponible.` });
     }
@@ -160,6 +195,8 @@ function createLibrary(root, changed = () => {}) {
   }
   function edit(id, data) {
     const old = manifest.animations[id]; if (!old) throw Error('Animación inexistente.');
+    const segmentLoop = data.segmentLoop === undefined ? old.segmentLoop : data.segmentLoop;
+    if (segmentLoop && Number(old.media?.duration) > 0 && Number(segmentLoop.to) > Number(old.media.duration)) throw Error(`El final del bucle parcial no puede superar la duración del clip (${old.media.duration} s).`);
     const next = metadata({ ...old, ...data, id });
     if (next.family !== old.family) throw Error('Para cambiar de carpeta, vuelve a importar el original con otra familia.');
     if (JSON.stringify(next.chroma) !== JSON.stringify(old.chroma)) throw Error('El chroma requiere volver a procesar el original.');
@@ -251,6 +288,9 @@ function createLibrary(root, changed = () => {}) {
       b.recentCount = Math.floor(number(b.recentCount, 0, 10, 'Historial reciente'));
       b.queueLimit = Math.floor(number(b.queueLimit, 1, 100, 'Límite de cola')); m.behavior = b;
     }
+    if (data.mateDrinkIntervalMinutes !== undefined) {
+      m.mateDrinkIntervalMinutes = number(data.mateDrinkIntervalMinutes, 0.1, 1440, 'Intervalo para tomar mate');
+    }
     if (data.fallback !== undefined) {
       const a = m.animations[data.fallback];
       if (!a || !a.enabled || a.family !== 'Idle' || a.from !== a.to) throw Error('El respaldo debe ser un Idle habilitado con la misma pose inicial y final.');
@@ -323,9 +363,15 @@ function createLibrary(root, changed = () => {}) {
         if (!fs.existsSync(thumb)) await run(binary('ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-nostdin', '-y', '-ss', String(Math.min(0.15, out.duration / 2)), '-i', target, '-frames:v', '1', '-vf', 'scale=240:-2:flags=lanczos', '-an', '-f', 'image2', thumb], { windowsHide: true, timeout: 60000 });
         if (fs.existsSync(thumb)) thumbnail = `thumbnails/${name}`;
       } catch (_) { job.warnings.push('No se pudo crear la miniatura; el video se importó correctamente.'); }
+      const previous = manifest.animations[meta.id];
       const m = read(); m.animations[meta.id] = { ...meta, file: relative, thumbnail, source: sourceRelative, media: out, video: outputVideo, updatedAt: Date.now() };
       if (!m.fallback && meta.family === 'Idle' && meta.from === meta.to) m.fallback = meta.id;
-      save(m); job.status = 'done'; job.progress = 100; job.stage = 'Disponible'; job.file = relative;
+      save(m);
+      if (previous) {
+        try { await sendToRecycleBin(unreferencedAssets(previous, m)); }
+        catch (cleanupError) { job.warnings.push(`El clip se importó, pero no se pudieron enviar sus archivos anteriores a la Papelera: ${cleanupError.message}`); }
+      }
+      job.status = 'done'; job.progress = 100; job.stage = 'Disponible'; job.file = relative;
     } catch (e) { job.status = 'error'; job.error = e.message; try { fs.unlinkSync(output); } catch (_) {} }
     finally { job.finishedAt = Date.now(); working = false; setImmediate(drain); }
   }

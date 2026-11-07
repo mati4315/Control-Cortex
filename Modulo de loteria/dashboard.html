@@ -62,6 +62,24 @@
       font-size: 1.05rem;
     }
 
+    .overlay-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 10px 15px;
+      border: 1px solid rgba(255, 214, 0, 0.45);
+      border-radius: 10px;
+      color: #111827;
+      background: var(--primary);
+      font-size: 0.82rem;
+      font-weight: 900;
+      text-decoration: none;
+      transition: transform 0.16s ease, background 0.16s ease;
+    }
+
+    .overlay-link:hover { background: var(--primary-hover); transform: translateY(-1px); }
+
     /* Grid Layout */
     .dashboard-grid {
       display: grid;
@@ -144,6 +162,26 @@
       border-color: var(--primary);
       color: #000;
       box-shadow: 0 0 15px rgba(255, 214, 0, 0.4);
+    }
+
+    .mode-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: -8px 0 16px;
+    }
+
+    .mode-save-state {
+      color: var(--success);
+      font-size: 0.82rem;
+    }
+
+    .mode-save-state.pending { color: #fbbf24; }
+
+    @media (max-width: 560px) {
+      .mode-selector { grid-template-columns: 1fr; }
+      .mode-actions { align-items: flex-start; flex-direction: column; }
     }
 
     /* Form Fields */
@@ -439,6 +477,11 @@
       border-color: rgba(255, 214, 0, 0.6);
     }
 
+    .btn-save:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+    }
+
     .toggle-row {
       display: flex;
       align-items: center;
@@ -502,6 +545,25 @@
       color: #fecaca;
     }
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
 
@@ -509,6 +571,8 @@
     <header>
       <h1>☄️ Lotería Ball Control Panel</h1>
       <p>Configura, prueba y dispara la animación de la bolilla en OBS en tiempo real</p>
+      <a class="overlay-link" href="/loteria/lottery-numbers.html" target="_blank" rel="noopener">▦ Abrir grilla de números para OBS</a>
+      <a class="overlay-link" href="/loteria/lottery-ball.html" target="_blank" rel="noopener">☄️ Abrir bolilla para OBS</a>
     </header>
 
     <div class="dashboard-grid">
@@ -520,6 +584,10 @@
           <button class="btn-mode active" id="mode-test" onclick="setMode('test')">Prueba (Auto)</button>
           <button class="btn-mode" id="mode-manual" onclick="setMode('manual')">Disparo Manual</button>
           <button class="btn-mode" id="mode-dynamic" onclick="setMode('dynamic')">Integración Web</button>
+        </div>
+        <div class="mode-actions">
+          <span class="mode-save-state" id="mode-save-state" aria-live="polite">Modo guardado: Prueba (Auto)</span>
+          <button class="btn-save" id="save-mode" type="button" onclick="saveSelectedMode()" disabled>Guardar modo</button>
         </div>
         <p class="help-text" id="mode-desc">
           <strong>Modo de Prueba (Auto):</strong> La bolilla se lanza automáticamente en un bucle continuo con números aleatorios, usando los parámetros de abajo. Excelente para probar el diseño.
@@ -748,7 +816,7 @@
       PAUSE_MS: 600,
       WINNER_NAME: 'Matias Moreira',
       MODE: 'test',
-      WEBSOCKET_URL: 'ws://localhost:688',
+      WEBSOCKET_URL: `ws://${window.location.hostname || 'localhost'}:688`,
       API_URL: '',
       WS_TOKEN: '',
       TRIGGER_NUM: 7,
@@ -804,6 +872,7 @@
           config = Object.assign(config, parsed);
         } catch(e) {}
       }
+      if (!['test', 'manual', 'dynamic'].includes(config.MODE)) config.MODE = DEFAULT_CONFIG.MODE;
 
       // Sincronizar UI
       document.getElementById('cfg-fall').value = config.FALL_SPEED;
@@ -843,45 +912,56 @@
       document.getElementById('cfg-random-linked-speed').checked = !!config.RANDOM_LINKED_SPEED;
 
       renderTickerEditor();
-      setMode(config.MODE, false); // Sincroniza modo sin guardar redundante
+      setMode(config.MODE); // Carga el modo guardado sin aplicarlo de nuevo
       connectDynamicWS();
     }
 
-    // Cambiar modo de operación (test | manual | dynamic)
-    function setMode(mode, save = true) {
-      config.MODE = mode;
-      
-      // Remover active
+    // Seleccionar el modo que se guardará como predeterminado.
+    let selectedMode = config.MODE;
+    const modeLabels = { test: 'Prueba (Auto)', manual: 'Disparo Manual', dynamic: 'Integración Web' };
+
+    function setMode(mode) {
+      if (!Object.hasOwn(modeLabels, mode)) return;
+      selectedMode = mode;
+
       document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('active'));
-      document.getElementById(`mode-${mode}`).classList.add('active');
+      document.getElementById(`mode-${selectedMode}`).classList.add('active');
 
       const desc = document.getElementById('mode-desc');
-      const btnShoot = document.getElementById('btn-shoot');
-      const statusBadge = document.getElementById('conn-status');
-
-      if (mode === 'test') {
+      if (selectedMode === 'test') {
         desc.innerHTML = `<strong>Modo de Prueba (Auto):</strong> La bolilla se lanza automáticamente en un bucle continuo con números aleatorios, usando los parámetros de abajo. Excelente para probar el diseño.`;
-        btnShoot.disabled = true;
-        statusBadge.className = config.WEBSOCKET_URL ? 'status-badge status-sync' : 'status-badge status-not-configured';
-        statusBadge.textContent = config.WEBSOCKET_URL ? 'Sync WS activo' : 'Inactivo';
-      } else if (mode === 'manual') {
+      } else if (selectedMode === 'manual') {
         desc.innerHTML = `<strong>Disparo Manual:</strong> El widget de OBS estará inactivo e invisible en segundo plano. Rellena los datos arriba y presiona "Lanzar Bolilla" para disparar la animación cuando quieras.`;
-        btnShoot.disabled = false;
-        statusBadge.className = config.WEBSOCKET_URL ? 'status-badge status-sync' : 'status-badge status-not-configured';
-        statusBadge.textContent = config.WEBSOCKET_URL ? 'Sync WS activo' : 'Inactivo';
-      } else if (mode === 'dynamic') {
+      } else {
         desc.innerHTML = `<strong>Integración Web (WebSocket/API):</strong> El widget de OBS esperará llamadas entrantes automáticas desde tu página web cuando un usuario compre una bolilla. Se conectará a las direcciones configuradas a la derecha.`;
-        btnShoot.disabled = false; // Permitimos disparar de forma manual como "override" aún en dinámico
       }
-      connectDynamicWS();
 
-      if (save) {
-        saveConfig();
-        // Enviar cambio al widget
-        broadcast({ type: 'CHANGE_MODE', mode: mode });
-        // Empujar también por WebSocket para otras instancias (OBS/incógnito)
-        sendConfigSnapshotWS('mode_change');
-      }
+      // Hasta guardar, el modo operativo sigue siendo el último modo persistido.
+      document.getElementById('btn-shoot').disabled = config.MODE === 'test';
+      updateModeSaveState();
+    }
+
+    function updateModeSaveState(message = '') {
+      const changed = selectedMode !== config.MODE;
+      const state = document.getElementById('mode-save-state');
+      const button = document.getElementById('save-mode');
+      if (!state || !button) return;
+      state.classList.toggle('pending', changed);
+      state.textContent = message || (changed
+        ? `Pendiente: ${modeLabels[selectedMode]}. Sigue activo ${modeLabels[config.MODE]} hasta guardar.`
+        : `Modo guardado: ${modeLabels[config.MODE]}`);
+      button.disabled = !changed;
+    }
+
+    function saveSelectedMode() {
+      if (selectedMode === config.MODE) return;
+      config.MODE = selectedMode;
+      saveConfig();
+      broadcast({ type: 'CHANGE_MODE', mode: config.MODE });
+      sendConfigSnapshotWS('mode_change');
+      connectDynamicWS();
+      setMode(config.MODE);
+      updateModeSaveState(`Guardado y activo: ${modeLabels[config.MODE]}`);
     }
 
     // Lanzar bolilla manualmente
@@ -1254,9 +1334,10 @@
       document.getElementById('val-ticker-scroll').textContent = config.TICKER_SCROLL_MS;
       renderTickerEditor();
 
-      setMode(config.MODE, false);
+      setMode(config.MODE);
       saveConfig();
       sendConfigUpdate();
+      connectDynamicWS();
       setSavedState('Valores por defecto restaurados');
     }
 

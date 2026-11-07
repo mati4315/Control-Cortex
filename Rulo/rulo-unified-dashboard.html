@@ -38,6 +38,25 @@ small { color:var(--muted); }
 .preview-controls .field { flex:1; min-width:180px; }
 @media(max-width:640px){ header{display:block;} .status{margin:10px 0 0;} }
 </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
 <main>
@@ -46,7 +65,7 @@ small { color:var(--muted); }
       <h1><span>Rulo</span> · Overlay unificado</h1>
       <p>Now Playing + letra + comentarios, todo en un solo overlay para OBS.</p>
     </div>
-    <nav><a id="historialLink" href="#">Historial</a></nav>
+    <nav class="cortex-legacy-module-nav"><a id="historialLink" href="#">Historial</a></nav>
     <div class="status" id="status">Cargando configuración…</div>
   </header>
 
@@ -134,10 +153,10 @@ small { color:var(--muted); }
   form('testComment').onclick = function(){
     var comment = form('testCommentText').value.trim() || '¡Comentario de prueba!';
     var requester = form('testRequester').value.trim() || 'Prueba';
-    fetch('/api/spotify-simulate-comment', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ comment: comment, requester: requester, parseOnly: true }) })
+    fetch('/api/rulo-test-chat-message', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ comment: comment, requester: requester }) })
       .then(function(r){ return r.json(); })
-      .then(function(d){ flash(d.ok ? 'Comentario enviado al overlay' : (d.error || 'No se pudo')); })
-      .catch(function(){ flash('No se pudo simular el comentario', true); });
+      .then(function(d){ flash(d.success ? 'Comentario temporal enviado al historial de prueba' : (d.error || 'No se pudo')); })
+      .catch(function(){ flash('No se pudo enviar el comentario temporal', true); });
   };
 })();
 </script>

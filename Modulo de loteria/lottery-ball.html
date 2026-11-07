@@ -492,7 +492,7 @@
       RIGHT_TILT_DEG: 24,
       RANDOM_LINKED_SPEED: false,
       MODE: 'test',            // 'test' | 'manual' | 'dynamic'
-      WEBSOCKET_URL: 'ws://localhost:688',
+      WEBSOCKET_URL: `ws://${window.location.hostname || 'localhost'}:688`,
       API_URL: '',
       TICKER_ENABLED: true,
       TICKER_LABEL: 'Radio',

@@ -39,6 +39,9 @@
     button.secondary { color:var(--text); background:var(--line); }
     button.small { padding:7px 11px; font-size:.85rem; }
     #notice { min-height:1.3em; color:var(--accent); font-weight:700; }
+    .test-mode-assist { margin-top:9px; padding:10px 12px; border:1px solid #b58b27; border-radius:8px; background:rgba(181,139,39,.12); color:var(--text); }
+    .test-mode-assist[hidden] { display:none; }
+    .test-mode-assist p { margin:0 0 8px; }
     .test-mode-on { border-color:#e6c34a; background:#20211a; }
     .devices { display:flex; flex-direction:column; gap:6px; margin-top:10px; }
     .device { display:flex; justify-content:space-between; align-items:center; gap:10px; border:1px solid var(--line); border-radius:6px; padding:8px 10px; background:var(--panel-alt); font-size:.9rem; }
@@ -48,16 +51,46 @@
     .log-item { display:grid; grid-template-columns:64px 1fr auto; gap:10px; padding:9px 12px; border-bottom:1px solid #232a34; font-size:.88rem; align-items:center; }
     .log-item:last-child { border-bottom:0; }
     .log-item .src { color:var(--muted); font-size:.75rem; text-transform:uppercase; letter-spacing:.04em; }
-    .log-item .msg { color:var(--muted); }
+    .log-item .msg { display:grid; gap:4px; color:var(--muted); min-width:0; }
+    .log-item .msg-main { overflow-wrap:anywhere; }
+    .log-detail { display:block; color:#d2ad72; font-size:.76rem; line-height:1.45; overflow-wrap:anywhere; }
+    .interpretation-badge.reply-ai { color:#bde6c4; background:#20382b; border-color:#365b43; }
+    .interpretation-badge.reply-normal { color:#b9c4ce; background:#27313a; border-color:#3d4a55; }
     .log-item.ok .msg strong { color:var(--spotify); } .log-item.fail .msg strong { color:var(--danger); }
     .log-item time { color:#7c8794; font-size:.75rem; }
+    .interpretation-badge { display:inline-flex; align-items:center; margin-left:7px; padding:2px 7px; border:1px solid transparent; border-radius:999px; font-size:.7rem; font-weight:800; line-height:1.4; white-space:nowrap; vertical-align:middle; }
+    .interpretation-badge.ai { color:#ddc8ff; background:#33264a; border-color:#594076; }
+    .interpretation-badge.rules { color:#c8d4dc; background:#28343c; border-color:#40505b; }
+    .interpretation-badge.fallback { color:#ffe0a3; background:#48391f; border-color:#79602c; }
+    .interpretation-badge.manual { color:#b8d9ff; background:#21354a; border-color:#365777; }
     .empty { color:var(--muted); padding:12px; }
     .test-result { margin-top:10px; font-size:.92rem; color:var(--muted); }
     .test-result.pending { color:#e6c34a; }
     .test-result.ok { color:var(--spotify); font-weight:700; }
     .test-result.fail { color:var(--danger); font-weight:700; }
+    .test-result a { color:inherit; text-decoration:underline; text-underline-offset:2px; }
+    .rulo-music-alert { margin-top:12px; padding:10px 12px; border:1px solid var(--danger); border-radius:6px; background:#241719; color:var(--danger); font-weight:700; line-height:1.45; }
     @media(max-width:700px){ form.grid{grid-template-columns:1fr;} .field.wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} nav{margin-top:10px;flex-wrap:wrap;} }
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
   <main>
@@ -66,7 +99,7 @@
         <h1><span>Rulo</span> · Spotify</h1>
         <p>Pedidos de música por chat: esperas, dispositivo, pruebas y registro.</p>
       </div>
-      <nav>
+      <nav class="cortex-legacy-module-nav">
         <a id="spotifyLink" class="link-secondary" href="/rulo-spotify.html">Ajustes</a>
         <a id="trainLink" class="link-secondary" href="/rulo-spotify-training.html">Entrenamiento</a>
         <a id="botLink" class="link-secondary" href="/rulo-spotify-bot.html">Bot / Rulo</a>
@@ -79,8 +112,9 @@
     <h2>Estado</h2>
     <div class="chips">
       <span class="chip" id="stBackend">Backend: <strong>…</strong></span>
-      <span class="chip" id="stClient">Extensión SSN: <strong>…</strong></span>
-      <span class="chip" id="stToken">Spotify: <strong>…</strong></span>
+      <span class="chip" id="stRulo">Rulo: <strong>…</strong></span>
+      <span class="chip" id="stClient">Chat Bot Spotify: <strong>…</strong></span>
+      <span class="chip" id="stToken">OAuth Spotify: <strong>…</strong></span>
       <span class="chip" id="stDevice">Dispositivo activo: <strong>…</strong></span>
         <span class="chip" id="stAnalisis" style="cursor:pointer" title="Ir al análisis">Análisis: <strong>…</strong></span>
       <span class="chip" id="stEffective">Espera efectiva: <strong>…</strong></span>
@@ -93,8 +127,12 @@
         <small>Apagado: el bot ignora los pedidos, pero los comandos de diagnóstico siguen respondiendo.</small>
       </div>
       <div class="field" id="testModeField">
-        <label class="check"><input type="checkbox" data-key="testMode"><span>Modo prueba (sin esperas)</span></label>
-        <small>Saltea la espera global y la de cada usuario. La cola por tandas y la sincronización con «Habla» siguen activas.</small>
+        <label class="check"><input type="checkbox" data-key="testMode"><span>Modo de pruebas aislado</span></label>
+        <small>Pausa los pedidos automáticos de Facebook. Las pruebas manuales pueden reproducir una canción sin archivar el comentario ni modificar la Ruleta.</small>
+        <div class="test-mode-assist" id="testModeAssist" hidden>
+          <p id="testModeAssistText"></p>
+          <button class="small" id="testModeServiceAction" type="button" hidden>Iniciar Comentarios / Ruleta</button>
+        </div>
       </div>
       <div class="field">
         <label class="check"><input type="checkbox" data-key="requireCommand"><span>Solo comandos (!playnow, !tema, !musica)</span></label>
@@ -143,7 +181,7 @@
 
       <h2 class="wide" style="margin:6px 0 0">Variedad de temas</h2>
       <label class="card"><input type="checkbox" data-key="artistVariety"> Si piden <em>un tema de un artista</em> (o de un género) sin decir cuál, elegir uno al azar en vez de poner siempre el mismo</label>
-      <label class="card">Cuántos resultados mirar para elegir: <input type="number" data-key="artistVarietyPool" min="5" max="50" step="5" style="width:80px;display:inline-block"> <small class="hint" style="margin:0">(5 a 50)</small></label>
+      <label class="card">Cuántos resultados mirar para elegir: <input type="number" data-key="artistVarietyPool" min="5" max="10" step="1" style="width:80px;display:inline-block"> <small class="hint" style="margin:0">(5 a 10; máximo actual de Spotify)</small></label>
 
       <h2 class="wide" style="margin:6px 0 0">Esperas y filtros</h2>
       <div class="field">
@@ -166,11 +204,6 @@
         <input type="number" data-key="skipSeconds" id="skipSeconds" min="1" max="120" step="1" style="margin-top:8px">
         <small>Omite el inicio y corta el final. En los pedidos, silencia Spotify brevemente durante el cambio y recupera tu volumen cuando llega al segundo elegido. Puede haber una pequeña pausa antes de oír el tema.</small>
       </div>
-      <div class="field">
-        <label for="pollSeconds">Cada cuánto consulta la extensión (segundos)</label>
-        <input type="number" data-key="pollSeconds" id="pollSeconds" min="1" max="15" step="1">
-        <small>El dashboard deja el pedido en cola y la extensión lo busca en su próxima consulta: <strong>1 s = casi instantáneo</strong>. Subilo si querés menos tráfico en la red.</small>
-      </div>
     </form>
 
     <h2>Dispositivo que debe reproducir</h2>
@@ -179,20 +212,20 @@
         <input type="text" data-key="deviceTargetName" id="deviceTarget" placeholder="Vacío = automático (Ej: NOTEBOOK-MATI)">
         <button class="small secondary" id="btnDevices" type="button">Buscar dispositivos</button>
       </div>
-      <small>Parte del nombre que muestra Spotify alcanza. Si está vacío, usa el dispositivo activo o la primera PC.</small>
-      <div class="devices" id="devices"><span class="empty">Todavía no hay dispositivos reportados. Abrí Spotify en la PC del OBS y usá «Buscar dispositivos».</span></div>
+      <small>Parte del nombre que muestra Spotify alcanza. Si está vacío, Chat Bot Spotify usa el dispositivo activo o el primero disponible.</small>
+      <div class="devices" id="devices"><span class="empty">Todavía no hay dispositivos reportados. Abre Spotify en la PC del módulo y pulsa «Buscar dispositivos».</span></div>
     </div>
 
-    <p>La cola completa la tanda de tres pedidos en curso y luego toma los tres más recientes. Si llegan 16 pedidos antes de terminar la primera tanda, reproduce 1, 2, 3 y después 14, 15, 16. Las esperas guardadas se respetan entre temas; los pedidos intermedios se omiten.</p>
+    <p>Los pedidos de Facebook los procesa Chat Bot Spotify con su OAuth y cola propia. Esta página también envía las pruebas y los controles directamente a ese módulo; no necesita que una extensión de SocialStream Ninja reclame los comandos.</p>
     <h2>Pruebas</h2>
     <div class="field">
       <label for="testQuery">Probar un tema o artista</label>
       <div class="row">
         <input type="text" id="testQuery" placeholder="Ej: Amar Azul Yo Tomo Licor">
-        <button id="btnTest" type="button">Pedir tema</button>
+        <button id="btnTest" type="button">Reproducir prueba aislada</button>
         <button id="btnSearch" class="secondary" type="button">Buscar sin reproducir</button>
       </div>
-      <small>«Pedir tema» busca directamente y entra en la misma cola y esperas que el chat. «Buscar sin reproducir» solo muestra qué encontró. Para probar sin esperas, activa «Modo prueba».</small>
+      <small>«Reproducir prueba aislada» cambia la canción directamente con Chat Bot Spotify y requiere «Modo de pruebas aislado»; funciona aunque Rulo esté apagado. No agrega comentarios al historial ni participantes a la Ruleta. «Buscar sin reproducir» solo muestra el resultado.</small>
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <label for="simComment">Simular un comentario del chat</label>
       <div class="row">
@@ -201,7 +234,7 @@
         <button id="btnSimulate" type="button" class="secondary">Simular comentario</button>
         <button id="btnParse" type="button" class="secondary">Solo analizar</button>
       </div>
-      <small>Pasa por el mismo parser que el chat real: sirve para ver si una frase se entiende. «Solo analizar» muestra qué entendió sin reproducir nada.</small>
+      <small>Pasa por el flujo de interpretación de Chat Bot Spotify: respeta «Priorizar la IA» y usa las reglas como respaldo si DeepSeek falla. «Simular comentario» requiere Rulo encendido y «Modo de pruebas aislado»; «Solo analizar» sigue el mismo análisis sin reproducir.</small>
       <hr style="border:0;border-top:1px solid var(--line);margin:14px 0">
       <label>Transporte</label>
       <div class="row">
@@ -210,7 +243,8 @@
         <button class="small secondary" data-transport="next" type="button">Siguiente</button>
         <button class="small secondary" data-transport="previous" type="button">Anterior</button>
       </div>
-      <small>Se ejecutan en la PC del OBS a través de la extensión conectada.</small>
+      <small>Se ejecutan con el OAuth propio de Chat Bot Spotify en la PC que ejecuta el módulo.</small>
+      <div class="rulo-music-alert" id="ruloMusicAlert" role="status" aria-live="polite" hidden></div>
       <div class="test-result" id="testResult"></div>
     </div>
 
@@ -290,7 +324,7 @@
   <script>
     (function () {
       "use strict";
-      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","pollSeconds","artistVariety","artistVarietyPool","musicLibraryPath","autoBiblioteca","autoEsperaSegundos","spotifyLocalLyrics","deviceTargetName"];
+      const KEYS = ["enabled","testMode","requireCommand","personalize","announce","autoContinue","skipEnabled","cooldownSeconds","userCooldownSeconds","minTextLength","skipSeconds","artistVariety","artistVarietyPool","musicLibraryPath","autoBiblioteca","autoEsperaSegundos","spotifyLocalLyrics","deviceTargetName"];
       const el = id => document.getElementById(id);
       const status = el('status');
       const notice = el('notice');
@@ -300,7 +334,8 @@
       const field = key => document.querySelector('[data-key="' + key + '"]');
       let saveTimer = null;
       let settingsLoaded = false;
-      let watchTimer = null;
+      let lastRuloEnabled = null;
+      let pendingTestModeActivation = false;
 
       if (session) {
         el('histLink').href = '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
@@ -370,18 +405,25 @@
       }
 
       function renderStatus(data) {
-        const client = data.client || {};
-        const seconds = client.sinceLastSeenMs === null || client.sinceLastSeenMs === undefined
-          ? null
-          : Math.round(client.sinceLastSeenMs / 1000);
-        const version = client.version ? ' v' + client.version : '';
-        const link = client.push ? ' · instantánea' : (client.connected ? ' · por consulta' : '');
+        const module = data.chatBotSpotify || {};
         chip('stBackend', 'Backend', 'activo', 'ok');
-        chip('stClient', 'Extensión SSN',
-          client.connected ? 'conectada' + version + link + (seconds !== null ? ' (hace ' + seconds + 's)' : '') : 'sin conexión',
-          client.connected ? (client.push ? 'ok' : 'warn') : 'bad');
-        chip('stToken', 'Spotify', client.hasToken ? 'conectado' : (client.connected ? 'sin token' : 'desconocido'),
-          client.hasToken ? 'ok' : 'warn');
+        lastRuloEnabled = typeof data.ruloEnabled === 'boolean' ? data.ruloEnabled : null;
+        chip('stRulo', 'Rulo', lastRuloEnabled === true ? 'encendido' : lastRuloEnabled === false ? 'apagado' : 'sin estado', lastRuloEnabled === true ? 'ok' : lastRuloEnabled === false ? 'bad' : 'warn');
+        const ruloAlert = el('ruloMusicAlert');
+        if (ruloAlert) {
+          ruloAlert.hidden = lastRuloEnabled !== false;
+          ruloAlert.textContent = lastRuloEnabled === false
+            ? '⚠ Rulo está apagado: los pedidos de música del chat se ignoran hasta que lo enciendas desde Rulo | Animaciones. Las pruebas manuales de este panel siguen disponibles.'
+            : '';
+        }
+        const moduleState = !module.reachable ? 'sin conexión'
+          : module.moduleEnabled === false ? 'conectado · módulo apagado'
+          : !module.captureFacebook ? 'conectado · captura apagada'
+          : module.enabled ? 'activo · pedidos habilitados' : 'conectado · pedidos apagados';
+        const moduleTone = !module.reachable || module.moduleEnabled === false ? 'bad' : (module.enabled && module.captureFacebook ? 'ok' : 'warn');
+        chip('stClient', 'Chat Bot Spotify', moduleState, moduleTone);
+        chip('stToken', 'OAuth Spotify', module.connected ? 'conectado' : (module.reachable ? (module.clientIdConfigured ? 'no conectado' : 'falta Client ID') : 'sin estado'),
+          module.connected ? 'ok' : 'warn');
         chip('stDevice', 'Dispositivo activo', (data.devices && data.devices.activeName) || '—', '');
         const settings = data.settings || {};
         const effective = settings.testMode ? '0s (modo prueba)' : (settings.effectiveCooldownSeconds + 's / ' + settings.effectiveUserCooldownSeconds + 's');
@@ -392,7 +434,7 @@
         const list = (data.devices && data.devices.devices) || [];
         const target = (readForm().deviceTargetName || '').trim().toLowerCase();
         if (!list.length) {
-          devicesBox.innerHTML = '<span class="empty">Todavía no hay dispositivos reportados. Abrí Spotify en la PC del OBS y usá «Buscar dispositivos».</span>';
+          devicesBox.innerHTML = '<span class="empty">Todavía no hay dispositivos reportados. Abre Spotify en la PC del módulo y pulsa «Buscar dispositivos».</span>';
           return;
         }
         devicesBox.innerHTML = list.map(device => {
@@ -447,9 +489,28 @@
         logList.innerHTML = items.map(entry => {
           const time = new Date(entry.timestamp || Date.now()).toLocaleTimeString();
           const track = entry.track && entry.track.name ? ' → <em>' + esc(entry.track.name) + '</em>' : '';
+          const source = entry.interpretationSource || (entry.aiInterpreted === true ? 'ai' : '');
+          const badge = source === 'ai'
+            ? '<span class="interpretation-badge ai" title="Interpretado por IA">✨ IA' + (entry.aiModel ? ' · ' + esc(entry.aiModel) : '') + '</span>'
+            : source === 'rules-fallback'
+              ? '<span class="interpretation-badge fallback" title="' + esc(entry.aiFallbackReason || 'La IA no pudo interpretar el pedido; se usaron las reglas.') + '">↘ Reglas · respaldo IA</span>'
+              : source === 'rules'
+                ? '<span class="interpretation-badge rules" title="Interpretado por el parser normal">⚙ Reglas</span>'
+                : source === 'manual'
+                  ? '<span class="interpretation-badge manual" title="Búsqueda manual del dashboard">✋ Manual</span>'
+                  : source === 'none' && entry.aiAttempted
+                    ? '<span class="interpretation-badge fallback" title="La IA no interpretó el pedido">⚠ IA sin interpretación</span>'
+                  : '';
+          const replyBadge = entry.replySource === 'ai'
+            ? '<span class="interpretation-badge reply-ai" title="La respuesta de Rulo se generó con IA">✨ Respuesta IA' + (entry.replyModel ? ' · ' + esc(entry.replyModel) : '') + '</span>'
+            : entry.replySource === 'normal'
+              ? '<span class="interpretation-badge reply-normal" title="Respuesta normal guardada de Rulo">⚙ Respuesta normal</span>'
+              : '';
+          const details = [entry.aiFallbackReason ? 'Interpretación: ' + entry.aiFallbackReason : '', entry.replyFallbackReason ? 'Respuesta: ' + entry.replyFallbackReason : ''].filter(Boolean);
+          const detailHtml = details.map(detail => '<small class="log-detail">' + esc(detail) + '</small>').join('');
           return '<li class="log-item ' + (entry.ok ? 'ok' : 'fail') + '">' +
             '<span class="src">' + esc(entry.source || 'chat') + '</span>' +
-            '<span class="msg"><strong>' + esc(entry.requester || '—') + ':</strong> ' + esc(entry.message || '') + track + '</span>' +
+            '<span class="msg"><span class="msg-main"><strong>' + esc(entry.requester || '—') + ':</strong> ' + esc(entry.message || '') + badge + replyBadge + track + '</span>' + detailHtml + '</span>' +
             '<time>' + esc(time) + '</time>' +
           '</li>';
         }).join('');
@@ -461,7 +522,7 @@
         renderDevices(data);
         renderAliases(data.aliases);
         renderLog(data.log);
-        if (!settingsLoaded || !formIsBusy()) {
+        if (!settingsLoaded || (!formIsBusy() && !pendingTestModeActivation)) {
           fillForm(data.settings || {});
           settingsLoaded = true;
         }
@@ -470,7 +531,16 @@
       function refresh() {
         return fetch('/api/spotify-status', { cache: 'no-store' })
           .then(response => response.json())
-          .then(data => { applyStatus(data); status.textContent = 'Actualizado ' + new Date().toLocaleTimeString(); return data; })
+          .then(async data => {
+            if (typeof data.ruloEnabled !== 'boolean') {
+              try {
+                const response = await fetch('/api/rulo-mascota-state', { cache: 'no-store' });
+                const rulo = await response.json();
+                if (typeof rulo.enabled === 'boolean') data.ruloEnabled = rulo.enabled;
+              } catch { /* El estado de Rulo puede aparecer como desconocido si Cortex está reiniciando. */ }
+            }
+            applyStatus(data); status.textContent = 'Actualizado ' + new Date().toLocaleTimeString(); return data;
+          })
           .catch(() => { status.textContent = 'Sin conexión con Control Cortex (puerto 4000)'; return null; });
       }
 
@@ -483,19 +553,109 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ settings: settings })
         })
-          .then(response => response.json())
+          .then(async response => {
+            const data = await response.json();
+            if (!response.ok || !data || data.ok !== true) throw new Error(data && data.error || `Cortex respondió HTTP ${response.status}.`);
+            return data;
+          })
           .then(data => {
-            if (!data || data.ok !== true) throw new Error('guardado rechazado');
             fillForm(data.settings);
-            showNotice('Ajustes guardados');
+            pendingTestModeActivation = false;
+            hideTestModeAssist();
+            const moduleSync = data.chatBotSpotifySync;
+            if (moduleSync && !moduleSync.runtimeApplied) showNotice('Ajustes guardados; Chat Bot Spotify todavía no aplicó el interruptor. ' + (moduleSync.error || ''), true);
+            else showNotice('Ajustes guardados');
             return refresh();
           })
-          .catch(() => { showNotice('No se pudieron guardar los ajustes', true); return null; });
+          .catch(error => {
+            showNotice(error.message || 'No se pudieron guardar los ajustes', true);
+            if (readForm().testMode) void inspectTestModePrerequisites(error.message);
+            return null;
+          });
       }
 
       function scheduleSave() {
         clearTimeout(saveTimer);
         saveTimer = setTimeout(save, 400);
+      }
+
+      function hideTestModeAssist() {
+        el('testModeAssist').hidden = true;
+        el('testModeServiceAction').hidden = true;
+      }
+
+      async function inspectTestModePrerequisites(errorMessage = '') {
+        const assist = el('testModeAssist');
+        const message = el('testModeAssistText');
+        const action = el('testModeServiceAction');
+        assist.hidden = false;
+        action.hidden = true;
+        message.textContent = 'Comprobando que los módulos puedan aislar las pruebas…';
+        try {
+          const response = await fetch('/api/test-mode', { cache:'no-store' });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error || 'No se pudo consultar el estado de aislamiento.');
+          const chatBot = data.modules?.chatBot || {};
+          const roulette = data.modules?.roulette || {};
+          if (!chatBot.capabilitySupported || chatBot.runtimeMode === null || chatBot.restartRequired) {
+            pendingTestModeActivation = true;
+            message.textContent = 'Chat Bot Spotify todavía no confirma el aislamiento necesario. Inícialo o reinícialo desde Control Cortex y vuelve a comprobar.';
+          } else if (!roulette.connected || !roulette.isolatedTestMode) {
+            pendingTestModeActivation = true;
+            message.textContent = !roulette.connected
+              ? 'La Ruleta debe estar activa para confirmar que los comentarios de prueba no se mezclen con participantes reales. Puedes iniciarla aquí; no cambiará los datos guardados.'
+              : 'La Ruleta está activa, pero todavía no confirmó el aislamiento. Reiníciala aquí para cargar y comprobar esa función antes de habilitar las pruebas.';
+            action.textContent = roulette.connected ? 'Reiniciar Comentarios / Ruleta' : 'Iniciar Comentarios / Ruleta';
+            action.dataset.serviceAction = roulette.connected ? 'restart' : 'start';
+            action.hidden = false;
+          } else {
+            pendingTestModeActivation = false;
+            hideTestModeAssist();
+            if (errorMessage) showNotice(errorMessage, true);
+            else scheduleSave();
+          }
+          if (errorMessage && pendingTestModeActivation) showNotice(errorMessage, true);
+        } catch (error) {
+          pendingTestModeActivation = true;
+          message.textContent = error.message || 'No se pudo comprobar el aislamiento de los módulos.';
+          showNotice(message.textContent, true);
+        }
+      }
+
+      async function startRouletteForTestMode() {
+        const button = el('testModeServiceAction');
+        const originalText = button.textContent;
+        const action = button.dataset.serviceAction || 'start';
+        button.disabled = true;
+        button.textContent = action === 'restart' ? 'Reiniciando…' : 'Iniciando…';
+        try {
+          const response = await fetch('/api/services/comentarios/' + action, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}' });
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(result.error || result.details || 'No se pudo iniciar Comentarios / Ruleta.');
+          el('testModeAssistText').textContent = 'Ruleta iniciada. Esperando que confirme el aislamiento…';
+          let ready = false;
+          for (let attempt = 0; attempt < 15; attempt += 1) {
+            await new Promise(resolve => setTimeout(resolve, 800));
+            const statusResponse = await fetch('/api/test-mode', { cache:'no-store' });
+            const state = await statusResponse.json().catch(() => ({}));
+            const chatBot = state.modules?.chatBot || {};
+            const roulette = state.modules?.roulette || {};
+            if (chatBot.capabilitySupported && chatBot.runtimeMode !== null && !chatBot.restartRequired && roulette.connected && roulette.isolatedTestMode) { ready = true; break; }
+          }
+          if (!ready) throw new Error('La Ruleta arrancó, pero no confirmó el aislamiento. Revisa su estado en Control Cortex.');
+          pendingTestModeActivation = false;
+          hideTestModeAssist();
+          showNotice('Aislamiento confirmado. Activando el modo de pruebas…');
+          const saved = await save();
+          if (saved) showNotice('Modo de pruebas aislado activado.');
+        } catch (error) {
+          el('testModeAssist').hidden = false;
+          el('testModeAssistText').textContent = error.message || 'No se pudo preparar la Ruleta.';
+          showNotice(error.message || 'No se pudo preparar la Ruleta.', true);
+        } finally {
+          button.disabled = false;
+          button.textContent = originalText;
+        }
       }
 
       function post(url, body) {
@@ -506,111 +666,169 @@
         }).then(response => response.json()).catch(() => null);
       }
 
-      // El dashboard deja el pedido en cola y la extensión lo toma al instante si
-      // el enlace WebSocket está activo (o en su próxima consulta si no).
-      function watchForResult(what) {
-        const since = Date.now();
-        let elapsed = 0;
+      async function postModule(url, body) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body || {}),
+          cache: 'no-store'
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok !== true) {
+          const error = new Error(data.error || `Control Cortex respondió HTTP ${response.status}.`);
+          error.data = data;
+          throw error;
+        }
+        return data;
+      }
+
+      function interpretationLabel(data) {
+        if (data?.interpretationSource === 'ai' || data?.aiInterpreted === true) {
+          return '✨ Interpretación IA' + (data.aiModel ? ' · ' + data.aiModel : '');
+        }
+        if (data?.interpretationSource === 'rules-fallback') {
+          return '↘ Reglas · respaldo IA' + (data.aiFallbackReason ? ' (' + data.aiFallbackReason + ')' : '');
+        }
+        if (data?.interpretationSource === 'none' && data?.aiAttempted === true) {
+          return '⚠ IA sin interpretación' + (data.aiFallbackReason ? ' (' + data.aiFallbackReason + ')' : '');
+        }
+        if (data?.interpretationSource === 'rules') return '⚙ Interpretación por reglas';
+        if (data?.interpretationSource === 'manual') return '✋ Búsqueda manual';
+        return '';
+      }
+
+      function describeResult(data, fallback) {
+        const track = data.track;
+        const artists = (track?.artists || []).map(artist => typeof artist === 'string' ? artist : artist?.name || '').filter(Boolean);
+        const trackLabel = track ? [track.name, artists.join(', ')].filter(Boolean).join(' — ') : '';
+        const device = data.device ? ' · ' + data.device : '';
+        const ruloNotice = data.ruloNotified === true ? 'Aviso de Rulo enviado al OBS.' : '';
+        return [data.response || fallback, interpretationLabel(data), trackLabel, device, ruloNotice].filter(Boolean).join(' · ');
+      }
+
+      function showTestFailure(message) {
         const box = el('testResult');
-        const pollSeconds = Number(readForm().pollSeconds) || 4;
-        clearInterval(watchTimer);
+        box.className = 'test-result fail';
+        box.textContent = '✖ ' + message;
+        showNotice(message, true);
+      }
+
+      function showTestModeRequired() {
+        const message = 'Activa y guarda «Modo de pruebas aislado» antes de reproducir una simulación.';
+        const box = el('testResult');
+        box.className = 'test-result fail';
+        box.replaceChildren(document.createTextNode('✖ ' + message + ' '));
+        const link = document.createElement('a');
+        link.href = '#testModeField';
+        link.textContent = 'Ir a activarlo';
+        link.addEventListener('click', event => {
+          event.preventDefault();
+          const field = el('testModeField');
+          field.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+          field.querySelector('[data-key="testMode"]')?.focus({ preventScroll: true });
+        });
+        box.appendChild(link);
+        showNotice(message, true);
+      }
+
+      async function runModuleAction(url, body, label, fallback) {
+        const box = el('testResult');
         box.className = 'test-result pending';
-        box.textContent = '⏳ ' + what + ' en camino. Si el enlace instantáneo está activo suena ya; si no, hasta ' + pollSeconds + 's…';
-        watchTimer = setInterval(() => {
-          elapsed += 800;
-          fetch('/api/spotify-status', { cache: 'no-store' })
-            .then(response => response.json())
-            .then(data => {
-              applyStatus(data);
-              const entry = (data.log || []).find(item => (item.timestamp || 0) >= since);
-              if (entry) {
-                clearInterval(watchTimer);
-                const ok = entry.ok === true;
-                box.className = 'test-result ' + (ok ? 'ok' : 'fail');
-                box.textContent = (ok ? '✔ ' : '✖ ') + entry.message + (entry.track && entry.track.name ? ' → ' + entry.track.name : '');
-                return;
-              }
-              const connected = data.client && data.client.connected;
-              if (!connected && elapsed > 6000) {
-                clearInterval(watchTimer);
-                box.className = 'test-result fail';
-                box.textContent = '✖ La extensión no está conectada. En Brave: brave://extensions → Actualizar en SocialStream Ninja.';
-              } else if (elapsed > 25000) {
-                clearInterval(watchTimer);
-                box.className = 'test-result fail';
-                box.textContent = '✖ Sin respuesta después de 25 s. Revisá la extensión.';
-              }
-            })
-            .catch(() => {});
-        }, 800);
+        box.textContent = '⏳ ' + label + ' · Chat Bot Spotify';
+        try {
+          const data = await postModule(url, body);
+          if (url === '/api/spotify-simulate-comment' && body.parseOnly !== true && data.ruloNotified !== true) {
+            const message = data.response || 'La canción se reprodujo, pero Rulo no confirmó el aviso en OBS.';
+            const activation = lastRuloEnabled === false ? ' Enciéndelo desde Rulo | Animaciones y vuelve a probar.' : ' Comprueba que Rulo esté encendido y que su overlay de OBS siga conectado.';
+            box.className = 'test-result fail';
+            box.textContent = '⚠ ' + message + activation + (interpretationLabel(data) ? ' · ' + interpretationLabel(data) : '');
+            showNotice('La canción se reprodujo, pero el aviso de Rulo no llegó al OBS.', true);
+            return data;
+          }
+          box.className = 'test-result ok';
+          box.textContent = '✔ ' + describeResult(data, fallback);
+          showNotice(data.response || fallback || 'Acción completada.');
+          return data;
+        } catch (error) {
+          box.className = 'test-result fail';
+          box.textContent = '✖ ' + error.message + (interpretationLabel(error.data) ? ' · ' + interpretationLabel(error.data) : '');
+          showNotice(error.message, true);
+          return null;
+        }
       }
 
       KEYS.forEach(key => {
         const node = field(key);
         if (!node) return;
         node.addEventListener('change', () => {
-          if (key === 'testMode') el('testModeField').classList.toggle('test-mode-on', node.checked);
+          if (key === 'testMode') {
+            el('testModeField').classList.toggle('test-mode-on', node.checked);
+            if (node.checked) {
+              clearTimeout(saveTimer);
+              saveTimer = null;
+              pendingTestModeActivation = true;
+              void inspectTestModePrerequisites();
+              return;
+            }
+            pendingTestModeActivation = false;
+            hideTestModeAssist();
+          }
           scheduleSave();
         });
       });
+      el('testModeServiceAction').addEventListener('click', () => { void startRouletteForTestMode(); });
 
       el('btnTest').addEventListener('click', () => {
         const query = el('testQuery').value.trim();
         if (query.length < 2) return showNotice('Escribí un tema o artista', true);
-        post('/api/spotify-test-request', { query: query, requester: 'Dashboard' }).then(data => {
-          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo encolar la prueba', true);
-          showNotice('Prueba encolada');
-          watchForResult('Prueba «' + query + '»');
-        });
+        if (!field('testMode').checked) return showNotice('Activa y guarda «Modo de pruebas aislado» antes de reproducir una prueba.', true);
+        if (!confirm('Esta prueba cambiará la canción de Spotify. No guardará comentarios en el historial ni participantes en la Ruleta. ¿Continuar?')) return;
+        void (async () => {
+          if (!await save()) return;
+          await runModuleAction('/api/spotify-test-request', { query, requester: 'Dashboard' }, 'Reproducción aislada', `Reproduciendo ${query}`);
+        })();
       });
 
       el('btnSearch').addEventListener('click', () => {
         const query = el('testQuery').value.trim();
         if (query.length < 2) return showNotice('Escribí un tema o artista', true);
-        post('/api/spotify-test-request', { query: query, requester: 'Dashboard', searchOnly: true }).then(data => {
-          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo encolar la búsqueda', true);
-          showNotice('Búsqueda encolada (no reproduce)');
-          watchForResult('Búsqueda «' + query + '»');
-        });
+        void runModuleAction('/api/spotify-test-request', { query, requester: 'Dashboard', searchOnly: true }, 'Buscando sin reproducir', `Búsqueda completada: ${query}`);
       });
 
       el('btnSimulate').addEventListener('click', () => {
         const comment = el('simComment').value.trim();
-        if (comment.length < 2) return showNotice('Escribí un comentario para simular', true);
-        post('/api/spotify-simulate-comment', { comment: comment, requester: el('simRequester').value.trim() || 'Prueba' }).then(data => {
-          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo simular', true);
-          showNotice('Comentario simulado encolado');
-          watchForResult('Comentario «' + comment.slice(0, 40) + '»');
-        });
+        if (lastRuloEnabled === false) {
+          const message = 'Rulo está apagado; los pedidos de música del chat no se procesan. Enciéndelo desde Rulo | Animaciones para simular el comentario.';
+          return showTestFailure(message);
+        }
+        if (comment.length < 2) return showTestFailure('Escribí un comentario para simular.');
+        if (!field('testMode').checked) return showTestModeRequired();
+        if (!confirm('La simulación reproducirá la canción detectada. El comentario se analizará solo en memoria y no entrará al historial ni a la Ruleta. ¿Continuar?')) return;
+        void (async () => {
+          if (!await save()) return;
+          await runModuleAction('/api/spotify-simulate-comment', { comment, requester: el('simRequester').value.trim() || 'Prueba' }, 'Comentario de prueba aislada', 'Simulación completada');
+        })();
       });
 
       el('btnParse').addEventListener('click', () => {
         const comment = el('simComment').value.trim();
         if (comment.length < 2) return showNotice('Escribí un comentario para analizar', true);
-        post('/api/spotify-simulate-comment', { comment: comment, requester: el('simRequester').value.trim() || 'Prueba', parseOnly: true }).then(data => {
-          if (!data || data.ok !== true) return showNotice((data && data.error) || 'No se pudo analizar', true);
-          showNotice('Analizando (no reproduce)');
-          watchForResult('Análisis «' + comment.slice(0, 40) + '»');
-        });
+        void runModuleAction('/api/spotify-simulate-comment', { comment, requester: el('simRequester').value.trim() || 'Prueba', parseOnly: true }, 'Analizando sin reproducir', 'Análisis completado');
       });
 
       document.querySelectorAll('[data-transport]').forEach(button => {
         button.addEventListener('click', () => {
           const action = button.getAttribute('data-transport');
-          post('/api/spotify-transport', { action: action }).then(data => {
-            if (!data || data.ok !== true) return showNotice('No se pudo enviar el comando', true);
-            showNotice('Comando «' + action + '» encolado');
-            watchForResult('Comando ' + action);
-          });
+          void runModuleAction('/api/spotify-transport', { action }, 'Ejecutando ' + action, 'Comando Spotify ejecutado');
         });
       });
 
       el('btnDevices').addEventListener('click', () => {
-        post('/api/spotify-transport', { action: 'devices' }).then(data => {
-          if (!data || data.ok !== true) return showNotice('No se pudo pedir la lista', true);
-          showNotice('Pidiendo dispositivos a la extensión…');
-          watchForResult('Pedido de dispositivos');
-        });
+        postModule('/api/spotify-transport', { action: 'devices' }).then(data => {
+          renderDevices({ devices: data.devices || [], activeName: data.activeName || '' });
+          chip('stDevice', 'Dispositivo activo', data.activeName || '—', '');
+          showNotice(data.devices?.length ? 'Dispositivos actualizados.' : 'Spotify no reportó dispositivos disponibles.', !data.devices?.length);
+        }).catch(error => showNotice(error.message, true));
       });
 
       el('btnAliasAdd').addEventListener('click', () => {

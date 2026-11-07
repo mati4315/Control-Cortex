@@ -646,9 +646,20 @@ html, body {
     renderComment(item);
   }
 
+  function clearTestComments() {
+    commentQueue = commentQueue.filter(function(item){ return item.testMode !== true; });
+    Array.prototype.slice.call(commentsEl.querySelectorAll('[data-test-mode="true"]')).forEach(function(bubble){
+      disposeBubble(bubble);
+      delete seenIds[bubble._id];
+      bubble.remove();
+    });
+    drainQueue();
+  }
+
   function renderComment(item) {
     var bubble = document.createElement('div');
     bubble.className = 'comment';
+    if (item.testMode === true) bubble.dataset.testMode = 'true';
     bubble._id = item.id;
 
     var avatar = document.createElement('img');
@@ -749,6 +760,12 @@ html, body {
           // En la repeticion inicial del historial, no traer comentarios viejos.
           if (data.item && Date.now() - (data.item.timestamp || 0) < 120000) addComment(data.item);
         }
+        else if (data.type === 'rulo_test_chat_item') {
+          if (data.item && Date.now() - (data.item.timestamp || 0) < 120000) {
+            addComment(Object.assign({}, data.item, { testMode: true }));
+          }
+        }
+        else if (data.type === 'rulo_test_chat_cleared' || (data.type === 'global_test_mode' && data.enabled !== true)) clearTestComments();
         else if (data.type === 'rulo_unified_config_updated') applyConfig(data.config);
       } catch(e) {}
     };
@@ -760,6 +777,14 @@ html, body {
   fetch('/api/rulo-unified-config')
     .then(function(r){ return r.json(); })
     .then(function(d){ if (d && d.config) applyConfig(d.config); })
+    .catch(function(){});
+  fetch('/api/rulo-test-chat-messages')
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      (d.items || []).forEach(function(item){
+        if (Date.now() - (item.timestamp || 0) < 120000) addComment(Object.assign({}, item, { testMode: true }));
+      });
+    })
     .catch(function(){});
   connectWS();
 

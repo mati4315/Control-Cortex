@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Chat Bot Spotify · Facebook DOM",
+  "version": "1.5.1",
+  "description": "Captura comentarios de Facebook por DOM con estado por pestaña y cuenta.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1:9765/*", "http://localhost:9765/*", "https://*.fbcdn.net/*", "https://*.fbsbx.com/*"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Chat Bot Spotify", "default_popup": "popup.html" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.facebook.com/*", "https://web.facebook.com/*", "https://m.facebook.com/*"],
+      "js": ["facebook-stats.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

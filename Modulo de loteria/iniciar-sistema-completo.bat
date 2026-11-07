@@ -27,16 +27,9 @@ if not exist node_modules\ws (
   )
 )
 
-:: ── Iniciar watcher en background (misma ventana) ──
-if exist "service-account.json" (
-  echo [OK] Iniciando watcher de entradas...
-  start /b node observe-entries.js
-) else (
-  echo [SKIP] Watcher omitido (falta service-account.json)
-)
-
-:: ── Iniciar servidor WS (foreground) ─────────────
+:: ── Iniciar servidor WS y watcher supervisado ───
 echo [OK] Iniciando servidor WebSocket...
+echo [INFO] El servidor inicia y supervisa el watcher de entradas.
 echo.
 echo =============================================
 echo   Servidor corriendo en ws://localhost:688

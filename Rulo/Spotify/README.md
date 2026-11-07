@@ -18,7 +18,7 @@ Desde ahí se controla todo sin tocar código ni reiniciar el backend:
 | Control | Qué hace |
 | --- | --- |
 | Pedidos de música por chat | Interruptor general del módulo |
-| Modo prueba (sin esperas) | Ignora la espera global y la por usuario (para probar temas seguidos) |
+| Modo de pruebas aislado | Pausa los pedidos automáticos; las pruebas manuales pueden cambiar Spotify sin crear comentarios normales ni tocar la Ruleta |
 | Solo comandos | Ignora el lenguaje natural, exige `!playnow` / `!tema` / `!musica` |
 | Respuestas personalizadas | Antepone el nombre del que pidió |
 | Avisos en el overlay | Manda o no los mensajes al overlay de Rulo |
@@ -27,12 +27,13 @@ Desde ahí se controla todo sin tocar código ni reiniciar el backend:
 | Largo mínimo | Comentarios más cortos no se analizan |
 | Quitar los primeros segundos | Salto inicial + corte del final |
 | Dispositivo que debe reproducir | Nombre parcial del dispositivo Spotify |
-| Cada cuánto consulta la extensión | 1-15 s: es la demora de la cola de comandos |
-| Pruebas | Reproducir un tema ya, **buscar sin reproducir**, simular un comentario, **solo analizar** (sin reproducir) y pausa/siguiente/anterior |
-| Registro | Últimos 50 pedidos (chat y pruebas) con resultado |
+| Pruebas | Reproducir una prueba aislada, **buscar sin reproducir**, simular comentario, **solo analizar** y pausa/siguiente/anterior |
+| Registro | Últimos 50 pedidos reales; las pruebas aisladas no se mezclan con el registro normal |
 
-Los cambios se guardan solos (400 ms después de tocar el control) y la extensión los toma al instante
-por WebSocket (o en `pollSeconds` segundos si usa el respaldo). No hace falta recargar nada.
+Los cambios se guardan solos (400 ms después de tocar el control). Control Cortex sincroniza el
+interruptor de pedidos con Chat Bot Spotify y el módulo lee los ajustes, el vocabulario y los alias
+por sus APIs locales. Los botones de esta página se ejecutan directamente con el OAuth propio del
+módulo; no dependen de un poll de SSN ni de una extensión conectada.
 
 ## Entrenamiento del bot: palabras clave y cerebro
 
@@ -54,9 +55,8 @@ Ahí se edita todo lo que el bot entiende, sin tocar código:
 | Cerebro (IA) | endpoint, modelo, instrucciones y cuándo consultarla |
 | Analizador | escribís un comentario y te dice qué entendió (no reproduce nada) |
 
-Todo se guarda en `Rulo/Spotify/spotify-vocabulary.json`, que es **la fuente de verdad del parser**: la
-extensión lo recibe al instante por WebSocket y el archivo sirve para versionar el entrenamiento. Los
-cambios se guardan solos 600 ms después de editar.
+Todo se guarda en `Rulo/Spotify/spotify-vocabulary.json`, que es **la fuente de verdad del parser**:
+Chat Bot Spotify lo consulta desde Cortex. Los cambios se guardan solos 600 ms después de editar.
 
 ### Cerebro (IA), opcional
 
@@ -104,30 +104,25 @@ Cómo lo logra:
    `Rulo/Spotify/spotify-aliases.json` y la próxima vez busca directo. Se ven y se cargan a mano
    desde el panel **Correcciones aprendidas** del dashboard.
 
-## Por qué las pruebas "encolaban" y cómo se resolvió
+## Cómo viajan los pedidos del dashboard
 
-El token de Spotify vive **dentro de la extensión** SocialStream Ninja, no en el backend. Por eso el
-dashboard no puede hablar con Spotify: deja el pedido en una **cola** en Cortex y la extensión lo
-retira. Ahora hay dos caminos:
+`/rulo-spotify.html` es una página de Control Cortex. Los botones envían sus solicitudes al backend
+de Cortex, que llama a Chat Bot Spotify en `127.0.0.1:9765` y añade el token desde
+`Chat Bot Spotify/data/config.json` en el servidor. El token nunca llega al navegador.
 
-| Camino | Demora | Cuándo |
-| --- | --- | --- |
-| WebSocket (`/api/spotify-ws`) | **~10-30 ms** (medido) | Siempre que la extensión esté abierta |
-| Consulta periódica (`pollSeconds`) | hasta `pollSeconds` s | Respaldo si el WebSocket no está |
+- «Buscar sin reproducir» usa la búsqueda OAuth del módulo y no agrega una canción a la cola.
+- «Reproducir prueba aislada» y «Simular comentario» requieren **Modo de pruebas aislado**. Usan
+  el reproductor propio y su secuencia verificada de cola → siguiente → confirmación; no generan un
+  comentario del chat, no guardan en el historial, la Ruleta ni el registro normal.
+- «Solo analizar» ejecuta el parser sin cambiar la reproducción.
+- Pausa, Reanudar, Siguiente, Anterior y Buscar dispositivos llaman directamente a Chat Bot Spotify.
+- El interruptor «Pedidos de música por chat» sincroniza `spotifyEnabled` del módulo, además de
+  guardar `enabled` en `spotify-settings.json`.
 
-El WebSocket existe porque Brave/Chrome **estrangular los timers de las páginas de fondo a una vez por
-minuto**: con solo la consulta periódica, los comandos llegaban cada 60 s aunque el intervalo fuera de
-1 s (se veía en el registro: 20:46:44, 20:47:44, 20:48:44). Con el enlace abierto el comando llega al
-instante y el poll queda como red de seguridad (por ejemplo si la extensión se recarga).
-
-`pollSeconds` sigue siendo útil si querés menos tráfico o si el WebSocket no puede abrirse. Los
-comandos se entregan en lote: si tocás tres botones seguidos, se ejecutan los tres en la misma
-entrega. El dashboard muestra el chip "Extensión SSN: conectada vNN · instantánea" cuando el enlace
-está activo, y "· por consulta" cuando está usando el respaldo.
-
-Importante: si el chip muestra una versión vieja (por ejemplo v19 cuando el archivo ya es v26),
-quedó una pestaña de SocialStream Ninja abierta con el código anterior. Recargá la extensión en
-`brave://extensions` → Actualizar y recargá también esa pestaña.
+`/api/spotify-client-state`, la cola `queueSpotifyCommand` y el archivo
+`Control Cortex/integrations/spotify-auto-music/spotify-auto-music.js` se conservan solo para
+compatibilidad con la extensión vieja. No son parte del flujo actual de comentarios Facebook ni de
+los botones de `/rulo-spotify.html`.
 
 ## Spotify Desktop en Windows no cambia de tema
 
@@ -147,7 +142,7 @@ manual. El diagnóstico técnico y la prueba de regresión están en
 | `spotify-vocabulary.json` | Vocabulario del bot: palabras clave, verbos, géneros, correcciones y config del cerebro |
 | `spotify-training.html` | La interfaz de entrenamiento |
 | `spotify-request-log.json` | Últimos 50 pedidos con resultado |
-| `spotify-devices.json` | Último reporte de dispositivos Spotify de la extensión |
+| `spotify-devices.json` | Último reporte guardado de dispositivos Spotify |
 | `spotify-dashboard.html` | La interfaz |
 
 El backend vive en `Control Cortex/backend/server.js` y expone:
@@ -157,12 +152,12 @@ GET  /api/spotify-status            estado completo para el dashboard
 GET  /api/spotify-settings          ajustes actuales
 POST /api/spotify-settings          guarda ajustes (parcial o completo)
 POST /api/spotify-settings-reset    vuelve a los valores por defecto
-GET  /api/spotify-client-state      poll de la extensión (ajustes + comando pendiente)
-POST /api/spotify-test-request      encola "reproducir este tema"
-POST /api/spotify-simulate-comment  encola un comentario de prueba
-POST /api/spotify-transport         pause | resume | next | previous | devices
-POST /api/spotify-request-log       la extensión reporta cada pedido
-POST /api/spotify-devices-report    la extensión reporta los dispositivos
+GET  /api/spotify-client-state      consulta de compatibilidad para la extensión antigua
+POST /api/spotify-test-request      busca o reproduce por la API propia de Chat Bot Spotify
+POST /api/spotify-simulate-comment  analiza/reproduce el comentario por Chat Bot Spotify
+POST /api/spotify-transport         pause | resume | next | previous | devices, vía OAuth propio
+POST /api/spotify-request-log       recibe registros del integrador antiguo
+POST /api/spotify-devices-report    recibe dispositivos del integrador antiguo
 GET  /api/spotify-vocabulary        como esta entrenado el bot (palabras, verbos, generos, IA)
 POST /api/spotify-vocabulary        guarda el vocabulario editado
 POST /api/spotify-vocabulary-reset  vuelve al vocabulario por defecto
@@ -181,28 +176,38 @@ Los tres endpoints viejos siguen funcionando y escriben sobre el mismo archivo d
 (`Control Cortex/backend/spotify-device-target.json` y `spotify-playback-offset.json` quedan
 como espejo de solo lectura para no romper nada).
 
-## Cómo llegan los ajustes a la extensión
+## Reproducción desde el dashboard
 
-El módulo `Control Cortex/integrations/spotify-auto-music/spotify-auto-music.js` (v26) consulta
-`/api/spotify-client-state` cada 4 segundos con `?alive=1&version=26&token=<0|1>`. Esa misma
-llamada le entrega un comando pendiente del dashboard (probar tema, simular comentario,
-transporte) y sirve para que el dashboard muestre "Extensión SSN: conectada".
+`/rulo-spotify.html` sirve `Rulo/Spotify/spotify-dashboard.html`. Los botones de búsqueda,
+reproducción de prueba, comentario simulado, transporte y dispositivos llaman a Control Cortex;
+Cortex usa el token local de `Chat Bot Spotify/data/config.json` para reenviar la operación a la
+API del módulo en `127.0.0.1:9765`. El navegador no recibe ni guarda ese token.
 
-El backend copia ese archivo a `SocialStream Ninja/local-overrides/` al arrancar. Después de
-tocar el módulo hay que reiniciar el backend y recargar la extensión en `brave://extensions`.
+Las pruebas que cambian la canción llaman a `/api/spotify/test-playback` o
+`/api/spotify/test-comment`, requieren **Modo de pruebas aislado** y usan el OAuth de Chat Bot
+Spotify. No crean comentarios en el historial ni participantes en la Ruleta. La búsqueda y el
+análisis no reproducen nada. El transporte explícito también usa el OAuth propio del módulo.
+
+El interruptor de Rulo también controla los pedidos reales: con Rulo apagado, Chat Bot Spotify
+ignora los pedidos recibidos del chat y el panel muestra una alerta explícita. «Simular comentario»
+replica ese bloqueo; «Reproducir prueba aislada» sigue disponible porque prueba Spotify directamente
+sin depender de la mascota. «Solo analizar» tampoco reproduce y se puede usar con Rulo apagado.
+
+`/api/spotify-client-state` y `Control Cortex/integrations/spotify-auto-music/spotify-auto-music.js`
+siguen presentes para compatibilidad con instalaciones antiguas de SSN; no participan en el flujo
+actual de los botones del dashboard ni en los pedidos Facebook procesados por Chat Bot Spotify.
 
 ## Prueba rápida del flujo completo
 
-1. Abrir el dashboard y verificar "Extensión SSN: conectada" (idealmente "· instantánea").
+1. Abrir el dashboard y verificar "Chat Bot Spotify: activo" y "OAuth Spotify: conectado".
    Para entrenar el bot: **/rulo-spotify-training.html** → editás las listas y usás el analizador.
-2. Encender **Modo prueba (sin esperas)**.
-3. Con «Solo analizar» (no reproduce nada) probar frases como `Un tema de laberiso` o
-   `Hola matias un temita de los palmeras`: el registro dice qué entendió cada una.
-4. Con «Buscar sin reproducir» ver qué tema encuentra Spotify para un nombre mal escrito.
-5. En «Simular un comentario del chat» escribir `poneme un tema de Amar Azul` y enviar (esto sí reproduce).
-6. Mirar el registro: aparece el pedido con el tema elegido.
-7. Repetir el mismo comentario enseguida: en modo prueba no debe decir "Espera 40s".
-8. Apagar el modo prueba y repetir dos veces seguidas: la segunda tiene que pedir espera.
+2. Para cambiar la canción con una prueba manual, activar **Modo prueba** y guardar el ajuste.
+3. «Solo analizar» prueba el parser sin reproducir; «Buscar sin reproducir» verifica la búsqueda.
+4. «Reproducir prueba aislada» y «Simular comentario» requieren el modo aislado y muestran
+   confirmación antes de cambiar la canción. No escriben comentario en historial/Ruleta ni en el
+   registro normal de pedidos.
+5. Para pedidos Facebook reales, el modo aislado debe estar apagado, Chat Bot Spotify debe tener
+   activos sus pedidos, y debe estar conectado a Spotify. La extensión de SSN no interviene.
 
 ## Pestaña "Bot / Rulo" (`/rulo-spotify-bot.html`)
 
@@ -228,8 +233,8 @@ Cómo pide la gente **y** qué contesta el bot. Tres pestañas ahora: **Ajustes*
   Damas Gratis"), y "Ver 5 seguidas" sirve para comprobar que varía y no repite.
 
 Las respuestas viven en el bloque `responses` de `Rulo/Spotify/spotify-vocabulary.json` (20 contextos, 72
-respuestas de fábrica). El módulo de la extensión las lee en vivo por WebSocket: se cambian y el bot las usa
-sin recargar nada. Si el archivo no tiene el bloque (instalación vieja), el backend lo agrega solo al arrancar.
+respuestas de fábrica). Chat Bot Spotify consulta el vocabulario a Cortex y usa los cambios sin recargar
+la extensión de Facebook. Si el archivo no tiene el bloque (instalación vieja), el backend lo agrega al arrancar.
 
 ## Historial de análisis en SQLite (`spotify-analytics.db`)
 
@@ -321,11 +326,11 @@ detección de errores que el proveedor devuelve con status 200).
 `spotify-analytics-test.js` prueba el historial SQLite: guardado, resumen, filas, CSV y que no se
 pierda nada al reabrir.
 
-## Si actualizás SocialStream Ninja
+## Si actualizás SocialStream Ninja (compatibilidad heredada)
 
-Todo lo que Control Cortex necesita dentro de la extensión se re-aplica solo al arrancar el backend,
-y esta página (vocabulario, ajustes, correcciones y registro) vive en `Rulo\Spotify`, así que **no
-se pierde**. Los pasos están en `Control Cortex\MIGRAR-SOCIALSTREAM.md` y los accesos directos en
+El parcheo de SSN se mantiene para instalaciones antiguas, pero el capturador propio de Facebook y
+los botones de esta página no dependen de él. Los archivos de entrenamiento y ajustes viven en
+`Rulo\Spotify`, así que **no se pierden** al actualizar SSN. Los pasos de compatibilidad están en `Control Cortex\MIGRAR-SOCIALSTREAM.md` y los accesos directos en
 `Control Cortex\SSN 1..4 *.bat`. Después de migrar, la sección *Estado de la instalación* de la
 página de entrenamiento dice si quedó algo pendiente.
 
@@ -333,7 +338,7 @@ página de entrenamiento dice si quedó algo pendiente.
 
 `spotify-settings.json`, `spotify-vocabulary.json` y `spotify-aliases.json` se pueden editar por fuera:
 el backend los relee en cuanto cambian (mira fecha y tamaño, cada 2 segundos y antes de cada consulta),
-avisa a la extensión por WebSocket al instante y no hace falta reiniciar nada. Si el archivo está a medio
+y Chat Bot Spotify los consulta desde Cortex sin necesitar WebSocket de SSN ni reinicio. Si el archivo está a medio
 escribir o tiene un JSON inválido, se sigue usando lo que ya estaba cargado y queda el aviso en el log.
 
 En las páginas: el vocabulario se recarga solo en el formulario cuando el archivo cambió afuera (si no
@@ -354,7 +359,7 @@ Los archivos, en resumen:
 
 Cuando alguien pide **un artista** (o un género) sin nombrar un tema puntual
 ("pasame otro tema de Ke Personajes", "poneme cumbia"), el bot **no pone siempre el
-mismo**: pide hasta 20 resultados a Spotify y los va sacando de una **bolsa mezclada
+mismo**: pide hasta 10 resultados a Spotify y los va sacando de una **bolsa mezclada
 por artista**, sin repetir ninguno hasta agotarla. Al agotarse, mezcla de nuevo
 salteando los que ya sonaron en la sesión. Los temas con el mismo nombre (el single y
 el del disco) cuentan una sola vez, así no suena "lo mismo" dos veces.
@@ -363,7 +368,7 @@ el del disco) cuentan una sola vez, así no suena "lo mismo" dos veces.
   resultado de Spotify, exacto, sin azar.
 - Se apaga desde el dashboard: **Variedad de temas → elegir uno al azar**
   (`artistVariety`, encendido de fábrica) y **cuántos resultados mirar**
-  (`artistVarietyPool`, 5 a 50, por defecto 20).
+  (`artistVarietyPool`, 5 a 10, por defecto 10; Spotify limita a 10 resultados por búsqueda).
 - Los pedidos de artista no usan el caché de búsqueda (si no, siempre daría el mismo).
 - Cada elección queda en el historial: podés ver qué tema salió por cada artista en
   **Análisis → Las canciones que puso Rulo**.

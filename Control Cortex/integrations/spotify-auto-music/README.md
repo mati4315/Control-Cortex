@@ -1,5 +1,10 @@
 # Spotify Auto Music Requests
 
+> **Integración antigua de compatibilidad SSN.** El dashboard actual `/rulo-spotify.html` y los
+> pedidos Facebook de la extensión propia se reproducen mediante `Chat Bot Spotify` y su OAuth,
+> no a través de esta cola. Mantén este archivo y sus rutas solo para instalaciones antiguas; no
+> conectes de nuevo los botones del dashboard a `spotify-client-state`.
+
 Esta carpeta contiene la integracion local que permite pedir musica desde el chat con frases naturales.
 
 ## Que hace

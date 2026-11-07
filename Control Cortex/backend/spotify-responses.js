@@ -283,6 +283,10 @@ const RESPONSE_CONTEXT_META = RESPONSE_CONTEXTS.map(entry => ({
 const DEFAULT_SPOTIFY_RESPONSES = {
   random: true,
   avoidRepeat: true,
+  // Las respuestas de pedidos se redactan en vivo con IA cuando está disponible;
+  // la opción casual queda apagada hasta que el streamer la habilite.
+  aiRepliesEnabled: true,
+  casualChatEnabled: false,
   // Cuantas respuestas recientes se recuerdan por contexto para no repetir.
   recent: 4,
   contexts: RESPONSE_CONTEXTS.reduce((acc, entry) => {
@@ -375,6 +379,8 @@ function normalizeSpotifyResponses(raw) {
   return {
     random: source.random !== false,
     avoidRepeat: source.avoidRepeat !== false,
+    aiRepliesEnabled: source.aiRepliesEnabled !== false,
+    casualChatEnabled: source.casualChatEnabled === true,
     recent: Number.isFinite(recent) ? Math.min(10, Math.max(0, Math.round(recent))) : 4,
     contexts
   };

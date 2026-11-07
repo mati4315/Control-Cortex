@@ -5,75 +5,189 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Rulo | Reproductor de animaciones</title>
 <style>
-*{box-sizing:border-box}html,body,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}#stage{position:fixed;inset:0;pointer-events:none}video{position:absolute;inset:0;width:100%;height:100%;opacity:0;object-fit:contain;object-position:var(--rulo-x,50%) var(--rulo-y,100%);will-change:opacity}video.visible{opacity:1}
+*{box-sizing:border-box}html,body,#stage{margin:0;width:100%;height:100%;overflow:hidden;background:transparent}#stage{position:fixed;inset:0;pointer-events:none}video,#mate-prop{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:var(--rulo-x,50%) var(--rulo-y,100%)}#mate-prop{z-index:4;transform:translate(var(--mate-x,0px),var(--mate-y,0px)) scale(var(--mate-scale,1));transform-origin:center center}video{opacity:0;will-change:opacity}video.preparing{opacity:.01;z-index:2}video.visible{opacity:1;z-index:3}#mate-prop[hidden]{display:none}
+#second-prop{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:var(--rulo-x,50%) var(--rulo-y,100%);z-index:4;transform:translate(var(--second-prop-x,0px),var(--second-prop-y,0px)) scale(var(--second-prop-scale,1));transform-origin:center center}#second-prop[hidden]{display:none}
+#clip-info-control{position:fixed;z-index:10;top:12px;left:12px;display:grid;gap:6px;max-width:min(360px,calc(100vw - 24px));font:14px/1.35 Arial,sans-serif;color:#fff;pointer-events:auto}
+#clip-info-toggle{justify-self:start;border:1px solid #777;border-radius:5px;padding:7px 10px;background:#000;color:#fff;font:inherit;cursor:pointer}
+#clip-info-toggle:focus-visible{outline:2px solid #fff;outline-offset:2px}
+#clip-info-panel{padding:9px 11px;border:1px solid #555;border-radius:5px;background:#000;color:#fff;white-space:pre-line}
+#clip-info-control[hidden]{display:none}
+#clip-info-panel[hidden]{display:none}
 </style>
 </head>
 <body>
-<div id="stage" aria-label="Rulo"><video id="rulo-a" muted playsinline preload="auto"></video><video id="rulo-b" muted playsinline preload="auto"></video></div>
+<div id="stage" aria-label="Rulo"><img id="mate-prop" src="/rulo-animaciones/Mate/Mate_Estacionado.png" alt="" hidden><img id="second-prop" alt="" hidden><video id="rulo-a" muted playsinline preload="auto"></video><video id="rulo-b" muted playsinline preload="auto"></video></div>
+<div id="clip-info-control">
+  <button id="clip-info-toggle" type="button" aria-controls="clip-info-panel" aria-pressed="false">Mostrar info del clip: no</button>
+  <div id="clip-info-panel" role="status" aria-live="polite" hidden>Esperando una animación…</div>
+</div>
 <script>
 (() => {
   'use strict';
   const videos=[document.getElementById('rulo-a'),document.getElementById('rulo-b')];
+  const mateProp=document.getElementById('mate-prop');
+  const secondProp=document.getElementById('second-prop');
+  function setMatePropVisible(visible){mateProp.hidden=visible!==true;}
+  const propReference={width:1280,height:720};
+  let propConfig={};
+  function applyPropOffsets(){
+    const width=Math.max(1,document.documentElement.clientWidth),height=Math.max(1,document.documentElement.clientHeight);
+    const scaleX=width/propReference.width,scaleY=height/propReference.height;
+    document.documentElement.style.setProperty('--mate-x',((Number(propConfig.matePropX)||0)*scaleX)+'px');
+    document.documentElement.style.setProperty('--mate-y',((Number(propConfig.matePropY)||0)*scaleY)+'px');
+    document.documentElement.style.setProperty('--second-prop-x',((Number(propConfig.secondPropX)||0)*scaleX)+'px');
+    document.documentElement.style.setProperty('--second-prop-y',((Number(propConfig.secondPropY)||0)*scaleY)+'px');
+  }
+  function applyMateConfig(config={}){propConfig=config;applyPropOffsets();document.documentElement.style.setProperty('--mate-scale',String(Number(config.matePropScale)||1));document.documentElement.style.setProperty('--second-prop-scale',String(Number(config.secondPropScale)||1));if(config.secondPropEnabled!==true)secondProp.hidden=true;setClipInfoEnabled(config.showAnimationClipInfo===true);}
+  window.addEventListener('resize',applyPropOffsets,{passive:true});
+  const infoControl=document.getElementById('clip-info-control'),infoToggle=document.getElementById('clip-info-toggle'),infoPanel=document.getElementById('clip-info-panel');
+  let clipInfoEnabled=false,panelVisible=false,currentClip=null;
+  function setClipInfoEnabled(enabled){clipInfoEnabled=enabled===true;panelVisible=clipInfoEnabled;renderClipInfo();}
+  function renderClipInfo(){
+    infoToggle.setAttribute('aria-pressed',String(panelVisible));
+    infoToggle.textContent=panelVisible?'Ocultar info del clip':'Mostrar info del clip';
+    infoControl.hidden=!clipInfoEnabled;
+    infoPanel.hidden=!panelVisible;
+    if(!clipInfoEnabled||!panelVisible)return;
+    if(!currentClip){infoPanel.textContent='Esperando una animación…';return;}
+    const elapsed=Number.isFinite(currentClip.video?.currentTime)?currentClip.video.currentTime:0;
+    const duration=Number.isFinite(currentClip.video?.duration)?currentClip.video.duration:Number(currentClip.clip.duration)||0;
+    const time=duration>0?`${elapsed.toFixed(1)} / ${duration.toFixed(1)} s`:`${elapsed.toFixed(1)} s`;
+    infoPanel.textContent=[
+      `Clip: ${currentClip.clip.id||'sin nombre'}`,
+      `Familia: ${currentClip.clip.family||'—'} · Función: ${currentClip.clip.role||'—'}`,
+      `Pose: ${currentClip.clip.from||'—'} → ${currentClip.clip.to||'—'}`,
+      `Token: ${currentClip.token??'—'} · Tiempo: ${time}`
+    ].join('\n');
+  }
+  infoToggle.addEventListener('click',()=>{panelVisible=!panelVisible;renderClipInfo();});
+  renderClipInfo();
+  fetch('/api/rulo-config',{cache:'no-store'}).then(response=>response.json()).then(result=>applyMateConfig(result.config||{})).catch(()=>{});
+  fetch('/api/rulo-second-prop-state',{cache:'no-store'}).then(response=>response.json()).then(result=>{if(result.available)secondProp.src='/rulo-animaciones/Mate/Segundo_Objeto.png';}).catch(()=>{});
   let socket=null,front=null,generation=0,activeToken=null,loaded=new Map(),status={},connectedAt=0,lastResyncAt=0,playPending=false;
+  let pendingPreload, loadingVideo=null;
   function send(data){if(socket?.readyState===WebSocket.OPEN)socket.send(JSON.stringify(data));}
   function report(){document.documentElement.dataset.connected=socket?.readyState===WebSocket.OPEN?'true':'false';}
   function waitFor(video,events,timeout=30000){return new Promise((resolve,reject)=>{
-    let done=false;const finish=(fn,value)=>{if(done)return;done=true;clearTimeout(timer);events.forEach(name=>{video.removeEventListener(name,onReady);video.removeEventListener(name,onError)});fn(value)};
+    let done=false;const finish=(fn,value)=>{if(done)return;done=true;clearTimeout(timer);events.forEach(name=>video.removeEventListener(name,onReady));video.removeEventListener('error',onError);fn(value)};
     const onReady=()=>finish(resolve,video),onError=()=>finish(reject,new Error('El navegador no pudo decodificar el WebM.'));
     events.forEach(name=>video.addEventListener(name,onReady,{once:true}));video.addEventListener('error',onError,{once:true});
     const timer=setTimeout(()=>finish(reject,new Error('Tiempo agotado cargando la animación.')),timeout);
     if(video.error)onError();else if(events.includes('loadeddata')&&video.readyState>=2||events.includes('canplay')&&video.readyState>=3)onReady();
   });}
-  function clearPlayer(video){video.pause();video.loop=false;video.onended=null;video.dataset.token='';video.classList.remove('visible');video.removeAttribute('src');video.load();loaded.delete(video);}
+  function clearPlayer(video){video.pause();video.loop=false;video.onended=null;video.dataset.token='';video.dataset.url='';video.classList.remove('visible','preparing');video.removeAttribute('src');video.load();loaded.delete(video);}
   function prepare(clip){
+    // Mientras cambia el frente, el video de reserva es el que está cargando.
+    // Esperar al primer fotograma evita borrar la entrada con su precarga.
+    if(playPending){pendingPreload=clip;return;}
     const video=videos.find(v=>v!==front)||videos[0];
     if(!clip){if(video!==front)clearPlayer(video);return;}
     if(video.dataset.url===clip.url&&video.readyState>=2)return;
     if(video===front)return;
     clearPlayer(video);video.dataset.url=clip.url;video.src=clip.url;video.preload='auto';video.load();
-    waitFor(video,['loadeddata']).then(()=>{loaded.set(video,clip.url);}).catch(()=>{});
+    waitFor(video,['loadeddata']).then(()=>{if(video.dataset.url===clip.url)loaded.set(video,clip.url);}).catch(()=>{});
+  }
+  function signalEnded(video,token){
+    if(video!==front||!token||token!==activeToken||video.dataset.ended===String(token))return;
+    video.dataset.ended=String(token);send({type:'rulo_v2_ended',token});
+  }
+  function finishAtTail(video,mediaTime=video.currentTime){
+    const token=Number(video.dataset.token);
+    // Se detiene unas centésimas antes del final para conservar el último
+    // fotograma visible mientras Cortex cambia al clip que ya está precargado.
+    if(video.loop||video.dataset.segmentLoopActive==='true'||!Number.isFinite(video.duration)||video.duration<=0||video.duration-mediaTime>0.12)return false;
+    video.pause();signalEnded(video,token);return true;
+  }
+  function watchTail(video,token){
+    const inspect=(_,metadata)=>{
+      if(video!==front||Number(video.dataset.token)!==token||token!==activeToken)return;
+      if(finishAtSegmentBoundary(video,metadata?.mediaTime??video.currentTime)){
+        if(video.dataset.segmentLoopActive==='true'&&typeof video.requestVideoFrameCallback==='function')video.requestVideoFrameCallback(inspect);
+        return;
+      }
+      if(finishAtTail(video,metadata?.mediaTime??video.currentTime))return;
+      if(typeof video.requestVideoFrameCallback==='function')video.requestVideoFrameCallback(inspect);
+      else requestAnimationFrame(inspect);
+    };
+    if(typeof video.requestVideoFrameCallback==='function')video.requestVideoFrameCallback(inspect);
+    else requestAnimationFrame(inspect);
+  }
+  function finishAtSegmentBoundary(video,mediaTime=video.currentTime){
+    if(video.dataset.segmentLoopActive!=='true'||video.dataset.segmentSeeking==='true')return false;
+    const end=Number(video.dataset.segmentEnd), start=Number(video.dataset.segmentStart), repeats=Number(video.dataset.segmentRepeats), count=Number(video.dataset.segmentCount)||0;
+    if(!Number.isFinite(end)||mediaTime<end-0.035)return false;
+    if(video.dataset.segmentStop==='true'){
+      video.dataset.segmentLoopActive='false';
+      // Se omiten las pasadas que quedaban, pero el clip actual debe terminar
+      // su tramo final antes de dar paso a la acción que está en cola.
+      return false;
+    }
+    if(count>=repeats){video.dataset.segmentLoopActive='false';return false;}
+    video.dataset.segmentCount=String(count+1);video.dataset.segmentSeeking='true';
+    try{video.currentTime=start;}catch(_){video.dataset.segmentSeeking='false';}
+    return true;
   }
   async function play(message){
-    const ticket=++generation,clip=message.clip,old=front,alreadyPrepared=(videos.find(v=>v!==old)||videos[0]).dataset.url===message.clip.url;
+    const ticket=++generation,clip=message.clip,old=front,alreadyPrepared=(videos.find(v=>v!==old)||videos[0]).dataset.url===message.clip?.url;
+    pendingPreload=undefined;
     playPending=true;
     if(!clip?.url){playPending=false;send({type:'rulo_v2_failed',token:message.token,message:'Cortex envió una animación sin ruta.'});return;}
     const target=videos.find(v=>v!==old)||videos[0];
-    activeToken=message.token;target.dataset.token=String(message.token);target.loop=clip.loop===true;target.muted=true;target.playsInline=true;
+    loadingVideo=target;
+    // Chrome puede pausar videos mudos invisibles como ahorro de energía.
+    // Déjalo componerse por debajo del actual mientras arranca y decodifica.
+    target.classList.remove('visible');target.classList.add('preparing');
+    const segmentLoop=message.token===0?null:clip.segmentLoop;
+    activeToken=message.token;target.dataset.token=String(message.token);target.loop=clip.loop===true&&!segmentLoop;target.dataset.segmentLoopActive=segmentLoop?'true':'false';target.dataset.segmentStop='false';target.dataset.segmentSeeking='false';target.dataset.segmentCount='1';
+    if(segmentLoop){target.dataset.segmentStart=String(segmentLoop.from);target.dataset.segmentEnd=String(segmentLoop.to);target.dataset.segmentRepeats=String(segmentLoop.repeats);}
+    target.muted=true;target.playsInline=true;
     try{
       if(!alreadyPrepared){target.pause();target.removeAttribute('src');target.load();target.src=clip.url;target.dataset.url=clip.url;target.load();}
       if(target.readyState<2||!loaded.has(target))await waitFor(target,['loadeddata']);
-      if(ticket!==generation)return;
+      if(ticket!==generation){target.pause();target.classList.remove('preparing');return;}
       try{target.currentTime=0}catch(_){}
       await target.play();
       if(target.paused)await waitFor(target,['playing']);
-      if(ticket!==generation){target.pause();return;}
+      if(ticket!==generation){target.pause();target.classList.remove('preparing');return;}
       const show=()=>{
         if(ticket!==generation)return;
-        target.classList.add('visible');front=target;playPending=false;document.documentElement.dataset.player='playing';
-        if(old&&old!==target){old.classList.remove('visible');old.pause();old.loop=false;old.removeAttribute('src');old.dataset.url='';old.load();loaded.delete(old);}
+        target.classList.remove('preparing');target.classList.add('visible');front=target;playPending=false;loadingVideo=null;document.documentElement.dataset.player='playing';
+        currentClip={clip,token:message.token,video:target};renderClipInfo();
+        if(clip.id==='Clip_2_Guardando_el_segundo_objeto')secondProp.hidden=true;
+        if(old&&old!==target){old.classList.remove('visible','preparing');old.pause();old.loop=false;old.removeAttribute('src');old.dataset.url='';old.load();loaded.delete(old);}
         send({type:'rulo_v2_started',token:message.token,startedAt:Date.now()});
+        watchTail(target,Number(message.token));
+        if(pendingPreload!==undefined){const next=pendingPreload;pendingPreload=undefined;prepare(next);}
       };
       if(typeof target.requestVideoFrameCallback==='function')target.requestVideoFrameCallback(()=>show());else requestAnimationFrame(show);
       if(clip.family==='Idle')document.documentElement.style.setProperty('--rulo-x',((status.manifest?.video?.anchorX??.5)*100)+'%'),document.documentElement.style.setProperty('--rulo-y',((status.manifest?.video?.anchorY??1)*100)+'%');
-    }catch(error){if(ticket===generation){playPending=false;document.documentElement.dataset.player='error';send({type:'rulo_v2_failed',token:message.token,message:error.message||'Error al cargar el video.'});}}
+    }catch(error){if(ticket===generation){target.classList.remove('preparing');playPending=false;document.documentElement.dataset.player='error';send({type:'rulo_v2_failed',token:message.token,message:error.message||'Error al cargar el video.'});}}
   }
-  videos.forEach(video=>video.addEventListener('ended',()=>{
-    const token=Number(video.dataset.token);if(video===front&&token&&token===activeToken)send({type:'rulo_v2_ended',token});
-  }));
+  videos.forEach(video=>{
+    video.addEventListener('ended',()=>signalEnded(video,Number(video.dataset.token)));
+    video.addEventListener('seeked',()=>{video.dataset.segmentSeeking='false';});
+    video.addEventListener('timeupdate',()=>{if(video===front&&clipInfoEnabled&&panelVisible)renderClipInfo();});
+    video.addEventListener('timeupdate',()=>{if(!finishAtSegmentBoundary(video))finishAtTail(video);});
+  });
   function onMessage(event){let data;try{data=JSON.parse(event.data)}catch(_){return}
     if(data.type==='rulo_v2_play')play(data);
     else if(data.type==='rulo_v2_preload')prepare(data.clip);
-    else if(data.type==='rulo_v2_finish_current'&&data.token===activeToken){const video=front;if(video)video.loop=false;}
-    else if(data.type==='rulo_v2_cut_current'&&data.token===activeToken){const video=front;if(video){video.pause();send({type:'rulo_v2_ended',token:data.token});}}
+    else if(data.type==='rulo_v2_finish_current'&&data.token===activeToken){const video=loadingVideo||front;if(video){video.loop=false;if(video.dataset.segmentLoopActive==='true')video.dataset.segmentStop='true';}}
+    else if(data.type==='rulo_v2_cut_current'&&data.token===activeToken){const video=front;if(video){video.pause();signalEnded(video,Number(data.token));}}
     else if(data.type==='rulo_v2_hide'){
-      generation++;videos.forEach(clearPlayer);front=null;activeToken=null;playPending=false;document.documentElement.dataset.player='hidden';send({type:'rulo_mascota_shutdown_complete'});
-    } else if(data.type==='rulo_v2_status'){status=data;document.documentElement.dataset.state=String(data.state||'');}
+      generation++;pendingPreload=undefined;loadingVideo=null;videos.forEach(clearPlayer);front=null;activeToken=null;playPending=false;currentClip=null;setMatePropVisible(false);secondProp.hidden=true;renderClipInfo();document.documentElement.dataset.player='hidden';send({type:'rulo_mascota_shutdown_complete'});
+    } else if(data.type==='rulo_v2_status'){status=data;document.documentElement.dataset.state=String(data.state||'');setMatePropVisible(data.matePropVisible===true);secondProp.hidden=data.secondPropVisible!==true;}
+    else if(data.type==='rulo_v2_mate_prop')setMatePropVisible(data.visible===true);
+    else if(data.type==='rulo_v2_second_prop')secondProp.hidden=data.visible!==true;
+    else if(data.type==='rulo_config_updated'&&data.config){applyMateConfig(data.config);}
+    else if(data.type==='rulo_second_prop_asset_updated')secondProp.src='/rulo-animaciones/Mate/Segundo_Objeto.png?v='+encodeURIComponent(data.updatedAt||Date.now());
+    else if(data.type==='rulo_mate_prop_asset_updated')mateProp.src='/rulo-animaciones/Mate/Mate_Estacionado.png?v='+encodeURIComponent(data.updatedAt||Date.now());
     else if(data.type==='rulo_v2_library_updated'){status.manifest=data.manifest;if(data.manifest?.video){document.documentElement.style.setProperty('--rulo-x',(data.manifest.video.anchorX*100)+'%');document.documentElement.style.setProperty('--rulo-y',(data.manifest.video.anchorY*100)+'%');}}
   }
   function connect(){socket=new WebSocket((location.protocol==='https:'?'wss:':'ws:')+'//'+location.host+'/?client=rulo-animation');socket.addEventListener('open',()=>{connectedAt=Date.now();report();send({type:'rulo_v2_ready'});});socket.addEventListener('message',onMessage);socket.addEventListener('close',()=>{connectedAt=0;report();setTimeout(connect,2000);});socket.addEventListener('error',()=>socket.close());}
   // Si Cortex considera visible a Rulo pero este navegador quedó sin un video,
   // pedir sincronización evita dejar OBS transparente hasta la próxima acción.
-  setInterval(()=>{if(socket?.readyState!==WebSocket.OPEN||!connectedAt||!status.type||status.enabled===false||status.state==='OCULTO'||front||playPending)return;if(Date.now()-connectedAt<3500||Date.now()-lastResyncAt<7000)return;lastResyncAt=Date.now();document.documentElement.dataset.player='resync';send({type:'rulo_v2_resync'});},2000);
+  setInterval(()=>{if(socket?.readyState!==WebSocket.OPEN||!connectedAt||!status.type||status.enabled===false||playPending)return;const endedToken=currentClip?.token,frozenAtEnd=!!front&&status.state==='IDLE'&&!status.active&&Number(endedToken)>0&&front.paused&&front.dataset.ended===String(endedToken);if(front&&!frozenAtEnd||!front&&status.state==='OCULTO')return;if(Date.now()-connectedAt<3500||Date.now()-lastResyncAt<7000)return;lastResyncAt=Date.now();document.documentElement.dataset.player='resync';send({type:'rulo_v2_resync'});},2000);
   connect();window.ruloAnim={play:(action,options={})=>fetch('/api/rulo-animation-trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...options})})};
 })();
 </script>

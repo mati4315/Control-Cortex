@@ -499,6 +499,30 @@
 		return genre ? { genre, query: `genre:${genre}`, source: "genre" } : null;
 	}
 
+	// Formas conversacionales como "pone algo de Karina", "pone algo de
+	// cumbia" y "pone un poco de Ke Personajes" piden una selección del artista
+	// o género. Sin este caso, el parser tomaba "algo" / "un poco" como título.
+	function parseLooseArtistOrGenreRequest(text, rx) {
+		const value = String(text || "");
+		const wrapper = "(?:algo|un\\s+poco|un\\s+poquito)(?:\\s+de)?\\s+(.+)$";
+		const match = value.match(regex("\\b(?:" + rx.requestVerbs + ")\\s+" + wrapper))
+			|| value.match(regex("^" + wrapper));
+		if (!match) return null;
+		const term = cleanQueryPart(match[1]).replace(regex("^(?:" + rx.articles + ")\\s+"), "");
+		if (!term) return null;
+		const normalizedTerm = normalizeText(term);
+		const genreKey = Object.keys(rx.genres).find(word => normalizeText(word) === normalizedTerm);
+		if (genreKey) {
+			const genre = rx.genres[genreKey];
+			return { genre, query: `genre:${genre}`, source: "genre" };
+		}
+		const artist = normalizeArtistPhrase(term);
+		if (artist.length >= 4 && usefulWords(artist, rx).length) {
+			return { artist, query: `artist:${artist}`, source: "natural" };
+		}
+		return null;
+	}
+
 	// Contexto de parseo: los ajustes (largo minimo, solo comandos) + el vocabulario.
 	function parsingContext(limits) {
 		const options = limits && typeof limits === "object" ? limits : {};
@@ -540,6 +564,9 @@
 		// Sin saludos ni muletillas: "hola matias un temita de los palmeras".
 		const text = stripNoise(raw, rx);
 		if (text.length < 4) return null;
+
+		const looseRequest = parseLooseArtistOrGenreRequest(text, rx);
+		if (looseRequest) return looseRequest;
 
 		const genreRequest = parseGenreRequest(text, rx);
 		if (genreRequest) return genreRequest;
@@ -2430,7 +2457,13 @@
 			requesterId: "dashboard"
 		});
 		const requester = String(command?.requester || "Dashboard").slice(0, 80);
-		const data = { dashboard: true, chatname: requester, type: "dashboard", host: true };
+		const data = {
+			dashboard: true,
+			chatname: requester,
+			userid: String(command?.userId || "").slice(0, 160),
+			type: "dashboard",
+			host: true
+		};
 		const announce = mascotIsOn && boolSetting(integration, "announce", true);
 
 		if (type === "play") {
@@ -2446,7 +2479,7 @@
 				? " | " + integration.cortexUltimoMotivo.join(" | ")
 				: "";
 			reportRequestResult(integration, {
-				source: esAuto ? "auto" : "dashboard",
+				source: esAuto ? "auto" : command?.via === "chat-bot-spotify-facebook" ? "facebook" : "dashboard",
 				requester,
 				query: command.query || command.uri,
 				ok: result.success === true,
@@ -2840,6 +2873,16 @@
 			const aiCandidate = ai.enabled === true && (ai.requireSignal === false ||
 				regex("\\b" + limits.regexes.musicWords + "\\b").test(text) || regex("\\b" + limits.regexes.requestVerbs + "\\b").test(text));
 			if ((parsed && !parsed.error) || aiCandidate) {
+				// Si ya hay un pedido en proceso, avisar de inmediato que este quedó esperando.
+				// Es provisional: no reemplaza la respuesta final ni dispara la animación de Habla.
+				const waitingForCurrentRequest = this.cortexMusicQueue?.running === true;
+				if (waitingForCurrentRequest && boolSetting(this, "announce", true)) {
+					const requester = requesterFirstName(data);
+					const acknowledgment = requester
+						? `Recibí tu pedido, ${requester}. Hay otro pedido en proceso; te aviso cuando lo atienda.`
+						: "Recibí tu pedido. Hay otro pedido en proceso; te aviso cuando lo atienda.";
+					postRuloBotResponse(acknowledgment, data, "thinking", true);
+				}
 				return enqueueMusicRequest(this, () => handleRuloCommand.call(this, command, data), null);
 			}
 			return handleRuloCommand.call(this, command, data);

@@ -264,15 +264,22 @@ function renderServicesGrid() {
     // Format memory
     const memoryMB = service.memory ? (service.memory / (1024 * 1024)).toFixed(1) + ' MB' : '0 MB';
 
-    // Dashboard button configuration
-    const hasDashboard = !!service.dashboardUrl;
-    const dashboardBtn = hasDashboard 
-      ? `<a href="${service.dashboardUrl}" target="_blank" class="btn btn-secondary btn-icon" title="Abrir Panel" onclick="event.stopPropagation();">
+    // Atajos del servicio; para loteria se agregan sus dos overlays de OBS.
+    const dashboardBtn = service.dashboardUrl
+      ? `<a href="${service.dashboardUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir panel del servicio" title="Abrir panel" onclick="event.stopPropagation();">
           <i class="fa-solid fa-up-right-from-square"></i>
          </a>`
       : `<button class="btn btn-secondary btn-icon" disabled title="Sin dashboard web">
           <i class="fa-solid fa-up-right-from-square"></i>
          </button>`;
+    const overlayBtn = service.id === 'modulo-de-loteria'
+      ? `<a href="/loteria/lottery-ball.html" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir overlay de la bolilla" title="Abrir overlay de la bolilla" onclick="event.stopPropagation();">
+          <i class="fa-solid fa-dice"></i>
+         </a>
+         <a href="/loteria/lottery-numbers.html" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir overlay de números seleccionados" title="Abrir overlay de números seleccionados" onclick="event.stopPropagation();">
+          <i class="fa-solid fa-table-cells"></i>
+         </a>`
+      : '';
 
     // Status action controls
     let controlBtn = '';
@@ -327,6 +334,7 @@ function renderServicesGrid() {
         <div class="action-buttons">
           ${controlBtn}
           ${dashboardBtn}
+          ${overlayBtn}
         </div>
         <button class="btn btn-icon btn-secondary btn-delete" title="Eliminar servicio" onclick="event.stopPropagation(); confirmDeleteService('${service.id}', '${service.name}')">
           <i class="fa-solid fa-trash-can"></i>
@@ -353,6 +361,8 @@ let SPOTIFY_LYRICS_URL  = CORTEX_BASE_URL + '/spotify-lyrics-overlay.html';
 let RULO_OVERLAY_URL    = CORTEX_BASE_URL + '/rulo-bot-overlay.html';
 let RULO_CHAT_DOCK_URL  = CORTEX_BASE_URL + '/rulo-chat-historial.html';
 let RULO_DASHBOARD_URL  = CORTEX_BASE_URL + '/rulo-dashboard.html';
+let ruloLotteryChatEnabled = false;
+let ruloLotteryChatReady = false;
 
 function applyCortexBaseUrl(baseUrl) {
   const clean = String(baseUrl || '').trim().replace(/\/+$/, '');
@@ -373,6 +383,52 @@ fetch('/api/cortex-base-url')
     if (document.getElementById('card-spotify')) renderSpotifyCard();
   })
   .catch(() => {});
+
+async function loadRuloLotteryChatSettings() {
+  try {
+    const [configResponse, statusResponse] = await Promise.all([
+      fetch('/api/rulo-config', { cache: 'no-store' }),
+      fetch('/api/rulo-chat-lottery-status', { cache: 'no-store' })
+    ]);
+    const [configData, statusData] = await Promise.all([configResponse.json(), statusResponse.json()]);
+    ruloLotteryChatEnabled = configData?.config?.ruloLotteryChatEnabled === true;
+    ruloLotteryChatReady = statusResponse.ok && statusData?.ready === true;
+    if (document.getElementById('card-spotify')) renderSpotifyCard();
+  } catch {
+    ruloLotteryChatReady = false;
+  }
+}
+
+loadRuloLotteryChatSettings();
+
+async function setRuloLotteryChatEnabled(enabled) {
+  const checkbox = document.getElementById('rulo-chat-lottery-enabled');
+  const previous = ruloLotteryChatEnabled;
+  if (enabled && !ruloLotteryChatReady) {
+    if (checkbox) checkbox.checked = previous;
+    showToast('Primero configura y despliega la conexión segura con Firebase.', 'warning');
+    return;
+  }
+  if (checkbox) checkbox.disabled = true;
+  try {
+    const response = await fetch('/api/rulo-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ruloLotteryChatEnabled: enabled === true })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data?.success !== true) throw new Error(data?.error || 'No se pudo guardar el ajuste.');
+    ruloLotteryChatEnabled = data.config?.ruloLotteryChatEnabled === true;
+    if (checkbox) checkbox.checked = ruloLotteryChatEnabled;
+    showToast(ruloLotteryChatEnabled ? 'Rulo puede reservar números gratuitos por chat ✓' : 'Reservas por chat apagadas.', 'success');
+  } catch (error) {
+    ruloLotteryChatEnabled = previous;
+    if (checkbox) checkbox.checked = previous;
+    showToast(error.message || 'No se pudo guardar el ajuste de lotería.', 'warning');
+  } finally {
+    if (checkbox) checkbox.disabled = !ruloLotteryChatReady && !ruloLotteryChatEnabled;
+  }
+}
 
 function loadSpotifyConfig() {
   try { return JSON.parse(localStorage.getItem(SPOTIFY_STORAGE_KEY)) || {}; }
@@ -547,6 +603,16 @@ function renderSpotifyCard() {
           <a class="btn btn-secondary btn-sm" href="${RULO_CHAT_DOCK_URL}" target="_blank" title="Abrir dock de Rulo" onclick="event.stopPropagation()"><i class="fa-solid fa-up-right-from-square"></i></a>
         </div>
         <div class="sp-obs-hint"><i class="fa-solid fa-circle-info"></i> Rulo muestra solamente las respuestas del bot y tiene diseño configurable independiente.</div>
+        <div style="margin-top:12px;padding:12px;border:1px solid rgba(159,213,11,.24);border-radius:10px;background:rgba(159,213,11,.055);" onclick="event.stopPropagation()">
+          <label style="display:flex;align-items:flex-start;gap:9px;font-weight:600;cursor:pointer;">
+            <input type="checkbox" id="rulo-chat-lottery-enabled" ${ruloLotteryChatEnabled ? 'checked' : ''} ${ruloLotteryChatReady || ruloLotteryChatEnabled ? '' : 'disabled'} onchange="setRuloLotteryChatEnabled(this.checked)" style="margin-top:3px;">
+            <span>Permitir que Rulo reserve números gratuitos desde el chat</span>
+          </label>
+          <div style="margin:7px 0 0 25px;color:#aab8ac;font-size:.8rem;line-height:1.45;">
+            Reconoce pedidos como «quiero el número 4». Admite cuentas Cdelu vinculadas e invitados identificados por su ID estable de Facebook, guardado como seudónimo; no alcanza con el nombre visible.
+            <span style="display:block;margin-top:5px;color:${ruloLotteryChatReady ? '#9fd50b' : '#f0b45b'};">${ruloLotteryChatReady ? 'Firebase conectado' : 'Conexión segura de Firebase pendiente'}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1036,7 +1102,8 @@ function handleWebSocketMetrics(data) {
           <button class="btn btn-secondary btn-sm action-restart-btn" title="Reiniciar" onclick="event.stopPropagation(); controlService('${metric.id}', 'restart')">
             <i class="fa-solid fa-arrows-rotate"></i>
           </button>
-          ${service.dashboardUrl ? `<a href="${service.dashboardUrl}" target="_blank" class="btn btn-secondary btn-icon" title="Abrir Panel" onclick="event.stopPropagation();"><i class="fa-solid fa-up-right-from-square"></i></a>` : `<button class="btn btn-secondary btn-icon" disabled><i class="fa-solid fa-up-right-from-square"></i></button>`}
+          ${service.dashboardUrl ? `<a href="${service.dashboardUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir panel del servicio" title="Abrir panel" onclick="event.stopPropagation();"><i class="fa-solid fa-up-right-from-square"></i></a>` : `<button class="btn btn-secondary btn-icon" disabled title="Sin dashboard web"><i class="fa-solid fa-up-right-from-square"></i></button>`}
+          ${service.id === 'modulo-de-loteria' ? `<a href="/loteria/lottery-ball.html" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir overlay de la bolilla" title="Abrir overlay de la bolilla" onclick="event.stopPropagation();"><i class="fa-solid fa-dice"></i></a><a href="/loteria/lottery-numbers.html" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir overlay de números seleccionados" title="Abrir overlay de números seleccionados" onclick="event.stopPropagation();"><i class="fa-solid fa-table-cells"></i></a>` : ''}
         `;
       } else if (metric.status !== 'online' && hasOnlineBtns) {
         // Switch to Start controls
@@ -1044,7 +1111,8 @@ function handleWebSocketMetrics(data) {
           <button class="btn btn-success btn-sm action-start-btn" onclick="event.stopPropagation(); controlService('${metric.id}', 'start')">
             <i class="fa-solid fa-play"></i> Iniciar
           </button>
-          ${service.dashboardUrl ? `<a href="${service.dashboardUrl}" target="_blank" class="btn btn-secondary btn-icon" title="Abrir Panel" onclick="event.stopPropagation();"><i class="fa-solid fa-up-right-from-square"></i></a>` : `<button class="btn btn-secondary btn-icon" disabled><i class="fa-solid fa-up-right-from-square"></i></button>`}
+          ${service.dashboardUrl ? `<a href="${service.dashboardUrl}" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir panel del servicio" title="Abrir panel" onclick="event.stopPropagation();"><i class="fa-solid fa-up-right-from-square"></i></a>` : `<button class="btn btn-secondary btn-icon" disabled title="Sin dashboard web"><i class="fa-solid fa-up-right-from-square"></i></button>`}
+          ${service.id === 'modulo-de-loteria' ? `<a href="/loteria/lottery-ball.html" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir overlay de la bolilla" title="Abrir overlay de la bolilla" onclick="event.stopPropagation();"><i class="fa-solid fa-dice"></i></a><a href="/loteria/lottery-numbers.html" target="_blank" rel="noopener" class="btn btn-secondary btn-icon" aria-label="Abrir overlay de números seleccionados" title="Abrir overlay de números seleccionados" onclick="event.stopPropagation();"><i class="fa-solid fa-table-cells"></i></a>` : ''}
         `;
       }
     }
@@ -1150,3 +1218,4 @@ function escapeHTML(str) {
     }[tag] || tag)
   );
 }
+

@@ -44,12 +44,15 @@ El puerto por defecto es ahora **8872**. Abrir:
 http://localhost:8872/dashboard.html
 ```
 
-## Login Admin
+## Login admin y seguridad de red
 
-Por defecto el `.env.example` deja:
-- usuario: `admin`
-- contraseña: `admin123`
-*(Cámbialo antes de producción y asegúrate de tener el `.env` fuera del control de versiones).*
+No hay credenciales predeterminadas. En `.env`, configura `ADMIN_USERNAME`, `JWT_SECRET` (32 o más caracteres aleatorios), `CRON_SECRET` (32 o más caracteres aleatorios) y un hash bcrypt para `ADMIN_PASSWORD_HASH`. Genera el hash desde esta carpeta con:
+
+```bash
+npm run hash:password -- "una contraseña larga y única"
+```
+
+Copia el hash que imprime el comando a `.env`; el servidor rechaza contraseñas en texto plano y no permite llamar `/api/admin/sync-window` si falta `CRON_SECRET`. Configura `CORS_ORIGIN` y `DASHBOARD_ORIGIN` con los orígenes exactos del dashboard, separados por comas si hay más de uno. El comodín `*` se ignora en producción. Mantén `.env` fuera del control de versiones.
 
 ## Endpoints útiles
 

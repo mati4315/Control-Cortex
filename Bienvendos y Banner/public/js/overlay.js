@@ -357,10 +357,10 @@ function renderSocials() {
 
   pills.forEach((pill, i) => {
     const left = randomBetween(5, 80);
-    const duration = randomBetween(8, 30);
+    const duration = randomBetween(18, 36);
     const delay = randomBetween(-duration, 0);
-    const scale = randomBetween(0.85, 1.15);
-    const opacity = randomBetween(0.25, 0.55);
+    const scale = randomBetween(0.78, 0.98);
+    const opacity = randomBetween(0.12, 0.28);
 
     pill.style.left = left + '%';
     pill.style.setProperty('--float-duration', duration + 's');

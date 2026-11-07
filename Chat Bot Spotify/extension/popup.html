@@ -1,0 +1,13 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chat Bot Spotify</title><style>body{width:340px;margin:0;padding:16px;background:#111a26;color:#edf4ff;font:14px system-ui,Segoe UI,sans-serif}h1{font-size:17px;margin:0 0 4px}.sub,.hint{color:#9cadc1;font-size:12px}label{display:block;margin:13px 0 5px;color:#b6c3d3;font-size:12px}input[type=text]{width:100%;box-sizing:border-box;background:#0b121c;border:1px solid #2d4054;border-radius:8px;padding:9px;color:white}input[type=checkbox]{accent-color:#1ed760}button{width:100%;border:0;border-radius:8px;background:#1eaa63;color:white;font-weight:700;padding:10px;margin-top:10px;cursor:pointer}.row{display:flex;align-items:center;gap:9px;margin-top:14px}.status{min-height:18px;margin-top:10px;color:#9cadc1;font-size:12px}.status.ok{color:#20d879}.status.err{color:#ff7682}</style></head><body>
+<h1>Chat Bot Spotify</h1><div class="sub">Captura comentarios Facebook por DOM</div>
+<label for="server">Servidor del módulo</label><input id="server" type="text" value="http://127.0.0.1:9765">
+<label for="token">Token del módulo</label><input id="token" type="text" autocomplete="off" placeholder="Copiar desde el dashboard local">
+<label for="accountLabel">Nombre de esta cuenta de Facebook</label><input id="accountLabel" type="text" maxlength="100" placeholder="Ej.: Cuenta personal 1">
+<div class="row"><input id="enabled" type="checkbox"><label for="enabled" style="margin:0;color:#edf4ff">Habilitar esta extensión</label></div>
+<div class="row"><input id="capture" type="checkbox"><label for="capture" style="margin:0;color:#edf4ff">Capturar comentarios Facebook</label></div>
+<button id="save">Guardar y comprobar conexión</button><div class="status" id="status">Cargando…</div><div class="hint">Usa un nombre distinto en cada perfil de navegador para identificar tus dos cuentas. Abre una transmisión o video de Facebook después de guardar.</div>
+<label for="videoUrl">Enlace del video o Live Producer</label><input id="videoUrl" type="text" placeholder="Pega el enlace del video o de Live Producer">
+<button id="openLiveProducer">Abrir estadísticas y comentarios</button>
+<div id="producerStatus" class="status"></div>
+<div class="hint">Abre ambas vistas de Live Producer en este perfil de Facebook. Déjalas abiertas para leer los indicadores y capturar comentarios nuevos.</div>
+<script src="facebook-stats.js"></script><script src="popup.js"></script></body></html>

@@ -43,10 +43,24 @@ function getTimestamp(seconds, nanoseconds) {
 const state = { lastEntryId: null };
 try {
   const saved = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+  Object.assign(state, saved || {});
   if (saved.lastEntryId) state.lastEntryId = saved.lastEntryId;
 } catch {}
 const processedIds = new Set();
 const avatarCache = new Map();
+
+function saveWatcherState() {
+  try { fs.writeFileSync(STATE_FILE, JSON.stringify(state)); } catch {}
+}
+
+state.pid = process.pid;
+saveWatcherState();
+process.once('exit', () => {
+  if (state.pid === process.pid) {
+    delete state.pid;
+    saveWatcherState();
+  }
+});
 
 try {
   const cacheRaw = JSON.parse(fs.readFileSync(AVATAR_CACHE_FILE, 'utf8'));
@@ -177,7 +191,7 @@ async function processEntry(entryDoc, lotteryId) {
 
   processedIds.add(uid);
   state.lastEntryId = uid;
-  try { fs.writeFileSync(STATE_FILE, JSON.stringify({ lastEntryId: uid })); } catch {}
+  saveWatcherState();
 
   const profilePicUrl = await resolveObsProfilePicUrl(sourceProfilePicUrl, name);
 

@@ -1,0 +1,59 @@
+#cortex-module-nav,
+#cortex-module-nav * { box-sizing:border-box; }
+
+:root.cortex-module-nav-ready body { padding-top:56px !important; }
+
+#cortex-module-nav {
+  position:fixed; inset:0 0 auto; z-index:2147483000; display:flex; flex-wrap:nowrap; align-items:center; gap:12px;
+  width:100%; min-height:52px; margin:0; padding:7px clamp(10px,2vw,24px);
+  color:#e8edf4; background:rgba(12,17,25,.96); border-bottom:1px solid rgba(148,163,184,.22);
+  box-shadow:0 8px 24px rgba(0,0,0,.18); backdrop-filter:blur(14px);
+  font:500 13px/1.3 Inter,"Segoe UI",Arial,sans-serif; text-align:left;
+}
+#cortex-module-nav .cortex-nav-brand { display:flex; align-items:center; gap:8px; flex:0 0 auto; color:#eff5fc; text-decoration:none; font-weight:900; letter-spacing:.08em; }
+#cortex-module-nav .cortex-nav-mark { display:grid; width:29px; height:29px; place-items:center; border-radius:9px; color:#18220a; background:#a5d80b; font-size:17px; letter-spacing:0; }
+#cortex-module-nav .cortex-nav-label { white-space:nowrap; }
+#cortex-module-nav .cortex-nav-related { display:flex; flex-wrap:nowrap; align-items:center; gap:5px; min-width:0; margin:0; flex:1 1 auto; overflow:auto hidden; scrollbar-width:none; }
+#cortex-module-nav .cortex-nav-related::-webkit-scrollbar { display:none; }
+#cortex-module-nav .cortex-nav-related a,
+#cortex-module-nav .cortex-nav-summary,
+#cortex-module-nav .cortex-nav-all-home { display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; min-height:32px; margin:0; padding:6px 10px; border:1px solid transparent; border-radius:8px; color:#b8c3d0; background:transparent; text-decoration:none; white-space:nowrap; font:inherit; font-size:12px; font-weight:600; cursor:pointer; transition:background .16s,border-color .16s,color .16s; }
+#cortex-module-nav .cortex-nav-related a:hover,
+#cortex-module-nav .cortex-nav-summary:hover,
+#cortex-module-nav .cortex-nav-all-home:hover { color:#fff; border-color:rgba(165,216,11,.34); background:rgba(165,216,11,.1); }
+#cortex-module-nav .cortex-nav-related a[aria-current="page"] { color:#eaffc4; border-color:rgba(165,216,11,.28); background:rgba(165,216,11,.13); }
+#cortex-module-nav .cortex-nav-all { position:relative; flex:0 0 auto; }
+#cortex-module-nav .cortex-nav-summary { gap:8px; cursor:pointer; list-style:none; border-color:rgba(148,163,184,.16); background:rgba(255,255,255,.035); font:inherit; }
+#cortex-module-nav .cortex-nav-summary::-webkit-details-marker { display:none; }
+#cortex-module-nav .cortex-nav-summary::after { content:"⌄"; color:#a5d80b; font-size:15px; }
+#cortex-module-nav .cortex-nav-panel { position:fixed; top:59px; right:14px; display:grid; grid-template-rows:auto auto minmax(0,1fr); gap:12px; width:min(740px,calc(100vw - 28px)); max-height:min(76vh,680px); padding:16px; overflow:hidden; border:1px solid #344154; border-radius:14px; color:#e8edf4; background:#111925; box-shadow:0 22px 60px rgba(0,0,0,.48); }
+#cortex-module-nav .cortex-nav-panel-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+#cortex-module-nav .cortex-nav-panel-head strong { font-size:15px; }
+#cortex-module-nav .cortex-nav-panel-head small { color:#95a3b4; }
+#cortex-module-nav .cortex-nav-search { width:100%; min-height:38px; padding:8px 11px; border:1px solid #344154; border-radius:9px; outline:none; color:#edf3fb; background:#0b111a; font:inherit; }
+#cortex-module-nav .cortex-nav-search:focus { border-color:#a5d80b; box-shadow:0 0 0 2px rgba(165,216,11,.15); }
+#cortex-module-nav .cortex-nav-groups { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); align-content:start; gap:12px; overflow:auto; padding-right:4px; }
+#cortex-module-nav .cortex-nav-group { min-width:0; padding:10px; border:1px solid rgba(148,163,184,.12); border-radius:10px; background:rgba(255,255,255,.025); }
+#cortex-module-nav .cortex-nav-group h3 { margin:0 0 7px; color:#a5d80b; font-size:10px; font-weight:900; letter-spacing:.12em; text-transform:uppercase; }
+#cortex-module-nav .cortex-nav-group a { display:block; overflow:hidden; padding:7px 8px; border-radius:7px; color:#d1d9e3; text-decoration:none; text-overflow:ellipsis; white-space:nowrap; }
+#cortex-module-nav .cortex-nav-group a:hover,
+#cortex-module-nav .cortex-nav-group a[aria-current="page"] { color:#f3ffd9; background:rgba(165,216,11,.11); }
+#cortex-module-nav .cortex-nav-empty { padding:12px; color:#9aa7b7; font-size:12px; }
+
+/* The shared bar replaces cross-page nav rows in the Rulo dashboards. */
+html.cortex-module-nav-ready body .cortex-legacy-module-nav { display:none !important; }
+
+@media(max-width:760px) {
+  #cortex-module-nav { gap:7px; min-height:50px; padding:6px 8px; }
+  #cortex-module-nav .cortex-nav-label { display:none; }
+  #cortex-module-nav .cortex-nav-related { gap:3px; }
+  #cortex-module-nav .cortex-nav-related a { padding-inline:8px; font-size:12px; }
+  #cortex-module-nav .cortex-nav-summary { padding-inline:8px; font-size:12px; }
+  #cortex-module-nav .cortex-nav-panel { top:56px; right:8px; width:calc(100vw - 16px); max-height:78vh; padding:12px; }
+  #cortex-module-nav .cortex-nav-groups { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media(max-width:430px) {
+  #cortex-module-nav .cortex-nav-related a:nth-child(n+5) { display:none; }
+  #cortex-module-nav .cortex-nav-groups { grid-template-columns:1fr; }
+  #cortex-module-nav .cortex-nav-panel-head small { display:none; }
+}

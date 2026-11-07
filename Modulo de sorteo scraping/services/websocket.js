@@ -2,11 +2,11 @@ const { Server } = require('socket.io')
 
 let io = null
 
-function init(server, corsOrigin = '*') {
+function init(server, corsOrigin) {
   io = new Server(server, {
     cors: {
-      origin: corsOrigin,
-      credentials: true,
+      origin: corsOrigin || ((origin, callback) => callback(null, !origin)),
+      credentials: false,
     },
   })
 

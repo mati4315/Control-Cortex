@@ -47,15 +47,34 @@
     code { background:#0e1116; border:1px solid var(--line); border-radius:4px; padding:1px 5px; }
     @media(max-width:760px){ .grid{grid-template-columns:1fr;} .card.wide{grid-column:auto;} header{display:block;} .status{text-align:left;margin-top:10px;} nav{margin-top:10px;flex-wrap:wrap;} .table .line, .table .line.swap{grid-template-columns:1fr;} }
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
   <main>
     <header>
       <div>
         <h1><span>Rulo</span> · Entrenamiento del bot</h1>
-        <p>Todo lo que el bot entiende cuando alguien pide música: las palabras clave, los verbos, los géneros y las correcciones. Se guarda en <code>Rulo/Spotify/spotify-vocabulary.json</code> y la extensión lo toma en vivo.</p>
+        <p>Todo lo que el bot entiende cuando alguien pide música: las palabras clave, los verbos, los géneros y las correcciones. Se guarda en <code>Rulo/Spotify/spotify-vocabulary.json</code> y Chat Bot Spotify lo consulta desde Cortex.</p>
       </div>
-      <nav>
+      <nav class="cortex-legacy-module-nav">
         <a href="/rulo-spotify.html" id="backLink" class="link-secondary">Ajustes</a>
         <a class="link-secondary" href="/rulo-spotify-bot.html" id="botLink">Bot / Rulo</a>
         <a class="link-secondary" href="/rulo-chat-historial.html">Historial</a>
@@ -72,7 +91,7 @@
       <span class="chip" id="chCommands">Comandos: <strong>…</strong></span>
       <span class="chip" id="chAliases">Correcciones aprendidas: <strong>…</strong></span>
       <span class="chip" id="chAi">Cerebro (IA): <strong>…</strong></span>
-      <span class="chip" id="chClient">Extensión: <strong>…</strong></span>
+      <span class="chip" id="chClient">Chat Bot Spotify: <strong>…</strong></span>
     </div>
 
     <h2>Palabras clave <small>(una por línea; se comparan sin acentos y en minúsculas)</small></h2>
@@ -140,8 +159,8 @@
       </div>
     </div>
 
-    <h2 id="cerebro">Cerebro (IA) <small>(opcional, para lo que las reglas no entienden)</small></h2>
-    <span class="hint">Si lo activás, cuando el comentario no se entiende con las reglas de arriba, Cortex le pregunta a la IA y espera un JSON con el pedido. La clave <strong>no</strong> se guarda acá: se lee de <code>Control Cortex/backend/.env</code> como <code>SPOTIFY_AI_API_KEY</code>. Sin clave también funciona si tu endpoint no la pide.</span>
+    <h2 id="cerebro">Cerebro (IA) <small>(interpretación de pedidos)</small></h2>
+    <span class="hint">La IA puede interpretar pedidos con errores de escritura y recibe contexto local de artistas reproducidos, de la biblioteca y de correcciones ya confirmadas. Solo se usan nombres de artistas; no se envía el historial de comentarios. Si la IA falla, tiene poca confianza o contradice un artista escrito claramente, Chat Bot Spotify usa el parser normal. La clave <strong>no</strong> se guarda acá: se lee de <code>Control Cortex/backend/.env</code> como <code>SPOTIFY_AI_API_KEY</code>.</span>
     <div class="card">
       <div class="row">
         <label class="row"><input type="checkbox" id="aiEnabled"> Activar el cerebro</label>
@@ -155,7 +174,8 @@
         </div>
         <div>
           <h3>Modelo</h3>
-          <input type="text" id="aiModel" placeholder="gpt-4o-mini">
+          <input type="text" id="aiModel" placeholder="deepseek-flash">
+          <span class="hint">Para DeepSeek V4.1 Flash, el identificador vigente de la API es <code>deepseek-flash</code>.</span>
           <h3 style="margin-top:12px">Espera máxima (ms)</h3>
           <input type="number" id="aiTimeout" min="1000" max="60000" step="500">
         </div>
@@ -164,10 +184,12 @@
           <textarea id="aiInstructions" placeholder="Ej: en mi stream la gente pide mucho cumbia; si dicen «lo del tano» se refieren a Amar Azul."></textarea>
         </div>
         <div class="row">
-          <label class="row"><input type="checkbox" id="aiRequireSignal"> Solo si el comentario tiene alguna palabra de las listas</label>
+          <label class="row"><input type="checkbox" id="aiRequireSignal"> Consultar IA solo en comentarios con señales de pedido musical</label>
+          <span class="hint">Activado evita enviarle comentarios que no parecen pedidos de música.</span>
         </div>
         <div class="row">
-          <label class="row"><input type="checkbox" id="aiOnlyNotUnderstood"> Solo cuando las reglas no lo entienden</label>
+          <label class="row"><input type="checkbox" id="aiPreferFirst"> Priorizar la IA para interpretar pedidos musicales</label>
+          <span class="hint">La IA interpreta primero, pero el parser y Spotify verifican que el artista o género coincida con lo que escribió la persona. Si la IA inventa un género o cambia de artista, se conserva el pedido local.</span>
         </div>
       </div>
       <div class="row" style="margin-top:12px">
@@ -177,13 +199,13 @@
       <pre class="result" id="aiResult"></pre>
     </div>
 
-    <h2>Estado de la instalación <small>(SocialStream Ninja)</small></h2>
-    <span class="hint">Revisa que los módulos de Cortex estén aplicados dentro de la extensión. Si actualizás SocialStream Ninja, acá ves si quedó algo pendiente: se arregla con <code>Control Cortex\SSN 1 - Estado.bat</code> y reiniciando el backend (hay guía en <code>Control Cortex\MIGRAR-SOCIALSTREAM.md</code>).</span>
+    <h2>Compatibilidad antigua con SocialStream Ninja <small>(opcional)</small></h2>
+    <span class="hint">Este bloque solo informa sobre el integrador anterior. Chat Bot Spotify captura Facebook y procesa la música sin esos parches; su estado se muestra arriba.</span>
     <div class="chips" style="margin-bottom:10px">
       <span class="chip" id="inSsn">SSN: <strong>…</strong></span>
-      <span class="chip" id="inPatch">Parcheo: <strong>…</strong></span>
-      <span class="chip" id="inModule">Módulo: <strong>…</strong></span>
-      <span class="chip" id="inBase">Cortex: <strong>…</strong></span>
+      <span class="chip" id="inPatch">Parcheo SSN: <strong>…</strong></span>
+      <span class="chip" id="inModule">Módulo SSN: <strong>…</strong></span>
+      <span class="chip" id="inBase">Consumidor SSN: <strong>…</strong></span>
     </div>
     <div class="card">
       <div class="devices" id="installSteps"><span class="empty">Consultando…</span></div>
@@ -193,7 +215,7 @@
     </div>
 
     <h2>Analizador en vivo</h2>
-    <span class="hint">Escribe un comentario tal como lo pondría alguien del chat: el bot lo analiza con las reglas guardadas y te dice qué entendió, sin reproducir nada.</span>
+    <span class="hint">Escribe un comentario tal como lo pondría alguien del chat: lo analiza según el modo elegido arriba (IA primero o reglas primero con IA de respaldo) y no reproduce nada.</span>
     <div class="card">
       <div class="row">
         <input type="text" id="probeComment" placeholder="Ej: Un tema de laberiso">
@@ -218,7 +240,6 @@
       const status = el('status');
       let state = { vocabulary: null, aliases: {}, client: {}, stamp: null, externalPending: false };
       let saveTimer = null;
-      let probeTimer = null;
 
       // ¿Hay ediciones sin guardar o el foco en un campo? Entonces no se pisa el
       // formulario con lo que venga del servidor.
@@ -253,13 +274,17 @@
         el('chAliases').innerHTML = 'Correcciones aprendidas: <strong>' + (extra && extra.aliases ? Object.keys(extra.aliases).length : 0) + '</strong>';
         const ai = vocabulary.ai || {};
         el('chAi').className = 'chip' + (ai.enabled ? ' is-ok' : '');
-        el('chAi').innerHTML = 'Cerebro (IA): <strong>' + (ai.enabled ? 'activado' : 'apagado') + '</strong>';
+        const aiMode = !ai.enabled ? 'apagado' : ai.onlyWhenNotUnderstood === false ? 'prioridad IA' : 'IA de respaldo';
+        el('chAi').innerHTML = 'Cerebro (IA): <strong>' + aiMode + '</strong>';
         el('aiKeyChip').className = 'chip' + (extra && extra.aiKeyPresent ? ' is-ok' : ' is-warn');
         el('aiKeyChip').innerHTML = 'Clave en .env: <strong>' + (extra && extra.aiKeyPresent ? 'presente' : 'no configurada') + '</strong>';
         if (extra && extra.client) {
           const client = extra.client;
-          el('chClient').className = 'chip' + (client.connected ? (client.push ? ' is-ok' : ' is-warn') : '');
-          el('chClient').innerHTML = 'Extensión: <strong>' + (client.connected ? 'conectada' + (client.version ? ' v' + client.version : '') : 'sin conexión') + '</strong>';
+          const label = !client.reachable ? 'sin conexión'
+            : client.connected ? 'Spotify conectado'
+            : client.clientIdConfigured ? 'Spotify no conectado' : 'falta Client ID';
+          el('chClient').className = 'chip' + (client.connected ? ' is-ok' : ' is-warn');
+          el('chClient').innerHTML = 'Chat Bot Spotify: <strong>' + label + '</strong>';
         }
         el('countMusicWords').textContent = count(vocabulary.musicWords) + ' palabras cargadas.';
       }
@@ -271,11 +296,11 @@
         el('inSsn').className = 'chip' + (ssnVersion ? ' is-ok' : '');
         el('inSsn').innerHTML = 'SSN: <strong>' + (ssnVersion ? 'v' + ssnVersion : 'sin dato') + '</strong>';
         el('inPatch').className = 'chip' + (install.ok ? ' is-ok' : ' is-warn');
-        el('inPatch').innerHTML = 'Parcheo: <strong>' + (install.ok ? 'aplicado' : 'revisar') + '</strong>';
-        el('inModule').innerHTML = 'Módulo: <strong>v' + ((data && data.moduleVersion) || '?') + '</strong>';
+        el('inPatch').innerHTML = 'Parcheo SSN: <strong>' + (install.ok ? 'aplicado' : 'revisar') + '</strong>';
+        el('inModule').innerHTML = 'Módulo SSN: <strong>v' + ((data && data.moduleVersion) || '?') + '</strong>';
         const client = (data && data.extension) || {};
         el('inBase').className = 'chip' + (client.connected ? ' is-ok' : ' is-warn');
-        el('inBase').innerHTML = 'Extensión: <strong>' + (client.connected ? 'conectada' + (client.version ? ' v' + client.version : '') : 'sin conexión') + '</strong>';
+        el('inBase').innerHTML = 'Consumidor SSN: <strong>' + (client.connected ? 'conectado' + (client.version ? ' v' + client.version : '') : 'sin conexión') + '</strong>';
 
         const rows = steps.map(step =>
           '<div style="display:flex;gap:10px;align-items:baseline;padding:5px 0;border-bottom:1px solid var(--line)">' +
@@ -287,9 +312,6 @@
         (install.warnings || []).forEach(warning => rows.push('<div style="padding:5px 0;color:var(--warn)">Aviso: ' + esc(warning) + '</div>'));
         if (install.ssnWarning) rows.push('<div style="padding:5px 0;color:var(--warn)">Aviso: ' + esc(install.ssnWarning) + '</div>');
         el('installSteps').innerHTML = rows.length ? rows.join('') : '<span class="hint" style="margin:0">Sin datos: reiniciá el backend para que aplique el parcheo.</span>';
-        if (!install.ok && steps.length) {
-          showNotice('Ojo: falta re-aplicar el parcheo. Reiniciá el backend o usá "Control Cortex\\SSN 1 - Estado.bat".', true);
-        }
       }
 
       function refreshInstall() {
@@ -384,7 +406,7 @@
         el('aiTimeout').value = ai.timeoutMs || 8000;
         el('aiInstructions').value = ai.instructions || '';
         el('aiRequireSignal').checked = ai.requireSignal !== false;
-        el('aiOnlyNotUnderstood').checked = ai.onlyWhenNotUnderstood !== false;
+        el('aiPreferFirst').checked = ai.onlyWhenNotUnderstood === false;
         renderGenres(vocabulary.genres);
         renderSwaps(vocabulary.typoSwaps);
         renderChips(vocabulary, extra || {});
@@ -405,7 +427,7 @@
           endpoint: el('aiEndpoint').value.trim(),
           model: el('aiModel').value.trim(),
           instructions: el('aiInstructions').value.trim(),
-          onlyWhenNotUnderstood: el('aiOnlyNotUnderstood').checked,
+          onlyWhenNotUnderstood: !el('aiPreferFirst').checked,
           requireSignal: el('aiRequireSignal').checked,
           timeoutMs: Number(el('aiTimeout').value) || 8000
         };
@@ -430,7 +452,7 @@
             if (data.stamps && data.stamps.vocabulary) state.stamp = data.stamps.vocabulary;
             state.externalPending = false;
             fillForm(data.vocabulary, { aliases: state.aliases, aiKeyPresent: data.aiKeyPresent, client: state.client });
-            showNotice('Vocabulario guardado: la extensión ya lo tiene');
+            showNotice('Vocabulario guardado para Chat Bot Spotify');
             return data;
           })
           .catch(() => { showNotice('No se pudo guardar el vocabulario', true); return null; });
@@ -446,7 +468,7 @@
           .then(response => response.json())
           .then(data => {
             state.aliases = data.aliases || {};
-            state.client = data.client || {};
+            state.client = data.chatBotSpotify || {};
             const stamp = (data.stamps && data.stamps.vocabulary) || null;
             if (!state.vocabulary) {
               state.vocabulary = data.vocabulary;
@@ -491,8 +513,7 @@
           .catch(() => showNotice('No se pudo recargar', true));
       }
 
-      // Analizador: manda el comentario al bot (que corre en la extensión) y
-      // muestra qué entendió, sin reproducir nada.
+      // Analizador: usa el parser de Chat Bot Spotify y muestra qué entendió sin reproducir.
       function probe(comment) {
         const box = el('probeResult');
         box.className = 'result pending';
@@ -502,33 +523,14 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ comment: comment, requester: 'Entrenamiento', parseOnly: true })
         })
-          .then(response => response.json())
-          .then(() => {
-            const since = Date.now();
-            let elapsed = 0;
-            clearInterval(probeTimer);
-            probeTimer = setInterval(() => {
-              elapsed += 700;
-              fetch('/api/spotify-status', { cache: 'no-store' })
-                .then(response => response.json())
-                .then(data => {
-                  const entry = (data.log || []).find(item => (item.timestamp || 0) >= since && /analisis/.test(item.message || ''));
-                  if (entry) {
-                    clearInterval(probeTimer);
-                    box.className = 'result ' + (entry.ok ? 'ok' : 'fail');
-                    box.textContent = comment + '\n→ ' + entry.message.replace(' (solo analisis)', '');
-                    return;
-                  }
-                  if (elapsed > 12000) {
-                    clearInterval(probeTimer);
-                    box.className = 'result fail';
-                    box.textContent = 'Sin respuesta: revisá que la extensión esté conectada (chip de arriba).';
-                  }
-                })
-                .catch(() => {});
-            }, 700);
+          .then(async response => {
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok || data.ok !== true) throw new Error(data.error || 'No se pudo analizar el comentario.');
+            box.className = 'result ok';
+            const track = data.track ? [data.track.name, (data.track.artists || []).map(artist => typeof artist === 'string' ? artist : artist.name).join(', ')].filter(Boolean).join(' — ') : '';
+            box.textContent = comment + '\n→ ' + (data.response || 'Análisis completado.') + (track ? '\n→ ' + track : '');
           })
-          .catch(() => { box.className = 'result fail'; box.textContent = 'No se pudo pedir el análisis.'; });
+          .catch(error => { box.className = 'result fail'; box.textContent = error.message || 'No se pudo pedir el análisis.'; });
       }
 
       LIST_KEYS.forEach(key => {
@@ -538,7 +540,7 @@
       ['maxAttempts', 'variantLimit', 'aiEndpoint', 'aiModel', 'aiTimeout', 'aiInstructions'].forEach(id => {
         el(id).addEventListener('input', scheduleSave);
       });
-      ['aiEnabled', 'aiRequireSignal', 'aiOnlyNotUnderstood'].forEach(id => {
+      ['aiEnabled', 'aiRequireSignal', 'aiPreferFirst'].forEach(id => {
         el(id).addEventListener('change', scheduleSave);
       });
 

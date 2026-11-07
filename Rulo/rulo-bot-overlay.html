@@ -45,10 +45,12 @@
       gap: 14px;
       align-items: center;
       padding: 14px 18px 15px 14px;
-      border: 2px solid var(--mood);
-      border-radius: 28px 30px 26px 30px;
+      border: 1px solid color-mix(in srgb, var(--mood) 72%, transparent);
+      border-left: 4px solid var(--mood);
+      border-radius: 24px 26px 23px 26px;
       background: linear-gradient(145deg, rgba(34, 40, 49, .98), var(--panel) 62%);
-      box-shadow: 0 12px 30px rgba(0,0,0,.34), 0 0 22px color-mix(in srgb, var(--mood) 19%, transparent), inset 0 1px 0 rgba(255,255,255,.09);
+      box-shadow: 0 16px 36px rgba(0,0,0,.36), 0 0 20px color-mix(in srgb, var(--mood) 16%, transparent), inset 0 1px 0 rgba(255,255,255,.1);
+      backdrop-filter: blur(8px);
       opacity: 0;
       transform: translateY(-12px) scale(.98);
       transition: opacity 220ms ease, transform 220ms ease, border-color 200ms ease;
@@ -121,12 +123,13 @@
       width: 58px; height: 58px;
       display: grid; place-items: center;
       border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.24);
       color: var(--avatar-ink);
       background: var(--mood);
       font-size: 1.55rem;
       font-weight: 800;
       overflow: hidden;
-      box-shadow: 0 0 0 3px rgba(159,213,11,.18);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--mood) 18%, transparent), 0 5px 14px rgba(0,0,0,.2);
       transition: background 200ms ease;
     }
     .avatar[hidden], #botName[hidden] { display: none !important; }
@@ -140,9 +143,21 @@
     @media (prefers-reduced-motion: reduce) {
       .avatar, #reply { animation: none !important; transition: none !important; }
     }
-    .bot { margin: 0 0 3px; color: var(--mood); font-size: .76rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; text-align: left; }
-    .message { margin: 0; font-size: clamp(1rem, 2.2vw, var(--message-size)); line-height: 1.28; font-weight: 650; overflow-wrap: anywhere; text-align: left; }
-    .time { margin-top: 5px; color: var(--muted); font-size: .72rem; text-align: left; }
+    .reply-content { min-width: 0; }
+    .bot { margin: 0 0 6px; color: var(--mood); font-size: .72rem; font-weight: 850; letter-spacing: .11em; text-transform: uppercase; text-align: left; }
+    .message { max-height: 5.12em; margin: 0; overflow-x: hidden; overflow-y: auto; scrollbar-width: none; font-size: clamp(1rem, 2.2vw, var(--message-size)); line-height: 1.28; font-weight: 650; letter-spacing: .005em; overflow-wrap: anywhere; text-align: left; text-shadow: 0 1px 1px rgba(0,0,0,.18); }
+    .message::-webkit-scrollbar { display: none; }
+    .interpretation-badge { display: inline-block; margin-inline-start: .42em; font-size: .88em; font-weight: 800; vertical-align: .02em; white-space: nowrap; }
+    .interpretation-badge[data-source="ai"] { color: #d9bdff; }
+    .interpretation-badge[data-source="rules"] { color: #9dc7ff; }
+    .interpretation-badge[data-source="rules-fallback"] { color: #ffc66d; }
+    html.theme-light .interpretation-badge[data-source="ai"] { color: #7040b8; }
+    html.theme-light .interpretation-badge[data-source="rules"] { color: #155a9b; }
+    html.theme-light .interpretation-badge[data-source="rules-fallback"] { color: #8a5200; }
+    .interpretation-badge[hidden] { display: none; }
+    .reply-to { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; margin-top: 10px; padding: 5px 9px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--mood) 28%, transparent); border-radius: 999px; color: var(--muted); background: color-mix(in srgb, var(--mood) 9%, transparent); font-size: .7rem; font-weight: 650; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
+    .reply-to::before { content: "↳"; flex: 0 0 auto; color: var(--mood); font-size: 1rem; font-weight: 900; line-height: 1; }
+    .reply-to:empty { display: none; }
     @media (max-width: 420px) {
       body { padding: 10px; }
       #reply { grid-template-columns: 44px 1fr; gap: 10px; padding: 11px; }
@@ -153,10 +168,10 @@
 <body>
   <section id="reply" aria-live="polite" aria-atomic="true" data-mood="idle">
     <div class="avatar"><span class="avatar-letter" id="avatarLetter">A</span><img class="mascot" id="mascot" alt="" hidden></div>
-    <div>
+    <div class="reply-content">
       <p class="bot" id="botName">Rulo</p>
-      <p class="message" id="message"></p>
-      <div class="time" id="time"></div>
+      <p class="message" id="message"><span id="messageText"></span><span id="interpretationBadge" class="interpretation-badge" hidden></span></p>
+      <div class="reply-to" id="time"></div>
     </div>
   </section>
   <script>
@@ -164,6 +179,8 @@
       const panel = document.getElementById('reply');
       const botName = document.getElementById('botName');
       const message = document.getElementById('message');
+      const messageText = document.getElementById('messageText');
+      const interpretationBadge = document.getElementById('interpretationBadge');
       const time = document.getElementById('time');
       const avatarLetter = document.getElementById('avatarLetter');
       const mascot = document.getElementById('mascot');
@@ -173,13 +190,17 @@
       const MASCOT_BASE = '/rulo-assets/';
       const failedMascots = new Set();
       let hideTimer = null;
+      let messageScrollTimer = null;
+      let messageScrollFrame = null;
+      let messageScrollCycleMs = 0;
       let socket = null;
       let retry = 500;
       const waitingReplies = new Map();
       const startedReplies = new Map();
       const delayedReplies = new Set();
+      const replyFallbacks = new Map();
       // El nombre visible lo manda la configuracion de Rulo (fuente unica de verdad).
-      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, replyDelayMs: 0, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, showBotName: true, showAvatar: true, overlayTheme: 'dark', animation: 'slide', tailPosition: 'right-lower' };
+      let config = { botName: 'Rulo', accent: '#9fd50b', avatarLetter: 'A', visibleMs: 12000, longReplyScrollDelayMs: 5000, replyDelayMs: 0, maxWidth: 760, fontSize: 1.35, panelOpacity: .94, showRequester: true, showMascot: false, showBotName: true, showAvatar: true, overlayTheme: 'dark', animation: 'slide', tailPosition: 'right-lower' };
 
       // Contraste del avatar: con un acento oscuro la inicial va clara, y al reves.
       function inkFor(hex) {
@@ -216,23 +237,80 @@
         botName.textContent = config.botName || 'Rulo';
         applyMascot(config.showMascot === true, panel.dataset.mood || 'idle');
         if (config.mascotEnabled === false) clearPanel();
-        if (!isPreview && panel.classList.contains('visible')) scheduleHide();
+        if (!isPreview && panel.classList.contains('visible')) {
+          messageScrollCycleMs = startMessageScroll();
+          scheduleHide();
+        }
       }
 
       function clearPanel() {
         clearTimeout(hideTimer);
+        stopMessageScroll();
+        messageScrollCycleMs = 0;
         delayedReplies.forEach(timer => clearTimeout(timer));
-        delayedReplies.clear(); waitingReplies.clear(); startedReplies.clear();
+        replyFallbacks.forEach(timer => clearTimeout(timer));
+        delayedReplies.clear(); replyFallbacks.clear(); waitingReplies.clear(); startedReplies.clear();
         panel.classList.remove('visible');
         panel.classList.add('leaving');
       }
 
+      function stopMessageScroll() {
+        if (messageScrollTimer) clearTimeout(messageScrollTimer);
+        if (messageScrollFrame) cancelAnimationFrame(messageScrollFrame);
+        messageScrollTimer = null;
+        messageScrollFrame = null;
+        message.scrollTop = 0;
+      }
+
+      function startMessageScroll() {
+        stopMessageScroll();
+        const initialMax = Math.max(0, message.scrollHeight - message.clientHeight);
+        if (initialMax <= 2) return 0;
+
+        const configuredHoldMs = Number(config.longReplyScrollDelayMs);
+        const holdAtTopMs = Number.isFinite(configuredHoldMs) ? Math.min(30000, Math.max(0, configuredHoldMs)) : 5000;
+        const holdAtBottomMs = 2000;
+        const pixelsPerSecond = 18;
+        const scrollDurationMs = Math.max(1800, (initialMax / pixelsPerSecond) * 1000);
+        messageScrollTimer = setTimeout(function () {
+          messageScrollTimer = null;
+          let startAt = null;
+          let lastMeasureAt = 0;
+          let maxScroll = initialMax;
+          function step(timestamp) {
+            if (!panel.classList.contains('visible')) { messageScrollFrame = null; return; }
+            if (startAt === null) startAt = timestamp;
+            if (timestamp - lastMeasureAt >= 200) {
+              maxScroll = Math.max(0, message.scrollHeight - message.clientHeight);
+              lastMeasureAt = timestamp;
+            }
+            const progress = Math.min(1, (timestamp - startAt) / scrollDurationMs);
+            message.scrollTop = maxScroll * progress;
+            if (progress < 1) messageScrollFrame = requestAnimationFrame(step);
+            else {
+              message.scrollTop = Math.max(0, message.scrollHeight - message.clientHeight);
+              messageScrollFrame = null;
+            }
+          }
+          messageScrollFrame = requestAnimationFrame(step);
+        }, holdAtTopMs);
+        return holdAtTopMs + scrollDurationMs + holdAtBottomMs;
+      }
+
       function scheduleHide() {
         clearTimeout(hideTimer);
+        const baseVisibleMs = Math.max(2000, Number(config.visibleMs) || 12000);
+        // El valor de config es la base. Si el texto desborda, suma al menos
+        // 2.5 s y lo necesario para completar el desplazamiento lento y la pausa.
+        const extraVisibleMs = messageScrollCycleMs
+          ? Math.max(2500, messageScrollCycleMs - baseVisibleMs)
+          : 0;
+        const visibleMs = baseVisibleMs + extraVisibleMs;
         hideTimer = setTimeout(function () {
           panel.classList.remove('visible');
           panel.classList.add('leaving');
-        }, Math.max(2000, Number(config.visibleMs) || 12000));
+          stopMessageScroll();
+        }, visibleMs);
       }
 
       function applyMascot(enabled, mood) {
@@ -262,11 +340,24 @@
         const mood = String(data.mood || 'success').toLowerCase();
         panel.dataset.mood = mood;
         botName.textContent = config.botName || 'Rulo';
-        message.textContent = data.message;
-        time.textContent = config.showRequester && data.requester ? 'Pedido de ' + data.requester : '';
+        messageText.textContent = data.message;
+        const badges = {
+          ai: { icon: '✨', label: 'Interpretado con IA' },
+          rules: { icon: '⚙', label: 'Interpretado con reglas locales' },
+          'rules-fallback': { icon: '↘', label: 'La IA no pudo resolverlo; se usaron las reglas locales' }
+        };
+        const badge = badges[data.interpretationSource];
+        interpretationBadge.hidden = !badge;
+        interpretationBadge.textContent = badge ? badge.icon : '';
+        interpretationBadge.title = badge ? badge.label : '';
+        interpretationBadge.setAttribute('aria-label', badge ? badge.label : '');
+        if (badge) interpretationBadge.dataset.source = data.interpretationSource;
+        else delete interpretationBadge.dataset.source;
+        time.textContent = config.showRequester && data.requester ? 'En respuesta a: ' + data.requester : '';
         applyMascot(config.showMascot === true, mood);
         panel.classList.remove('leaving');
         panel.classList.add('visible');
+        messageScrollCycleMs = startMessageScroll();
         if (isPreview) return;
         scheduleHide();
       }
@@ -275,14 +366,16 @@
         if (!data || !data.message || data.provisional) return;
         if (forceOverlay) {
           delayedReplies.forEach(timer => clearTimeout(timer));
+          replyFallbacks.forEach(timer => clearTimeout(timer));
           delayedReplies.clear();
+          replyFallbacks.clear();
           waitingReplies.clear();
           startedReplies.clear();
           show(data);
           return;
         }
         const triggerId = String(data.triggerId || '');
-        if (!triggerId) return;
+        if (!triggerId) { show(data); return; }
         if (startedReplies.has(triggerId)) {
           const startedAt = startedReplies.get(triggerId);
           startedReplies.delete(triggerId);
@@ -290,12 +383,27 @@
           return;
         }
         waitingReplies.set(triggerId, data);
-        while (waitingReplies.size > 30) waitingReplies.delete(waitingReplies.keys().next().value);
+        while (waitingReplies.size > 30) {
+          const oldest = waitingReplies.keys().next().value;
+          waitingReplies.delete(oldest);
+          clearTimeout(replyFallbacks.get(oldest));
+          replyFallbacks.delete(oldest);
+        }
+        clearTimeout(replyFallbacks.get(triggerId));
+        const fallback = setTimeout(function () {
+          if (waitingReplies.get(triggerId) !== data) return;
+          waitingReplies.delete(triggerId);
+          replyFallbacks.delete(triggerId);
+          showAfterReplyDelay(data, Date.now());
+        }, 1500);
+        replyFallbacks.set(triggerId, fallback);
       }
 
       function revealStartedReply(triggerId) {
         const id = String(triggerId || '');
         if (!id) return;
+        clearTimeout(replyFallbacks.get(id));
+        replyFallbacks.delete(id);
         const reply = waitingReplies.get(id);
         if (reply) {
           waitingReplies.delete(id);
@@ -318,12 +426,18 @@
 
       function connect() {
         const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        socket = new WebSocket(protocol + '//' + location.host);
+        const socketUrl = new URL(protocol + '//' + location.host);
+        socketUrl.searchParams.set('client', isPreview ? 'rulo-bot-preview' : 'rulo-bot-overlay');
+        socket = new WebSocket(socketUrl.toString());
         socket.onopen = function () { retry = 500; };
         socket.onmessage = function (event) {
           try {
             const data = JSON.parse(event.data);
-            if (data && data.type === 'rulo_bot_message') queueReply(data.rulo, data.forceOverlay === true);
+            if (data && data.type === 'rulo_bot_message') {
+              const timestamp = Number(data.rulo && data.rulo.timestamp) || 0;
+              if (!data.forceOverlay && timestamp && Date.now() - timestamp > 120000) return;
+              queueReply(data.rulo, data.forceOverlay === true);
+            }
             if (data && data.type === 'rulo_animation_started' && data.animation === 'hablando') revealStartedReply(data.triggerId);
             if (data && data.type === 'rulo_config_updated') applyConfig(data.config);
           } catch (_) {}

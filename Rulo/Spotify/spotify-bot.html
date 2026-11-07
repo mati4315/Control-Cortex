@@ -27,6 +27,12 @@
     .chip.ph { border-style:dashed; font-family:Consolas,monospace; font-size:.8rem; padding:4px 9px; }
     .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
     .card { padding:14px; border:1px solid var(--line); border-radius:8px; background:var(--panel); }
+    .lottery-records-card { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:18px 0 24px; }
+    .lottery-records-card h2 { margin:0 0 5px; }
+    .lottery-records-card .hint { margin:0; }
+    .button-link { display:inline-block; flex:0 0 auto; border-radius:5px; padding:10px 15px; color:#111; background:var(--accent); font-weight:800; text-decoration:none; }
+    .button-link.secondary-link { color:var(--text); background:var(--line); }
+    .button-link:hover { filter:brightness(1.08); }
     .duration-card { display:flex; align-items:end; gap:12px; flex-wrap:wrap; margin:0 0 12px; }
     .duration-card label { display:block; margin:0 0 5px; font-weight:700; }
     .duration-card input { width:150px; }
@@ -49,12 +55,31 @@
     .demo-list { list-style:none; padding:0; margin:10px 0 0; display:flex; flex-direction:column; gap:6px; }
     .demo-list li { border-left:3px solid var(--line); padding:6px 10px; background:var(--panel-alt); border-radius:0 5px 5px 0; font-size:.92rem; }
     .count { color:var(--muted); font-size:.8rem; }
-    @media (max-width:620px) { .grid { grid-template-columns:1fr; } main { padding:18px 12px 50px; } }
+    @media (max-width:620px) { .grid { grid-template-columns:1fr; } main { padding:18px 12px 50px; } .lottery-records-card { align-items:flex-start; flex-direction:column; } }
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
   <main>
-    <div class="tabs">
+    <div class="tabs cortex-legacy-module-nav">
       <a href="/rulo-spotify.html">Ajustes</a>
       <a href="/rulo-spotify-training.html">Entrenamiento</a>
       <a class="active" href="/rulo-spotify-bot.html">Bot / Rulo</a>
@@ -73,6 +98,14 @@
         <span class="chip" id="chClient">Extensión: <strong>…</strong></span>
       </div>
     </header>
+
+    <section class="card lottery-records-card" aria-labelledby="lottery-records-title">
+      <div>
+        <h2 id="lottery-records-title">Reservas de lotería por el chat</h2>
+        <span class="hint">Las reservas aceptadas por Rulo se guardan en Firestore, dentro de <code>lotteries/{id}/entries</code>. Abre el panel completo para configurar, entrenar y revisar el sistema; también puedes consultar los registros.</span>
+      </div>
+      <div class="row"><a class="button-link" href="/rulo-lottery-dashboard.html" target="_blank" rel="noopener">Panel de lotería ↗</a><a class="button-link secondary-link" href="/home.html?view=databases&amp;db=lottery" target="_blank" rel="noopener">Ver números reservados ↗</a></div>
+    </section>
 
     <h2>Cómo pide la gente <small>(lo que el bot escucha)</small></h2>
     <span class="hint">Estas son las palabras con las que el chat pide música. Una por línea. Es la misma lista que usa la página de entrenamiento: si la cambiás acá, también cambia allá (y la extensión la recibe al instante).</span>
@@ -117,6 +150,15 @@
         <span id="notice"></span>
       </div>
       <span class="hint" style="margin-bottom:0">Si apagás el azar, el bot usa siempre la primera respuesta de cada lista.</span>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <div class="row">
+        <label style="flex:0 0 auto"><input type="checkbox" id="respAiDynamic"> Respuestas originales con IA en los pedidos del bot</label>
+        <label style="flex:0 0 auto"><input type="checkbox" id="respCasualChat"> Permitir que Rulo converse casualmente sobre comentarios interesantes</label>
+      </div>
+      <span class="hint">La IA usa DeepSeek y el contexto reciente del historial. Siempre nombra a la persona y conserva los datos reales del pedido; si falla, se usa la respuesta guardada. La charla casual solo se evalúa como máximo una vez cada 3 minutos, no responde a saludos simples, alertas, comandos ni pedidos de música, y queda apagada hasta que la habilites. Sus respuestas aparecen en el overlay de Rulo y en el historial; no se publican en Facebook.</span>
+      <span id="aiReplyStatus" class="notice" role="status" aria-live="polite"></span>
     </div>
 
     <div class="grid" id="contexts" style="grid-template-columns:1fr"></div>
@@ -277,6 +319,23 @@
       }
 
       // --- render -------------------------------------------------------------
+      function renderAiReplyStatus() {
+        const output = el('aiReplyStatus');
+        const ai = (state.vocabulary && state.vocabulary.ai) || {};
+        const responses = (state.vocabulary && state.vocabulary.responses) || {};
+        const notes = [];
+        const aiReady = ai.enabled === true && state.aiKeyPresent === true;
+        if (responses.aiRepliesEnabled === false) notes.push('Las respuestas dinámicas están apagadas; Rulo usa las variantes guardadas.');
+        else if (ai.enabled !== true) notes.push('La opción está activa, pero el cerebro IA está apagado; se usarán las variantes guardadas.');
+        else if (state.aiKeyPresent !== true) notes.push('La IA está activada, pero falta SPOTIFY_AI_API_KEY en Control Cortex/backend/.env.');
+        else notes.push('Respuestas dinámicas activas con IA; si DeepSeek falla se usan las variantes guardadas.');
+        if (responses.casualChatEnabled === true) notes.push(aiReady
+          ? 'Charla casual activa · máximo una evaluación cada 3 minutos.'
+          : 'Charla casual marcada, pero requiere que el cerebro IA y su clave estén disponibles.');
+        output.textContent = notes.join(' ');
+        output.classList.toggle('error', ((responses.aiRepliesEnabled !== false || responses.casualChatEnabled === true) && !aiReady));
+      }
+
       function renderChips() {
         const vocabulary = state.vocabulary || {};
         const count = list => (Array.isArray(list) ? list.length : 0);
@@ -304,6 +363,9 @@
         el('respRandom').checked = responses.random !== false;
         el('respAvoid').checked = responses.avoidRepeat !== false;
         el('respRecent').value = responses.recent === undefined ? 4 : responses.recent;
+        el('respAiDynamic').checked = responses.aiRepliesEnabled !== false;
+        el('respCasualChat').checked = responses.casualChatEnabled === true;
+        renderAiReplyStatus();
       }
 
       function contadorDe(bloque) {
@@ -356,6 +418,8 @@
         vocabulary.responses.random = el('respRandom').checked;
         vocabulary.responses.avoidRepeat = el('respAvoid').checked;
         vocabulary.responses.recent = Math.min(10, Math.max(0, Number(el('respRecent').value) || 0));
+        vocabulary.responses.aiRepliesEnabled = el('respAiDynamic').checked;
+        vocabulary.responses.casualChatEnabled = el('respCasualChat').checked;
         vocabulary.responses.contexts = vocabulary.responses.contexts || {};
         document.querySelectorAll('[data-context]').forEach(node => {
           const id = node.getAttribute('data-context');
@@ -380,6 +444,7 @@
             state.vocabulary = data.vocabulary;
             if (data.stamps && data.stamps.vocabulary) state.stamp = data.stamps.vocabulary;
             state.externalPending = false;
+            renderAiReplyStatus();
             renderChips();
             document.querySelectorAll('[data-context-card]').forEach(card => {
               const id = card.getAttribute('data-context-card');
@@ -416,6 +481,8 @@
           .then(data => {
             state.client = data.client || {};
             state.aliases = data.aliases || {};
+            state.aiKeyPresent = data.aiKeyPresent === true;
+            renderAiReplyStatus();
             const stamp = (data.stamps && data.stamps.vocabulary) || null;
             if (!state.vocabulary) {
               state.stamp = stamp;
@@ -459,7 +526,7 @@
       document.addEventListener('input', event => {
         const target = event.target;
         if (!target) return;
-        if (target.hasAttribute('data-list') || target.hasAttribute('data-context') || ['respRandom', 'respAvoid', 'respRecent'].indexOf(target.id) !== -1) {
+        if (target.hasAttribute('data-list') || target.hasAttribute('data-context') || ['respRandom', 'respAvoid', 'respRecent', 'respAiDynamic', 'respCasualChat'].indexOf(target.id) !== -1) {
           scheduleSave();
         }
       });

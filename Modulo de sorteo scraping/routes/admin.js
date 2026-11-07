@@ -20,6 +20,11 @@ const loginLimiter = rateLimit({
 router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body || {}
 
+  if (!String(process.env.ADMIN_USERNAME || '').trim() || !String(process.env.ADMIN_PASSWORD_HASH || '').trim()
+    || !String(process.env.JWT_SECRET || '').trim() || String(process.env.JWT_SECRET).length < 32) {
+    return res.status(503).json({ error: 'El acceso admin no está configurado. Define ADMIN_USERNAME, ADMIN_PASSWORD_HASH y una clave JWT_SECRET segura.' })
+  }
+
   if (username !== process.env.ADMIN_USERNAME) {
     return res.status(401).json({ error: 'Credenciales inválidas' })
   }

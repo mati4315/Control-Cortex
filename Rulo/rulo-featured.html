@@ -1,24 +1,22 @@
 <!DOCTYPE html>
 <!--
-COPIA LOCAL EDITABLE de SocialStream Ninja/themes/featured-styles/featured-modern.html
-Origen: https://socialstream.ninja/themes/featured-styles/featured-modern.html?style=art-forest
+COPIA LOCAL EDITABLE del diseño featured-modern con estilo art-forest.
+Las notificaciones se reciben desde el feed SSE local de Chat Bot Spotify.
 
 Esta copia vive en Rulo/ a proposito: la carpeta SocialStream Ninja se reemplaza
 entera al aplicar una version nueva (SSN 4 - Aplicar version nueva.bat), asi que
 un archivo editado adentro de esa carpeta se perderia. Aca sobrevive.
 
-Diferencias con el original:
-  1. Las dependencias se piden a /ssn/... para no duplicar codigo.
-  2. El estilo por defecto es art-forest (no hace falta pasar &style=).
-  3. El animal del pack art-forest se reemplaza por el canguro local
-     (Rulo/assets/kangaroo.svg, servido en /rulo-assets/kangaroo.svg).
+Diferencias con el diseño original:
+  1. El estilo por defecto es art-forest.
+  2. El animal del pack art-forest se reemplaza por la mascota local.
+  3. Los mensajes llegan por el feed propio del módulo, sin relay de SSN/VDO.Ninja.
 
-Para traer cambios de una version nueva de SSN: copia featured-modern.html sobre
-este archivo y re-aplica estos tres puntos.
+Para actualizar el diseño desde una version nueva, copia featured-modern.html
+conservando el transporte SSE local y la mascota de Rulo.
 -->
 <html lang="en">
 <head>
-<script src="/ssn/js/local-server-url.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rulo | Mensaje destacado</title>
@@ -501,11 +499,8 @@ este archivo y re-aplica estos tres puntos.
     <script>
         // Configuration
         const urlParams = new URLSearchParams(window.location.search);
-        const roomID = urlParams.get('session') || urlParams.get('room') || urlParams.get('roomid') || 'TESTROOM';
         const style = urlParams.get('style') || 'art-forest'; // glass, neon, minimal, gaming, twitch, art-*
-        const password = urlParams.get('password') || urlParams.get('pass') || urlParams.get('pw') || "false";
         const showtime = parseInt(urlParams.get('showtime') || urlParams.get('timer') || '30000');
-        const pseudodock = urlParams.has('autoshow'); // Enable pseudodock mode for dock compatibility
         
         // Apply selected style
         document.body.className = `style-${style}`;
@@ -542,54 +537,18 @@ este archivo y re-aplica estos tres puntos.
         let messageTimeout = null;
         let currentMessage = null;
 
-        // Create VDO.Ninja iframe for receiving messages
-        function createIframe() {
-            if (SocialStreamLocalServer.connectLocalRelay(urlParams, roomID, processData, !pseudodock)) return;
-			var iframe = document.createElement("iframe");
-
-			if (pseudodock) {
-				// Connect as dock to receive direct messages
-				iframe.src = "https://vdo.socialstream.ninja/?ln&salt=vdo.ninja&password=" + encodeURIComponent(password) + "&push&notmobile&label=dock&vd=0&ad=0&novideo&noaudio&autostart&cleanoutput&room=" + roomID;
-			} else {
-				// Standard overlay connection
-				iframe.src = "https://vdo.socialstream.ninja/?ln&password=" + encodeURIComponent(password) + "&notmobile&salt=vdo.ninja&label=overlay&exclude=" + roomID + "&scene&novideo&noaudio&cleanoutput&room=" + roomID;
-			}
-			
-			iframe.style.width = "0px";
-			iframe.style.height = "0px";
-			iframe.style.position = "fixed";
-			iframe.style.left = "-100px";
-			iframe.style.top = "-100px";
-			iframe.id = "frame1";
-			iframe.allow = "midi;microphone;"; // microphone is needed for Safari webRTC P2P connections
-			document.body.appendChild(iframe);
-
-			var eventMethod = window.addEventListener ? "addEventListener" : "attachEvent";
-			var eventer = window[eventMethod];
-			var messageEvent = eventMethod === "attachEvent" ? "onmessage" : "message";
-
-			eventer(messageEvent, function (e) {
-				if (e.source != iframe.contentWindow) {
-					return;
-				} // reject messages send from other iframes
-				
-				if (e.data && typeof e.data === "object" && e.data.dataReceived && typeof e.data.dataReceived === "object") {
-					// raw data
-					if ("overlayNinja" in e.data.dataReceived) {
-					
-						if (e.data.dataReceived.overlayNinja && "response" in e.data.dataReceived.overlayNinja) {
-							// pass
-						} else {
-							// Handle pseudodock format
-							if (pseudodock && e.data.dataReceived.overlayNinja && !e.data.dataReceived.overlayNinja.contents) {
-								processData({ contents: e.data.dataReceived.overlayNinja });
-							} else {
-								processData({ contents: e.data.dataReceived.overlayNinja });
-							}
-						}
-					}
-				}
-			});
+        // Recibe los destacados que el historial publica en Chat Bot Spotify.
+        // session se conserva en la URL por compatibilidad con el dashboard viejo,
+        // pero el transporte ya no usa SocialStream ni VDO.Ninja.
+        function connectFeaturedFeed() {
+            const feedUrl = new URL('/api/events', window.location.href);
+            feedUrl.port = '9765';
+            feedUrl.search = '';
+            const feed = new EventSource(feedUrl.toString());
+            feed.addEventListener('featured_message', function (event) {
+                try { processData({ contents: JSON.parse(event.data) }); } catch (_) {}
+            });
+            feed.addEventListener('featured_clear', function () { hideMessage(); });
         }
 
         // Process incoming messages
@@ -812,8 +771,8 @@ este archivo y re-aplica estos tres puntos.
             });
         }
 
-        // Initialize iframe connection
-        createIframe();
+        // Initialize the local Chat Bot Spotify event feed
+        connectFeaturedFeed();
     </script>
 </body>
 </html>

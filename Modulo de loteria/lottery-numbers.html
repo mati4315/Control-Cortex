@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Números de la lotería · OBS</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, Montserrat, system-ui, -apple-system, "Segoe UI", sans-serif;
+      --panel: rgba(29, 41, 59, .97);
+      --line: rgba(148, 163, 184, .2);
+      --text: #f8fafc;
+      --muted: #a8b4c7;
+      --accent: #a5d80b;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body { min-width: 320px; min-height: 100%; margin: 0; }
+    body {
+      padding: 0;
+      color: var(--text);
+      background: transparent;
+    }
+
+    .panel {
+      position: relative;
+      width: min(100%, 580px);
+      margin: 0 auto;
+      padding: 4px 14px 12px;
+      overflow: visible;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    body.panel-background .panel {
+      border-color: var(--line);
+      background: var(--panel);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .28), inset 0 1px 0 rgba(255, 255, 255, .045);
+    }
+
+    .topbar, .meta, .status-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+    .topbar { min-height: 48px; margin-bottom: 10px; }
+    .brand { min-width: 0; }
+    .eyebrow {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--accent);
+      font-size: .68rem;
+      font-weight: 900;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1 { overflow: hidden; margin: 0; font-size: clamp(1.05rem, 2vw, 1.55rem); line-height: 1.1; text-overflow: ellipsis; white-space: nowrap; }
+
+    .lottery-select {
+      max-width: min(42vw, 320px);
+      padding: 9px 32px 9px 12px;
+      border: 1px solid rgba(148, 163, 184, .3);
+      border-radius: 10px;
+      color: var(--text);
+      background: rgba(30, 41, 59, .92);
+      font: inherit;
+      font-size: .82rem;
+      font-weight: 700;
+    }
+    .lottery-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .meta { min-height: 26px; margin-bottom: 14px; color: var(--muted); font-size: .78rem; font-weight: 700; }
+    #lottery-prize { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #ticket-count { flex: 0 0 auto; color: #e2e8f0; }
+
+    .topbar, .meta, .status-row { display: none; }
+    body.show-info .topbar, body.show-info .meta, body.show-info .status-row { display: flex; }
+    body.show-info h1, body.show-info .meta, body.show-info .status-row { text-shadow: 0 1px 5px #000; }
+
+    .number-grid {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: clamp(5px, 1.15vw, 7px);
+      padding: 0;
+    }
+
+    .number-cell {
+      position: relative;
+      z-index: 0;
+      display: grid;
+      width: 100%;
+      aspect-ratio: 1;
+      place-items: center;
+      overflow: hidden;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 50%;
+      color: #172033;
+      background: var(--ball-bg, linear-gradient(145deg, #8792a4, #3c4658 72%, #222b3a));
+      box-shadow: inset 0 2px 4px rgba(255, 255, 255, .5), inset 0 -6px 8px rgba(0, 0, 0, .23), 0 3px 6px rgba(0, 0, 0, .28);
+      cursor: pointer;
+      isolation: isolate;
+      transition: transform .2s cubic-bezier(.2,.75,.3,1), box-shadow .2s ease, border-color .2s ease, filter .2s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .number-cell::after {
+      position: absolute;
+      z-index: 1;
+      top: 8%;
+      left: 18%;
+      width: 38%;
+      height: 25%;
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(255,255,255,.72), rgba(255,255,255,.18) 38%, transparent 78%);
+      content: "";
+      pointer-events: none;
+      transform: rotate(-28deg);
+    }
+
+    .number-cell.tone-0 { --ball-bg: radial-gradient(circle at 34% 26%, #9da3aa 0%, #62666c 43%, #252a31 78%, #151a21 100%); }
+    .number-cell.tone-1 { --ball-bg: radial-gradient(circle at 33% 24%, #fff 0%, #f8fafc 43%, #e4e8ed 74%, #c5ccd5 100%); }
+    .number-cell.tone-2 { --ball-bg: radial-gradient(circle at 32% 24%, #fff5b6 0%, #ffd529 41%, #f7ba00 72%, #d98c00 100%); }
+    .number-cell.tone-3 { --ball-bg: radial-gradient(circle at 32% 24%, #c4ffda 0%, #28d47c 42%, #0fa85d 74%, #087747 100%); }
+    .number-cell.tone-4 { --ball-bg: radial-gradient(circle at 32% 24%, #b7f7ff 0%, #26d5e8 42%, #04adc6 74%, #04718c 100%); }
+    .number-cell.tone-5 { --ball-bg: radial-gradient(circle at 32% 24%, #f4d2ff 0%, #c65aff 42%, #a326ed 74%, #7017bd 100%); }
+    .number-cell.tone-6 { --ball-bg: radial-gradient(circle at 32% 24%, #ffd4d6 0%, #ff626a 42%, #ed3039 74%, #bd1425 100%); }
+    .number-cell.tone-7 { --ball-bg: radial-gradient(circle at 32% 24%, #ffe3c4 0%, #ff993d 42%, #fa7118 74%, #d5430b 100%); }
+    .number-cell.tone-8 { --ball-bg: radial-gradient(circle at 32% 24%, #d2e5ff 0%, #639eff 42%, #3678f4 74%, #1749cb 100%); }
+
+    .number-cell.is-taken {
+      border: 2px solid rgba(235, 244, 255, .96);
+      background: #1c2636;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, .72), 0 2px 7px rgba(0, 0, 0, .38);
+    }
+    .number-cell.is-taken::after { display: none; }
+    .number-cell:hover, .number-cell:focus-visible {
+      z-index: 5;
+      border-color: #fff;
+      filter: brightness(1.1) saturate(1.08);
+      outline: none;
+      transform: translateY(-2px) scale(1.15);
+      box-shadow: inset 0 2px 5px rgba(255, 255, 255, .58), inset 0 -7px 9px rgba(0, 0, 0, .22), 0 8px 15px rgba(0, 0, 0, .44);
+    }
+    .number-cell:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .number-cell.is-taken:hover, .number-cell.is-taken:focus-visible {
+      box-shadow: 0 0 0 3px rgba(125, 211, 252, .98), 0 0 19px rgba(56, 189, 248, .68), 0 9px 20px rgba(0, 0, 0, .48);
+    }
+    .number-cell.revealing { animation: ball-reveal .42s cubic-bezier(.2,.75,.3,1) both; animation-delay: var(--reveal-delay, 0ms); }
+    @keyframes ball-reveal {
+      from { opacity: 0; transform: translateY(8px) scale(.62); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .page-controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 34px;
+      padding-top: 8px;
+    }
+    .page-controls[hidden] { display: none !important; }
+    .page-next {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-width: 132px;
+      padding: 6px 13px;
+      border: 1px solid rgba(203, 213, 225, .45);
+      border-radius: 999px;
+      color: #f8fafc;
+      background: rgba(15, 23, 42, .78);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, .3), inset 0 1px 0 rgba(255, 255, 255, .12);
+      font: inherit;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: .1em;
+      line-height: 1;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+    .page-next:hover, .page-next:focus-visible {
+      border-color: #fff;
+      background: rgba(30, 41, 59, .96);
+      outline: 2px solid rgba(255, 255, 255, .8);
+      outline-offset: 2px;
+      transform: translateY(-1px);
+    }
+    .page-next-delay { min-width: 16px; color: #b7eb41; font-size: 10px; letter-spacing: 0; }
+    .page-indicator { color: rgba(226, 232, 240, .82); font-size: 9px; font-weight: 800; letter-spacing: .08em; white-space: nowrap; }
+    .page-pause { min-width: 82px; }
+    .page-pause.is-paused { border-color: rgba(251, 191, 36, .8); color: #fde68a; }
+
+    .participant-detail {
+      position: absolute;
+      z-index: 20;
+      top: 50%;
+      left: 50%;
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: max-content;
+      max-width: calc(100% - 32px);
+      padding: 9px 12px 9px 9px;
+      border: 1px solid rgba(125, 211, 252, .8);
+      border-radius: 14px;
+      color: #f8fafc;
+      background: rgba(15, 23, 42, .96);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .52), 0 0 20px rgba(56, 189, 248, .2);
+      transform: translate(-50%, -50%);
+      backdrop-filter: blur(8px);
+    }
+    .detail-avatar {
+      position: relative;
+      display: grid;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      overflow: hidden;
+      place-items: center;
+      border: 2px solid rgba(255, 255, 255, .9);
+      border-radius: 50%;
+      color: #fff;
+      background: linear-gradient(145deg, #64748b, #1e293b);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .detail-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+    .detail-copy { display: flex; min-width: 0; flex-direction: column; gap: 4px; }
+    .detail-number { color: #7dd3fc; font-size: 9px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; }
+    .detail-name { color: #fff; font-size: 14px; font-weight: 900; line-height: 1.2; white-space: normal; overflow-wrap: anywhere; }
+    .detail-close {
+      display: grid;
+      width: 25px;
+      height: 25px;
+      flex: 0 0 25px;
+      margin-left: 3px;
+      place-items: center;
+      border: 1px solid rgba(203, 213, 225, .28);
+      border-radius: 50%;
+      color: #e2e8f0;
+      background: rgba(255, 255, 255, .08);
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .detail-close:hover, .detail-close:focus-visible { border-color: #fff; outline: 2px solid rgba(255, 255, 255, .7); outline-offset: 1px; }
+
+    .avatar-photo {
+      position: absolute;
+      z-index: 2;
+      inset: 0;
+      display: grid;
+      overflow: hidden;
+      place-items: center;
+      border-radius: 50%;
+      color: white;
+      background: var(--ball-bg);
+      font-size: clamp(.55rem, 1.2vw, .85rem);
+      font-weight: 900;
+      letter-spacing: .04em;
+      text-shadow: 0 1px 4px #000;
+    }
+    .avatar-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .number-label {
+      position: relative;
+      z-index: 4;
+      display: grid;
+      width: 42%;
+      min-width: 21px;
+      aspect-ratio: 1;
+      place-items: center;
+      border: 1px solid rgba(0, 0, 0, .12);
+      border-radius: 50%;
+      color: #1b2534;
+      background: rgba(255, 255, 255, .97);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, .38);
+      font-size: clamp(.72rem, 1.6vw, 1rem);
+      font-weight: 950;
+      line-height: 1;
+    }
+    .number-cell.is-taken .number-label {
+      width: auto;
+      min-width: 0;
+      aspect-ratio: auto;
+      border: 0;
+      border-radius: 0;
+      color: #1475da;
+      background: transparent;
+      box-shadow: none;
+      font-size: 10px;
+    }
+    .ticket-tag {
+      position: absolute;
+      z-index: 4;
+      right: 2px;
+      bottom: 2px;
+      left: 2px;
+      display: flex;
+      min-height: 25px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      padding: 1px 3px 2px;
+      border: 1px solid rgba(104, 174, 245, .98);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, .97);
+      box-shadow: 0 1px 5px rgba(0, 0, 0, .46);
+      line-height: 1;
+      pointer-events: none;
+    }
+    .participant-name {
+      position: relative;
+      z-index: 4;
+      width: 100%;
+      overflow: hidden;
+      color: #132238;
+      font-size: 7px;
+      font-weight: 850;
+      line-height: 1;
+      text-align: center;
+      text-overflow: ellipsis;
+      text-shadow: none;
+      white-space: nowrap;
+    }
+
+    .empty-state {
+      display: grid;
+      min-height: 250px;
+      padding: 24px;
+      place-content: center;
+      border: 1px dashed rgba(148, 163, 184, .32);
+      border-radius: 14px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty-state strong { margin-bottom: 7px; color: var(--text); font-size: 1rem; }
+    .empty-state span { font-size: .82rem; }
+    .status-row { justify-content: flex-end; min-height: 18px; margin-top: 10px; color: #8d9bb0; font-size: .66rem; }
+    .status-dot { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 50%; background: #36d399; }
+    .status-row.error { color: #fca5a5; }
+    .status-row.error .status-dot { background: #f87171; }
+
+    @media (max-width: 420px) {
+      body { padding: 0; }
+      .panel { padding: 6px 8px 8px; border-radius: 10px; }
+      .topbar { gap: 7px; margin-bottom: 7px; }
+      .eyebrow { font-size: .55rem; }
+      h1 { font-size: .95rem; }
+      .lottery-select { max-width: 46vw; padding: 7px 24px 7px 8px; font-size: .69rem; }
+      .meta { margin-bottom: 8px; font-size: .65rem; }
+      .number-grid { gap: 4px; padding: 0; }
+      .number-label { min-width: 16px; }
+      .ticket-tag { right: 1px; bottom: 1px; left: 1px; min-height: 19px; padding: 1px 2px; border-radius: 4px; }
+      .number-cell.is-taken .number-label { font-size: 8px; }
+      .participant-name { font-size: 5.5px; }
+      .page-controls { gap: 7px; padding-top: 6px; }
+      .page-next { min-width: 116px; padding: 6px 10px; font-size: 9px; }
+      .page-pause { min-width: 70px; }
+      .page-indicator { font-size: 8px; }
+      .participant-detail { gap: 8px; padding: 7px 9px 7px 7px; }
+      .detail-avatar { width: 40px; height: 40px; flex-basis: 40px; }
+      .detail-name { font-size: 12px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-delay: 0ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="panel" aria-live="polite">
+    <header class="topbar">
+      <div class="brand">
+        <span class="eyebrow">CDelu · Lotería</span>
+        <h1 id="lottery-title">Números seleccionados</h1>
+      </div>
+      <select id="lottery-select" class="lottery-select" aria-label="Elegir lotería" hidden></select>
+    </header>
+    <div class="meta">
+      <span id="lottery-prize">Cargando lotería…</span>
+      <span id="ticket-count"></span>
+    </div>
+    <section id="number-grid" class="number-grid" role="grid" aria-label="Grilla de números del sorteo"></section>
+    <aside id="participant-detail" class="participant-detail" aria-live="polite" hidden>
+      <span id="detail-avatar" class="detail-avatar"><span id="detail-initials"></span><img id="detail-avatar-img" alt="" hidden></span>
+      <span class="detail-copy">
+        <span id="detail-number" class="detail-number"></span>
+        <strong id="detail-name" class="detail-name"></strong>
+      </span>
+      <button id="detail-close" class="detail-close" type="button" aria-label="Cerrar información">×</button>
+    </aside>
+    <nav id="page-controls" class="page-controls" aria-label="Páginas de números" hidden>
+      <button id="auto-pause" class="page-next page-pause" type="button" aria-label="Pausar cambio automático">
+        <span id="auto-pause-label">Pausar</span>
+      </button>
+      <button id="page-next" class="page-next" type="button">
+        <span id="page-next-action">Siguiente</span>
+        <span id="page-next-delay" class="page-next-delay"></span>
+      </button>
+      <span id="page-indicator" class="page-indicator"></span>
+    </nav>
+    <div id="empty-state" class="empty-state" hidden>
+      <strong id="empty-title">Cargando números…</strong>
+      <span id="empty-message">Conectando con la lotería.</span>
+    </div>
+    <footer id="connection-status" class="status-row"><span class="status-dot"></span><span id="status-text">Conectando…</span></footer>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const POLL_MS = 10000;
+      const PAGE_SIZE = 50;
+      const AUTO_PAGE_MIN_MS = 4000;
+      const AUTO_PAGE_MAX_MS = 12000;
+      const referenceTones = [
+        0, 0, 1, 2, 1, 1, 3, 4, 1, 5,
+        6, 7, 2, 4, 1, 4, 1, 6, 1, 2,
+        5, 7, 2, 6, 5, 0, 4, 7, 4, 5,
+        1, 1, 3, 3, 6, 1, 0, 7, 7, 1,
+        2, 1, 2, 4, 2, 0, 5, 4, 8, 7
+      ];
+      const grid = document.getElementById('number-grid');
+      const title = document.getElementById('lottery-title');
+      const prize = document.getElementById('lottery-prize');
+      const count = document.getElementById('ticket-count');
+      const select = document.getElementById('lottery-select');
+      const emptyState = document.getElementById('empty-state');
+      const emptyTitle = document.getElementById('empty-title');
+      const emptyMessage = document.getElementById('empty-message');
+      const connectionStatus = document.getElementById('connection-status');
+      const statusText = document.getElementById('status-text');
+      const pageControls = document.getElementById('page-controls');
+      const autoPauseButton = document.getElementById('auto-pause');
+      const autoPauseLabel = document.getElementById('auto-pause-label');
+      const pageNextButton = document.getElementById('page-next');
+      const pageNextAction = document.getElementById('page-next-action');
+      const pageNextDelay = document.getElementById('page-next-delay');
+      const pageIndicator = document.getElementById('page-indicator');
+      const participantDetail = document.getElementById('participant-detail');
+      const detailInitials = document.getElementById('detail-initials');
+      const detailAvatarImg = document.getElementById('detail-avatar-img');
+      const detailNumber = document.getElementById('detail-number');
+      const detailName = document.getElementById('detail-name');
+      const detailClose = document.getElementById('detail-close');
+      const query = new URLSearchParams(location.search);
+      const urlLotteryId = query.get('lottery') || '';
+      if (query.get('info') === '1') document.body.classList.add('show-info');
+      if (query.get('fondo') === 'panel') document.body.classList.add('panel-background');
+      let selectedLotteryId = urlLotteryId;
+      let lastSnapshot = null;
+      let renderedSnapshotKey = '';
+      let renderedMaxNumber = 0;
+      let renderedPageIndex = -1;
+      let pageIndex = 0;
+      let pageCount = 1;
+      let displayedLotteryId = '';
+      let pageTimer = null;
+      let pageCountdownTimer = null;
+      let pageChangeAt = 0;
+      let autoPaused = false;
+      const cellsByNumber = new Map();
+      let requestInProgress = false;
+
+      function setStatus(message, isError = false) {
+        connectionStatus.classList.toggle('error', isError);
+        statusText.textContent = message;
+      }
+
+      function clearPageTimer() {
+        if (pageTimer) window.clearTimeout(pageTimer);
+        if (pageCountdownTimer) window.clearInterval(pageCountdownTimer);
+        pageTimer = null;
+        pageCountdownTimer = null;
+        pageChangeAt = 0;
+      }
+
+      function hideParticipantInfo() {
+        participantDetail.hidden = true;
+        detailAvatarImg.hidden = true;
+        detailAvatarImg.removeAttribute('src');
+      }
+
+      function showParticipantInfo(number, entry) {
+        detailNumber.textContent = entry ? `Número ${number} · seleccionado` : `Número ${number} · disponible`;
+        detailName.textContent = entry?.name || 'Todavía no fue comprado';
+        detailInitials.textContent = entry ? initials(entry.name) : '?';
+        detailAvatarImg.hidden = true;
+        detailAvatarImg.removeAttribute('src');
+        const avatarUrl = safeAvatarUrl(entry?.avatarUrl);
+        if (avatarUrl) {
+          detailAvatarImg.src = avatarUrl;
+          detailAvatarImg.hidden = false;
+          detailAvatarImg.onerror = () => { detailAvatarImg.hidden = true; };
+        }
+        participantDetail.hidden = false;
+      }
+
+      function updatePauseButton() {
+        autoPauseLabel.textContent = autoPaused ? 'Reanudar' : 'Pausar';
+        autoPauseButton.classList.toggle('is-paused', autoPaused);
+        autoPauseButton.setAttribute('aria-label', autoPaused
+          ? 'Reanudar los cambios automáticos de página'
+          : 'Pausar manualmente los cambios automáticos de página');
+      }
+
+      function showEmpty(heading, message) {
+        clearPageTimer();
+        displayedLotteryId = '';
+        renderedMaxNumber = 0;
+        renderedPageIndex = -1;
+        pageIndex = 0;
+        pageCount = 1;
+        cellsByNumber.clear();
+        grid.replaceChildren();
+        hideParticipantInfo();
+        grid.hidden = true;
+        pageControls.hidden = true;
+        emptyState.hidden = false;
+        emptyTitle.textContent = heading;
+        emptyMessage.textContent = message;
+        title.textContent = 'Números seleccionados';
+        prize.textContent = '';
+        count.textContent = '';
+      }
+
+      function initials(name) {
+        return String(name || 'Participante')
+          .trim()
+          .split(/\s+/)
+          .slice(0, 2)
+          .map((part) => Array.from(part)[0] || '')
+          .join('')
+          .toUpperCase() || 'P';
+      }
+
+      function safeAvatarUrl(value) {
+        try {
+          const url = new URL(String(value || ''), location.href);
+          return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+        } catch (_) {
+          return '';
+        }
+      }
+
+      function toneForNumber(number) {
+        if (number <= referenceTones.length) return referenceTones[number - 1];
+        let seed = (number ^ 0x9e3779b9) >>> 0;
+        seed = Math.imul(seed ^ (seed >>> 16), 0x21f0aaad) >>> 0;
+        seed = Math.imul(seed ^ (seed >>> 15), 0x735a2d97) >>> 0;
+        return ((seed ^ (seed >>> 15)) >>> 0) % 9;
+      }
+
+      function makeCell(number, animateReveal = false, staggerIndex = 0) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `number-cell tone-${toneForNumber(number)} is-empty`;
+        button.setAttribute('role', 'gridcell');
+        button.dataset.number = String(number);
+        button.dataset.participantKey = '__new__';
+        button.lotteryEntry = null;
+        button.addEventListener('click', () => showParticipantInfo(number, button.lotteryEntry));
+        if (animateReveal) {
+          button.classList.add('revealing');
+          button.style.setProperty('--reveal-delay', `${staggerIndex * 12}ms`);
+          button.addEventListener('animationend', () => {
+            button.classList.remove('revealing');
+            button.style.removeProperty('--reveal-delay');
+          }, { once: true });
+        }
+        return button;
+      }
+
+      function updateCell(button, number, entry) {
+        const name = entry ? String(entry.name || 'Participante').trim() || 'Participante' : '';
+        const avatarUrl = entry ? safeAvatarUrl(entry.avatarUrl) : '';
+        button.lotteryEntry = entry ? { name, avatarUrl } : null;
+        const participantKey = entry ? JSON.stringify([name, avatarUrl]) : '';
+        if (button.dataset.participantKey === participantKey) return;
+
+        button.dataset.participantKey = participantKey;
+        button.classList.toggle('is-taken', Boolean(entry));
+        button.classList.toggle('is-empty', !entry);
+        button.setAttribute('aria-label', entry ? `Número ${number}, seleccionado por ${name}` : `Número ${number}, disponible`);
+        button.title = entry ? `N.º ${number} · ${name}` : `N.º ${number} · Disponible`;
+
+        if (entry) {
+          const avatar = document.createElement('span');
+          avatar.className = 'avatar-photo';
+          avatar.setAttribute('aria-hidden', 'true');
+          avatar.textContent = initials(name);
+          if (avatarUrl) {
+            const image = document.createElement('img');
+            image.alt = '';
+            image.loading = 'lazy';
+            image.decoding = 'async';
+            image.referrerPolicy = 'no-referrer';
+            image.draggable = false;
+            image.src = avatarUrl;
+            image.addEventListener('error', () => image.remove(), { once: true });
+            avatar.append(image);
+          }
+          const ticketTag = document.createElement('span');
+          ticketTag.className = 'ticket-tag';
+          const numberLabel = document.createElement('span');
+          numberLabel.className = 'number-label';
+          numberLabel.textContent = String(number);
+          const nameLabel = document.createElement('span');
+          nameLabel.className = 'participant-name';
+          nameLabel.textContent = name.split(/\s+/)[0];
+          ticketTag.append(numberLabel, nameLabel);
+          button.replaceChildren(avatar, ticketTag);
+        } else {
+          const numberLabel = document.createElement('span');
+          numberLabel.className = 'number-label';
+          numberLabel.textContent = String(number);
+          button.replaceChildren(numberLabel);
+        }
+      }
+
+      function renderLottery(lottery) {
+        const maxNumber = Math.max(1, Math.min(100, Number(lottery.maxNumber) || 100));
+        const lotteryChanged = displayedLotteryId !== lottery.id;
+        if (lotteryChanged) {
+          clearPageTimer();
+          displayedLotteryId = lottery.id;
+          pageIndex = 0;
+        }
+
+        pageCount = Math.max(1, Math.ceil(maxNumber / PAGE_SIZE));
+        if (pageIndex >= pageCount) pageIndex = 0;
+        const firstNumber = pageIndex * PAGE_SIZE + 1;
+        const visibleCount = Math.min(PAGE_SIZE, maxNumber - firstNumber + 1);
+        const lastNumber = firstNumber + visibleCount - 1;
+        const entries = new Map((Array.isArray(lottery.entries) ? lottery.entries : [])
+          .map((entry) => [Number(entry.number), entry])
+          .filter(([number]) => Number.isInteger(number) && number >= 1 && number <= maxNumber));
+
+        const animatePage = !lotteryChanged && renderedPageIndex >= 0 && renderedPageIndex !== pageIndex;
+        const pageChanged = lotteryChanged || renderedMaxNumber !== maxNumber || renderedPageIndex !== pageIndex;
+        if (pageChanged) {
+          hideParticipantInfo();
+          cellsByNumber.clear();
+          grid.replaceChildren();
+          renderedMaxNumber = maxNumber;
+          renderedPageIndex = pageIndex;
+          const fragment = document.createDocumentFragment();
+          for (let number = firstNumber; number <= lastNumber; number += 1) {
+            const cell = makeCell(number, animatePage, number - firstNumber);
+            cellsByNumber.set(number, cell);
+            fragment.append(cell);
+          }
+          grid.append(fragment);
+        }
+
+        for (let number = firstNumber; number <= lastNumber; number += 1) {
+          updateCell(cellsByNumber.get(number), number, entries.get(number));
+        }
+        grid.hidden = false;
+        emptyState.hidden = true;
+        grid.setAttribute('aria-label', `Números del ${firstNumber} al ${lastNumber}`);
+        const nextTitle = lottery.name || 'Números seleccionados';
+        const nextPrize = lottery.prize ? `Premio: ${lottery.prize}` : (lottery.description || 'Participantes de la lotería');
+        const nextCount = `${entries.size} / ${maxNumber} números`;
+        if (title.textContent !== nextTitle) title.textContent = nextTitle;
+        if (prize.textContent !== nextPrize) prize.textContent = nextPrize;
+        if (count.textContent !== nextCount) count.textContent = nextCount;
+
+        pageControls.hidden = pageCount <= 1;
+        updatePauseButton();
+        updatePageButton(maxNumber, firstNumber, lastNumber);
+        if (pageCount > 1 && !pageTimer) schedulePageChange();
+        if (pageCount <= 1) clearPageTimer();
+      }
+
+      function updatePageButton(maxNumber, firstNumber, lastNumber) {
+        const seconds = pageChangeAt ? Math.max(0, Math.ceil((pageChangeAt - Date.now()) / 1000)) : 0;
+        pageNextAction.textContent = pageIndex === 0 ? 'Siguiente' : 'Volver';
+        pageNextDelay.textContent = autoPaused ? 'PAUSA' : seconds ? `${seconds}s` : '';
+        pageIndicator.textContent = `${firstNumber}–${lastNumber} / ${maxNumber}`;
+        const nextFirstNumber = (pageIndex === 0 ? PAGE_SIZE + 1 : 1);
+        const nextLastNumber = Math.min(maxNumber, nextFirstNumber + PAGE_SIZE - 1);
+        const action = pageIndex === 0 ? 'Siguiente' : 'Volver';
+        pageNextButton.setAttribute('aria-label', autoPaused
+          ? `${action} a los números ${nextFirstNumber} a ${nextLastNumber}; cambio automático pausado`
+          : `${action} a los números ${nextFirstNumber} a ${nextLastNumber}; cambio automático en ${seconds} segundos`);
+      }
+
+      function schedulePageChange() {
+        if (pageCount <= 1 || autoPaused) return;
+        const delay = AUTO_PAGE_MIN_MS + Math.floor(Math.random() * (AUTO_PAGE_MAX_MS - AUTO_PAGE_MIN_MS + 1));
+        pageChangeAt = Date.now() + delay;
+        const firstNumber = pageIndex * PAGE_SIZE + 1;
+        const lastNumber = Math.min(renderedMaxNumber, firstNumber + PAGE_SIZE - 1);
+        updatePageButton(renderedMaxNumber, firstNumber, lastNumber);
+        pageCountdownTimer = window.setInterval(() => {
+          const maxNumber = renderedMaxNumber;
+          const firstNumber = pageIndex * PAGE_SIZE + 1;
+          const lastNumber = Math.min(maxNumber, firstNumber + PAGE_SIZE - 1);
+          updatePageButton(maxNumber, firstNumber, lastNumber);
+        }, 1000);
+        pageTimer = window.setTimeout(() => {
+          pageTimer = null;
+          if (pageCountdownTimer) window.clearInterval(pageCountdownTimer);
+          pageCountdownTimer = null;
+          pageNextButton.click();
+        }, delay);
+      }
+
+      function snapshotKey(snapshot) {
+        return JSON.stringify({
+          moduleEnabled: snapshot.moduleEnabled === true,
+          lotteries: (Array.isArray(snapshot.lotteries) ? snapshot.lotteries : []).map((lottery) => ({
+            id: lottery.id,
+            name: lottery.name,
+            prize: lottery.prize,
+            description: lottery.description,
+            maxNumber: lottery.maxNumber,
+            entries: (Array.isArray(lottery.entries) ? lottery.entries : []).map((entry) => [entry.number, entry.name, entry.avatarUrl])
+          }))
+        });
+      }
+
+      function render(snapshot) {
+        const lotteries = Array.isArray(snapshot.lotteries) ? snapshot.lotteries : [];
+        if (!snapshot.moduleEnabled) {
+          select.hidden = true;
+          showEmpty('Módulo de lotería apagado', 'Activa el módulo de lotería en Cdelu para mostrar los números.');
+          return;
+        }
+        if (!lotteries.length) {
+          select.hidden = true;
+          showEmpty('No hay una lotería activa', 'Cuando haya un sorteo abierto, sus números aparecerán aquí automáticamente.');
+          return;
+        }
+
+        const selected = lotteries.find((lottery) => lottery.id === selectedLotteryId) || lotteries[0];
+        selectedLotteryId = selected.id;
+        select.hidden = lotteries.length < 2;
+        if (!select.hidden) {
+          const currentOptions = Array.from(select.options).map((option) => option.value).join('|');
+          const nextOptions = lotteries.map((lottery) => lottery.id).join('|');
+          if (currentOptions !== nextOptions) {
+            const options = lotteries.map((lottery) => {
+              const option = document.createElement('option');
+              option.value = lottery.id;
+              option.textContent = lottery.name || 'Lotería activa';
+              return option;
+            });
+            select.replaceChildren(...options);
+          }
+          select.value = selected.id;
+        }
+        renderLottery(selected);
+      }
+
+      select.addEventListener('change', () => {
+        selectedLotteryId = select.value;
+        if (lastSnapshot) render(lastSnapshot);
+      });
+
+      pageNextButton.addEventListener('click', () => {
+        if (!lastSnapshot || pageCount <= 1) return;
+        clearPageTimer();
+        pageIndex = (pageIndex + 1) % pageCount;
+        render(lastSnapshot);
+      });
+
+      autoPauseButton.addEventListener('click', () => {
+        if (pageCount <= 1) return;
+        autoPaused = !autoPaused;
+        updatePauseButton();
+        if (autoPaused) clearPageTimer();
+        if (lastSnapshot) render(lastSnapshot);
+      });
+
+      detailClose.addEventListener('click', hideParticipantInfo);
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') hideParticipantInfo();
+      });
+
+      async function refresh() {
+        if (requestInProgress || document.visibilityState === 'hidden') return;
+        requestInProgress = true;
+        try {
+          const response = await fetch('/api/lottery/overlay', {
+            cache: 'no-store',
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(15000)
+          });
+          const snapshot = await response.json();
+          if (!response.ok || snapshot?.ok !== true) throw new Error(snapshot?.error || `HTTP ${response.status}`);
+          lastSnapshot = snapshot;
+          const nextSnapshotKey = snapshotKey(snapshot);
+          if (nextSnapshotKey !== renderedSnapshotKey) {
+            render(snapshot);
+            renderedSnapshotKey = nextSnapshotKey;
+          }
+          const updated = new Date(Number(snapshot.generatedAt) || Date.now());
+          setStatus(`Actualizado ${updated.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })} · renovación automática`);
+        } catch (error) {
+          setStatus('Sin conexión con la lotería · reintentando', true);
+          if (!lastSnapshot) showEmpty('No se pudo cargar la lotería', 'Revisa que Cortex esté activo y que la integración de lotería esté configurada.');
+          console.warn('[Overlay de lotería] No se pudo actualizar:', error);
+        } finally {
+          requestInProgress = false;
+        }
+      }
+
+      refresh();
+      window.setInterval(refresh, POLL_MS);
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refresh();
+      });
+    })();
+  </script>
+</body>
+</html>

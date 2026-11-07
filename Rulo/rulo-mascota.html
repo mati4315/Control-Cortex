@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
   <title>Rulo | Animaciones</title>
   <style>
     :root{color-scheme:dark;--accent:#9fd50b;--bg:#0d1014;--panel:#171c24;--line:#303a46;--text:#f4f6f8;--muted:#a9b3c0}
@@ -11,32 +12,93 @@
     .url-row{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0}.url{flex:1;min-width:240px;padding:11px;background:#0b0e13;border:1px solid var(--line);border-radius:7px;overflow-wrap:anywhere;color:#e5efdb;font:13px ui-monospace,monospace}.buttons,.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:11px}.control,.upload{background:#10151b;border:1px solid var(--line);border-radius:9px;padding:14px}.control strong,.upload strong{display:block;margin-bottom:6px}.control small,.upload small{display:block;min-height:38px;color:var(--muted);line-height:1.4;margin-bottom:10px}.power-row{display:flex;justify-content:space-between;align-items:center;gap:20px;padding:16px;border:1px solid var(--line);border-radius:10px;background:#10151b;cursor:pointer}.power-row strong,.power-row small{display:block}.power-row small{color:var(--muted);margin-top:4px}.power-row input{appearance:none;width:58px;height:32px;border-radius:20px;background:#46515d;position:relative;cursor:pointer;transition:background .2s}.power-row input:before{content:"";position:absolute;width:24px;height:24px;top:4px;left:4px;border-radius:50%;background:#fff;transition:transform .2s}.power-row input:checked{background:var(--accent)}.power-row input:checked:before{transform:translateX(26px)}.power-row input:disabled{opacity:.5;cursor:wait}
     button,.open-link{border:1px solid #465261;border-radius:7px;padding:10px 12px;background:#26313c;color:var(--text);font:700 14px "Segoe UI",Arial,sans-serif;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}button.primary{background:var(--accent);color:#111;border-color:var(--accent)}button.hide{background:#633d42}button:disabled{opacity:.6;cursor:wait}.open-link{background:#34472a;border-color:#526d3d}.upload input{display:block;width:100%;margin:8px 0 12px;color:var(--muted)}#status{min-height:24px;margin-bottom:0;color:var(--accent)}.note{font-size:.88rem}.status-label{font-weight:700;color:var(--text)}
     .chat-test-form{display:grid;grid-template-columns:minmax(180px,1fr) minmax(280px,2fr) auto;gap:11px;align-items:end}.chat-test-form label{display:block;color:var(--muted);font-size:.88rem}.chat-test-form input,.chat-test-form textarea{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--line);border-radius:7px;background:#0b0e13;color:var(--text);font:inherit}.chat-test-form textarea{min-height:42px;resize:vertical}.chat-test-status{min-height:22px;margin:12px 0 0;color:var(--accent)}
+    .exe3d-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:11px;margin:12px 0}.exe3d-fields label{display:block;color:var(--muted);font-size:.88rem}.exe3d-fields input{display:block;width:100%;margin-top:6px;padding:10px;border:1px solid var(--line);border-radius:7px;background:#0b0e13;color:var(--text);font:inherit}.exe3d-actions{display:flex;gap:9px;flex-wrap:wrap}.exe3d-hint{display:block;margin-top:10px;color:var(--muted);line-height:1.45}.agent-warning{padding:10px 12px;border:1px solid #8d7026;border-radius:8px;background:#352b12;color:#ffe39b;font-weight:600}.media-tracking-shortcut{margin-top:8px}.media-tracking-shortcut button{min-width:205px}
+    .mode-select{width:100%;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:7px;background:#0b0e13;color:var(--text);font:inherit}.mode-status{font-size:.88rem;color:var(--muted);line-height:1.5}.mode-status.on{color:#d0ff9b}.mode-status.error{color:#ffc1c1}
+    .tech-docs{margin:4px 0 0;text-align:right;color:var(--muted);font-size:.82rem}
+    .tech-docs summary{cursor:pointer;list-style:none;opacity:.78}
+    .tech-docs summary::-webkit-details-marker{display:none}
+    .tech-docs summary:after{content:"＋";margin-left:6px}
+    .tech-docs details[open] summary:after{content:"−"}
+    .tech-docs p{margin:8px 0 0;font-size:.82rem}
+    .tech-docs a{color:#d0ff9b}
     @media(max-width:560px){main{padding:22px 14px 40px}.card{padding:15px}.url{min-width:100%}.chat-test-form{grid-template-columns:1fr}}
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body>
   <main>
     <h1><span>Rulo</span> | Animaciones</h1>
       <p class="lead">Controla si Rulo está activo en OBS y reemplaza sus animaciones desde este panel.</p>
-    <section class="card"><h2>Biblioteca de clips</h2><p class="note">Importa MP4 con FFmpeg, administra familias y poses, y controla la máquina de estados.</p><a class="open-link" href="/rulo-library.html" target="_blank" rel="noopener">Abrir biblioteca de animaciones ↗</a></section>
-    <section class="card" aria-labelledby="powerTitle">
+    <section class="card"><h2>Método de control y biblioteca de clips</h2><div class="control"><strong>Método activo para este panel</strong><small>WebM controla la mascota 2D de OBS. Ejecutable 3D envía controles a RULO.exe por la red local.</small><select id="ruloControlMode" class="mode-select" aria-label="Método de control de Rulo"><option value="webm">Clips WebM en OBS (actual)</option><option value="exe3d">Ejecutable Rulo 3D</option></select><p id="exe3dConnection" class="mode-status" role="status" aria-live="polite">Modo WebM seleccionado.</p>
+        <div id="exe3dConnectionSettings" class="exe3d-settings" hidden>
+  <div class="exe3d-fields">
+    <label for="exe3dHost">IP o nombre del equipo donde corre RULO.exe<input id="exe3dHost" type="text" inputmode="url" autocomplete="url" placeholder="192.168.4.100"></label>
+    <label for="exe3dToken">Clave compartida<input id="exe3dToken" type="password" autocomplete="off" placeholder="Clave configurada en el lanzador de RULO.exe"></label>
+  </div>
+  <div class="exe3d-actions">
+    <button class="primary" id="saveExe3dSettings" type="button">Guardar y conectar</button>
+    <button id="forgetExe3dToken" type="button">Olvidar clave</button>
+    <button id="launchRuloExe" class="primary" type="button" disabled>Iniciar RULO.exe</button>
+  </div>
+  <div class="exe3d-actions media-tracking-shortcut">
+    <button class="primary" type="button" data-mediapipe-action="start_tracking" disabled>Iniciar seguimiento</button>
+    <button type="button" data-mediapipe-action="open_dashboard" disabled>Abrir dashboard MediaPipe</button>
+  </div>
+  <p id="mediapipeRemoteStatus" class="mode-status" role="status" aria-live="polite">Conecta RULO.exe para habilitar el seguimiento remoto.</p>
+  <small id="ruloExeLaunchHint" class="exe3d-hint" role="note">El atajo inicia RULO.exe en la PC que ejecuta este Cortex; ambos deben estar en el mismo equipo.</small><p id="ruloExeLaunchStatus" class="mode-status" role="status" aria-live="polite"></p>
+<small class="exe3d-hint">El host se recuerda en este navegador. La clave se guarda aquí y debe coincidir con RULO_CONTROL_TOKEN del lanzador del ejecutable. En Windows, permite el puerto 4101 en el equipo donde corre RULO.exe.</small>
+</div><p id="modeNotice" class="note">El modo seleccionado se recuerda en este navegador. Cambiarlo no apaga el otro motor; evita dejar visibles ambos Rulos en OBS.</p></div><div id="webmLibrary"><p class="note">Importa MP4 con FFmpeg, administra familias y poses, y controla la máquina de estados.</p><a class="open-link" href="/rulo-library.html" target="_blank" rel="noopener">Abrir biblioteca de animaciones ↗</a></div></section>
+        <section class="card" id="mediapipeRemoteCard" aria-labelledby="mediapipeRemoteTitle" hidden>
+      <h2 id="mediapipeRemoteTitle">Seguimiento MediaPipe en Godot</h2>
+      <p class="note">Estas acciones se ejecutan en el equipo donde corre RULO.exe. La cámara y la captura pertenecen a ese equipo; el navegador solo envía los controles por la conexión autenticada.</p>
+      <div class="buttons">
+        <div class="control"><strong>Dashboard MediaPipe</strong><small>Abre o trae al frente el dashboard desde el atajo junto a “Iniciar seguimiento”.</small></div>
+        <div class="control"><strong>Iniciar seguimiento</strong><small>El seguimiento se solicita a RULO.exe por WebSocket. La señal confirmada pausa el Idle para aplicar los movimientos.</small></div>
+        <div class="control"><strong>Recalibrar postura en Godot</strong><small>Requiere seguimiento activo. El dashboard muestra la cuenta regresiva antes de enviar la recalibración a Godot.</small><button type="button" data-mediapipe-action="recalibrate_pose" disabled>Recalibrar postura</button></div>
+      </div>
+    </section>
+<section class="card" aria-labelledby="powerTitle">
       <h2 id="powerTitle">Mascota de Rulo</h2>
-      <p class="note">Al apagarla, Rulo se oculta, deja de responder y no procesa pedidos o controles de música. Al encenderla, reproduce la animación de inicio.</p>
+      <p class="note" id="powerDescription">En modo WebM, apagar Rulo detiene sus animaciones y también los pedidos o controles de música. Al encenderla, reproduce la animación de inicio.</p>
+      <label class="power-row" id="clipInfoPowerRow" for="showAnimationClipInfo"><span><strong id="clipInfoLabel">Información del clip en OBS</strong><small id="clipInfoHint">Consultando Control Cortex</small></span><input id="showAnimationClipInfo" type="checkbox" role="switch" disabled></label>
       <label class="power-row" for="mascotEnabled"><span><strong id="powerLabel">Cargando estado…</strong><small id="powerHint">Consultando Control Cortex</small></span><input id="mascotEnabled" type="checkbox" role="switch" disabled></label>
+      <label class="power-row" for="mateEnabled"><span><strong id="mateLabel">Tomar mate</strong><small id="mateHint">Disponible cuando Rulo esté encendido.</small></span><input id="mateEnabled" type="checkbox" role="switch" disabled></label>
+      <label class="power-row" id="secondPropPowerRow" for="secondPropEnabled"><span><strong id="secondPropLabel">Segundo objeto</strong><small id="secondPropHint">Disponible cuando Rulo esté encendido; requiere cargar la imagen estacionada.</small></span><input id="secondPropEnabled" type="checkbox" role="switch" disabled></label>
     </section>
     <section class="card" aria-labelledby="obsTitle">
-      <h2 id="obsTitle">Fuente para OBS <span class="connection" id="connection">Conectando…</span></h2>
-      <p class="note">Copia esta dirección en una fuente de tipo Navegador. Para transparencia, el video debe tener canal alfa; si el clip tiene fondo negro, seguirá viéndose negro en OBS.</p>
-      <div class="url-row"><code class="url" id="url"></code><a class="open-link" id="openUrl" href="#" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div>
+      <h2 id="obsTitle"><span id="obsTitleLabel">Fuente para OBS</span> <span class="connection" id="connection">Conectando…</span></h2>
+      <div id="webmSourceDetails"><p class="note">Copia esta dirección en una fuente de tipo Navegador. Para transparencia, el video debe tener canal alfa; si el clip tiene fondo negro, seguirá viéndose negro en OBS.</p>
+      <div class="url-row"><code class="url" id="url"></code><a class="open-link" id="openUrl" href="#" target="_blank" rel="noopener">Abrir en pestaña nueva ↗</a></div></div>
       <div class="buttons">
-        <div class="control"><strong>Inicio</strong><small>Vuelve a reproducir «Start_Apareciendo». Rulo debe estar encendido.</small><button type="button" data-trigger="iniciar">Probar inicio</button></div>
-        <div class="control"><strong>Entrada</strong><small>Si está oculto, vuelve con Start_Apareciendo. Si ya está visible, repite «aparece de abajo».</small><button class="primary" type="button" data-trigger="aparecer">Mostrar / repetir entrada</button></div>
-        <div class="control"><strong>Habla</strong><small>Prueba «hablando». Al terminar, Rulo continúa en estado normal en bucle.</small><button type="button" data-trigger="hablar">Probar hablando</button></div>
-        <div class="control"><strong>Estado normal</strong><small>Reproduce «Estado normal - Esperando» en bucle hasta la próxima acción.</small><button type="button" data-trigger="normal">Probar estado normal</button></div>
-        <div class="control"><strong>Durmiendo</strong><small>Entrada de 0 a 9 s; después repite de 9 a 28 s. Puedes probarlo sin esperar.</small><button type="button" data-trigger="dormir">Probar sueño</button></div>
-        <div class="control"><strong>Visibilidad</strong><small>Oculta a Rulo. Un nuevo pedido o un control manual lo hará volver con su animación de inicio.</small><button class="hide" type="button" data-trigger="ocultar">Ocultar a Rulo</button></div>
+        <div class="control"><strong>Inicio</strong><small>Desde Oculto reproduce la entrada registrada y continúa con las variantes Idle. Si está visible, vuelve al estado normal.</small><button type="button" data-trigger="iniciar">Iniciar Rulo</button></div>
+        <div class="control"><strong id="baseIdleTitle">Posición base Idle_Respirar_01</strong><small id="baseIdleHint">Reproduce y mantiene en bucle esta animación base. Otra acción en la cola la interrumpe al terminar el ciclo actual.</small><button type="button" id="baseIdleButton" disabled>Activar posición base</button></div>
+        <div class="control"><strong>Mostrar</strong><small>Usa las transiciones desde la pose actual hasta Idle_Base. Desde Oculto incluye Start_Apareciendo_01.</small><button class="primary" type="button" data-trigger="aparecer">Mostrar Rulo</button></div>
+        <div class="control"><strong>Habla</strong><small>Despierta si hace falta, reproduce un clip de Hablar y regresa a Idle. Sin clips de Hablar usa el Idle seguro.</small><button type="button" data-trigger="hablar">Probar hablando</button></div>
+        <div class="control"><strong>Estado normal / Despertar</strong><small>Termina el ciclo de sueño y usa Dormir_Salida_01 para volver a Idle_Base. Después alterna las variantes Idle habilitadas.</small><button type="button" data-trigger="normal">Volver a estado normal</button></div>
+        <div class="control"><strong>Durmiendo</strong><small>Desde Idle_Base reproduce Dormir_Entrada_01 una vez y después repite Dormir_Roncar_01. Al pedir otra acción termina el ciclo actual antes de salir.</small><button type="button" data-trigger="dormir">Poner a dormir</button></div>
+        <div class="control"><strong>Tomar mate</strong><small>Reproduce manualmente el clip en el que Rulo agarra el mate, bebe y lo deja en su sitio. Requiere Rulo encendido y «Tomar mate» activado.</small><button type="button" id="drinkMateButton" disabled>Probar tomando mate</button></div>
+        <div class="control"><strong>Visibilidad</strong><small>Termina el clip actual y usa la salida hacia Oculto compatible con su pose. Rulo sigue habilitado para recibir pedidos.</small><button class="hide" type="button" data-trigger="ocultar">Ocultar a Rulo</button></div>
       </div>
-      <p class="note">Rulo se mantiene en su estado normal en bucle mientras está visible. Se duerme automáticamente tras una espera aleatoria de 4 a 6 minutos sin pedidos ni acciones. Los pedidos de música y las respuestas reinician esa espera.</p>
+      <p class="note">Las variantes, los tiempos de inactividad y las transiciones se configuran en la biblioteca. Los controles usan los clips habilitados y las poses registradas.</p>
+      <p id="animationState" class="note" role="status">Consultando el motor de animaciones…</p>
       <p class="note">Solo se reproduce un video a la vez. Cuando recibe otra acción mientras duerme, termina el video completo antes de cambiar. Al terminar de hablar o ingresar, continúa en estado normal en bucle.</p>
     </section>
     <section class="card" aria-labelledby="chatTestTitle">
@@ -51,9 +113,9 @@
       <p><a class="open-link" id="openBotDashboard" href="#" target="_blank" rel="noopener">Editar diseño del cartel y respuestas ↗</a></p>
       <p id="chatTestStatus" class="chat-test-status" role="status" aria-live="polite"></p>
     </section>
-    <section class="card" aria-labelledby="sleepTitle">
+    <section class="card" aria-labelledby="sleepTitle" data-rulo-mode="webm">
       <h2 id="sleepTitle">Ocultarse después de dormir</h2>
-      <p class="note">Después de dormir sin interrupciones durante un tiempo aleatorio entre estos valores, termina el video de sueño, reproduce el inicio en reversa y queda oculto. Pon el mismo valor en ambos campos para usar un tiempo fijo.</p>
+      <p class="note">Después de dormir automáticamente sin interrupciones durante este tiempo, termina el ciclo de sueño y reproduce la salida registrada de Dormido a Oculto. Pon el mismo valor en ambos campos para usar un tiempo fijo.</p>
       <form id="sleepForm">
         <div class="grid">
           <label class="control">Mínimo (minutos) <input id="sleepMin" type="number" min="1" max="1440" step="0.1" value="10" required></label>
@@ -64,19 +126,13 @@
       </form>
       <p class="note">Ocultarse mantiene a Rulo habilitado para recibir pedidos. Cuando vuelve, siempre reproduce Start_Apareciendo y luego continúa en estado normal o responde al pedido. El interruptor de apagado bloquea también los pedidos de música.</p>
     </section>
-    <section class="card" aria-labelledby="uploadTitle">
+    <section class="card" aria-labelledby="uploadTitle" data-rulo-mode="webm">
       <h2 id="uploadTitle">Actualizar animaciones</h2>
-      <p class="note">Sube un archivo `.webm` de hasta 100 MB. Al guardarlo, reemplaza el clip actual con el mismo nombre.</p>
-      <div class="grid">
-        <div class="upload"><strong>Inicio y salida</strong><small>Reemplaza Start_Apareciendo.webm y genera su reversa para la salida. Se usa siempre al volver a aparecer.</small><input type="file" accept=".webm,video/webm" id="startFile"><button type="button" data-upload="iniciar">Subir y reemplazar</button></div>
-        <div class="upload"><strong>Entrada desde abajo</strong><small>Reemplaza `aparece de abajo.webm`.</small><input type="file" accept=".webm,video/webm" id="entranceFile"><button type="button" data-upload="aparecer">Subir y reemplazar</button></div>
-        <div class="upload"><strong>Hablando</strong><small>Reemplaza `hablando.webm`.</small><input type="file" accept=".webm,video/webm" id="speakingFile"><button type="button" data-upload="hablar">Subir y reemplazar</button></div>
-        <div class="upload"><strong>Estado normal / Esperando</strong><small>Reemplaza `Estado Normal - Esperando.webm`.</small><input type="file" accept=".webm,video/webm" id="normalFile"><button type="button" data-upload="normal">Subir y reemplazar</button></div>
-        <div class="upload"><strong>Durmiendo</strong><small>Reemplaza Rulo Durmiendo.webm. Debe durar al menos 28 segundos y permitir repetir el tramo 9–28.</small><input type="file" accept=".webm,video/webm" id="sleepingFile"><button type="button" data-upload="dormir">Subir y reemplazar</button></div>
-      </div>
+      <p class="note">Importa o actualiza MP4 y WebM desde la biblioteca. Cada clip conserva sus poses, función y opciones de bucle.</p>
+      <a class="open-link" href="/rulo-library.html" target="_blank" rel="noopener">Importar / actualizar clips ↗</a>
       <p id="status" role="status" aria-live="polite"></p>
     </section>
-    <section class="card" aria-labelledby="presentationTitle">
+    <section class="card" aria-labelledby="presentationTitle" data-rulo-mode="webm">
       <h2 id="presentationTitle">Presentación <span class="connection" id="presentationConnection">Consultando fuente…</span></h2>
       <p class="note">La entrada se reproduce una vez; después el video de espera queda en bucle. Una nueva acción de Rulo oculta esta fuente. Puedes subir MP4 o WebM de hasta 100 MB.</p>
       <h3>Fuente independiente para OBS</h3>
@@ -93,6 +149,12 @@
         <div class="upload"><strong>3. Despedida</strong><small>Presentacion - Tercera.mp4. Termina el ciclo de espera, se reproduce una vez y después se oculta.</small><input type="file" accept=".webm,.mp4,video/webm,video/mp4" id="presentationThirdFile"><button type="button" data-upload="presentacion-tercera">Subir / reemplazar</button></div>
       </div>
     </section>
+    <footer class="tech-docs" id="developerGuide">
+      <details>
+        <summary>Documentación técnica y mejoras futuras</summary>
+        <p>Guía de mantenimiento para futuras personas desarrolladoras: <a href="/GUIA_CONTROL_RULO_3D.md" target="_blank" rel="noopener">abrir guía de Rulo 3D ↗</a></p>
+      </details>
+    </footer>
   </main>
   <script>
     (() => {
@@ -110,9 +172,496 @@
       document.getElementById('openBotDashboard').href = botDashboardUrl;
       const status = document.getElementById('status');
       const connection = document.getElementById('connection');
+      async function refreshAnimationState() {
+        try {
+          const response = await fetch('/api/rulo-library', {cache:'no-store'});
+          if (!response.ok) throw Error('No se pudo consultar la biblioteca');
+          const {engine} = await response.json();
+          document.getElementById('animationState').textContent = `Pose: ${engine.pose} · Clip: ${engine.active || 'ninguno'} · Acciones pendientes: ${(engine.queue || []).length}` + ((engine.issues || []).length ? ' · ' + engine.issues.join(' · ') : '');
+          connection.textContent = engine.clients ? 'Fuente OBS conectada' : 'Fuente OBS desconectada';
+          connection.classList.toggle('on', engine.clients > 0);
+        } catch (_) { document.getElementById('animationState').textContent = 'No se pudo consultar el motor de animaciones.'; }
+      }
+      refreshAnimationState();
+      setInterval(refreshAnimationState, 4000);
       const power = document.getElementById('mascotEnabled');
+      const controlMode = document.getElementById('ruloControlMode');
+      const exe3dConnection = document.getElementById('exe3dConnection');
+      const modeNotice = document.getElementById('modeNotice');
+      const mediapipeRemoteCard = document.getElementById('mediapipeRemoteCard');
+      const mediapipeRemoteStatus = document.getElementById('mediapipeRemoteStatus');
+      const webmLibrary = document.getElementById('webmLibrary');
+      const CONTROL_MODE_KEY = 'rulo-mascot-control-mode';
+      const EXE3D_HOST_KEY = 'rulo-exe3d-host';
+      const EXE3D_TOKEN_KEY = 'rulo-exe3d-token';
+      const panelUrlParams = new URLSearchParams(location.search);
+      const requestedControlMode = panelUrlParams.get('ruloMode');
+      const requestedExe3dHost = panelUrlParams.get('ruloHost');
+      const requestedExe3dToken = panelUrlParams.get('ruloToken');
+      const previewParamsPresent = panelUrlParams.has('ruloMode') || panelUrlParams.has('ruloHost') || panelUrlParams.has('ruloToken');
+      let activeControlMode = requestedControlMode === 'exe3d'
+        ? 'exe3d'
+        : (localStorage.getItem(CONTROL_MODE_KEY) === 'exe3d' ? 'exe3d' : 'webm');
+      if (requestedControlMode === 'exe3d' || requestedControlMode === 'webm') localStorage.setItem(CONTROL_MODE_KEY, requestedControlMode);
+      if (normalizeExe3dHost(requestedExe3dHost)) localStorage.setItem(EXE3D_HOST_KEY, normalizeExe3dHost(requestedExe3dHost));
+      if (requestedExe3dToken && requestedExe3dToken.length >= 16 && requestedExe3dToken.length <= 256) localStorage.setItem(EXE3D_TOKEN_KEY, requestedExe3dToken);
+      if (previewParamsPresent) {
+        panelUrlParams.delete('ruloMode');
+        panelUrlParams.delete('ruloHost');
+        panelUrlParams.delete('ruloToken');
+        const remainingQuery = panelUrlParams.toString();
+        history.replaceState(null, '', location.pathname + (remainingQuery ? '?' + remainingQuery : '') + location.hash);
+      }
+      const exe3dSettings = document.getElementById('exe3dConnectionSettings');
+      const exe3dHostInput = document.getElementById('exe3dHost');
+      const exe3dTokenInput = document.getElementById('exe3dToken');
+      const saveExe3dSettings = document.getElementById('saveExe3dSettings');
+      const forgetExe3dToken = document.getElementById('forgetExe3dToken');
+      const launchRuloExe = document.getElementById('launchRuloExe');
+      const ruloExeLaunchHint = document.getElementById('ruloExeLaunchHint');
+      const ruloExeLaunchStatus = document.getElementById('ruloExeLaunchStatus');
+      exe3dHostInput.value = normalizeExe3dHost(localStorage.getItem(EXE3D_HOST_KEY)) || location.hostname;
+      exe3dTokenInput.value = localStorage.getItem(EXE3D_TOKEN_KEY) || '';
+      let exe3dAccessToken = exe3dTokenInput.value;
+      let legacyPowerEnabled = false, legacyMateEnabled = false;
+
+      let exe3dPowerEnabled = false, exe3dMateEnabled = false, exe3dConnected = false, exe3dFaceTrackingActive = false, exe3dPoseTrackingActive = false, exe3dMediaPipeState = 'unknown', exe3dMediaPipeMessage = '', exe3dMediaPipeUpdatedAt = 0;
+      let exe3dSocket = null, exe3dReconnectTimer = null, exe3dRequestSeq = 0;
+      let exe3dAuthTimer = null, exe3dAuthenticated = false, exe3dAuthRejected = false;
+      let ruloExeLaunchPending = false;
+      let exe3dConnectionError = '';
+      let exe3dAvailableActions = new Set(['iniciar', 'aparecer', 'ocultar']);
+      let exe3dMediapipeActions = new Set();
+      const exe3dPending = new Map();
+      controlMode.value = activeControlMode;
+      const usingExe3d = () => activeControlMode === 'exe3d';
+      const matePower = document.getElementById('mateEnabled');
+      const secondPropPower = document.getElementById('secondPropEnabled');
+      const secondPropLabel = document.getElementById('secondPropLabel');
+      const secondPropHint = document.getElementById('secondPropHint');
+      let secondPropAvailable = false, secondPropSaving = false, legacySecondPropEnabled = false;
+      const mateLabel = document.getElementById('mateLabel');
+      const mateHint = document.getElementById('mateHint');
+      const drinkMateButton = document.getElementById('drinkMateButton');
+      let mateDrinkPending = false;
+      let mateSaving = false;
+      const baseIdleButton = document.getElementById('baseIdleButton');
+      const baseIdleTitle = document.getElementById('baseIdleTitle');
+      const baseIdleHint = document.getElementById('baseIdleHint');
+      let baseIdlePending = false;
+
+      function renderBaseIdleControl() {
+        const is3d = usingExe3d();
+        baseIdleTitle.textContent = is3d ? 'Reposo 3D: respiración y parpadeo' : 'Posición base Idle_Respirar_01';
+        baseIdleHint.textContent = is3d
+          ? 'Activa el ciclo que alterna Idle_Respirar_01/02 y los parpadeos naturales. Si otra animación está en curso, empieza al terminar.'
+          : 'Reproduce y mantiene en bucle esta animación base. Otra acción en la cola la interrumpe al terminar el ciclo actual.';
+        baseIdleButton.textContent = baseIdlePending ? 'Enviando…' : (is3d ? 'Activar reposo 3D' : 'Activar posición base');
+        baseIdleButton.disabled = baseIdlePending || (is3d
+          ? !exe3dAuthenticated || !exe3dPowerEnabled || !exe3dAvailableActions.has('idle')
+          : !legacyPowerEnabled);
+      }
+
+      function renderPower() {
+        const enabled = usingExe3d() ? exe3dPowerEnabled : legacyPowerEnabled;
+        power.checked = enabled;
+        power.disabled = usingExe3d() && !exe3dConnected;
+        renderBaseIdleControl();
+        powerLabel.textContent = usingExe3d()
+          ? (enabled ? 'Rulo 3D está encendido' : 'Rulo 3D está apagado')
+          : (enabled ? 'Rulo está encendido' : 'Rulo está apagado');
+        powerHint.textContent = usingExe3d()
+          ? (exe3dConnected ? (enabled ? 'Ejecutable conectado; el bot y la música siguen controlados por Cortex.' : 'Al activarlo, RULO.exe reproducirá Start_Apareciendo_01.') : 'Conecta RULO.exe para controlar el modelo 3D.')
+          : (enabled ? 'Animaciones WebM y pedidos de música habilitados' : 'Animaciones WebM y pedidos de música detenidos');
+        if (usingExe3d()) {
+          renderMate(exe3dMateEnabled);
+          renderSecondProp(false);
+        } else {
+          renderMate(legacyMateEnabled);
+          renderSecondProp(legacySecondPropEnabled);
+        }
+      }
+
+      function normalizeExe3dHost(value) {
+        const host = String(value || '').trim();
+        return /^[a-zA-Z0-9.-]{1,253}$/.test(host) && !host.startsWith('.') && !host.endsWith('.') && !host.includes('..') ? host : '';
+      }
+      function isCortexLaunchTarget() {
+        const host = normalizeExe3dHost(exe3dHostInput.value).toLowerCase();
+        const panelHost = String(location.hostname || '').toLowerCase();
+        const loopbackHosts = new Set(['localhost', '127.0.0.1']);
+        return host === panelHost || (loopbackHosts.has(host) && loopbackHosts.has(panelHost));
+      }
+      function renderRuloExeLaunch() {
+        const host = normalizeExe3dHost(exe3dHostInput.value);
+        const hostMatches = isCortexLaunchTarget();
+        const token = exe3dTokenInput.value.trim() || exe3dAccessToken;
+        launchRuloExe.disabled = !usingExe3d() || ruloExeLaunchPending || token.length < 16 || !host;
+        ruloExeLaunchHint.classList.toggle('agent-warning', !hostMatches);
+        ruloExeLaunchHint.textContent = hostMatches
+          ? 'Inicia RULO.exe en esta PC mediante el backend local de Cortex.'
+          : '⚠ Antes de pulsar “Iniciar RULO.exe”, abre y deja funcionando “Iniciar agente RULO remoto.bat” en la PC 192.168.4.150. Ruta: D:\\Codot Model Rulo\\FORMATO WINDOWS\\RULO 3D protegido\\Iniciar agente RULO remoto.bat. El agente habilita TCP 4102.';
+      }
+      function isMediaPipeTrackingActive() {
+        if (['stopped', 'stopping', 'error'].includes(exe3dMediaPipeState)) return false;
+        return exe3dMediaPipeState === 'active' || exe3dFaceTrackingActive || exe3dPoseTrackingActive;
+      }
+      function renderExe3dActionAvailability() {
+        const is3d = usingExe3d();
+        mediapipeRemoteCard.hidden = !is3d;
+        renderRuloExeLaunch();
+        document.querySelectorAll('[data-trigger]').forEach(button => {
+          const action = button.dataset.trigger;
+          const available = exe3dAvailableActions.has(action);
+          button.disabled = is3d && (!exe3dAuthenticated || !available || button.dataset.pending === 'true');
+          if (is3d && !available) button.title = 'Todavía no hay una animación 3D asignada a esta acción.';
+          else button.removeAttribute('title');
+        });
+        document.querySelectorAll('[data-mediapipe-action]').forEach(button => {
+          const action = button.dataset.mediapipeAction;
+          const available = exe3dMediapipeActions.has(action);
+          if (action === 'start_tracking') {
+            const requestState = button.dataset.requestedTrackingState || '';
+            const starting = exe3dMediaPipeState === 'starting';
+            const stopping = exe3dMediaPipeState === 'stopping';
+            const active = isMediaPipeTrackingActive();
+            if (requestState === 'starting' || starting) button.textContent = 'Iniciando seguimiento…';
+            else if (requestState === 'stopping' || stopping) button.textContent = 'Deteniendo seguimiento…';
+            else button.textContent = active ? 'Detener Seguimiento' : 'Iniciar seguimiento';
+            button.disabled = is3d && (!exe3dAuthenticated || !available || button.dataset.pending === 'true' ||
+              requestState !== '' || starting || stopping);
+          } else {
+            button.disabled = is3d && (!exe3dAuthenticated || !available || button.dataset.pending === 'true');
+          }
+        });
+      }
+      function renderControlMode() {
+        const is3d = usingExe3d();
+        document.querySelectorAll('[data-rulo-mode="webm"]').forEach(section => section.hidden = is3d);
+        webmLibrary.hidden = is3d;
+        exe3dSettings.hidden = !is3d;
+        document.getElementById('clipInfoPowerRow').hidden = is3d;
+        document.getElementById('secondPropPowerRow').hidden = is3d;
+        document.getElementById('webmSourceDetails').hidden = is3d;
+        document.getElementById('connection').hidden = is3d;
+        document.getElementById('obsTitleLabel').textContent = is3d ? 'Controles de Rulo 3D' : 'Fuente para OBS';
+        document.getElementById('powerDescription').textContent = is3d
+          ? 'Este interruptor solo enciende o apaga RULO.exe. Al encenderlo reproduce Start_Apareciendo_01.'
+          : 'En modo WebM, apagar Rulo detiene sus animaciones y también los pedidos o controles de música. Al encenderla, reproduce la animación de inicio.';
+
+        document.querySelectorAll('[data-trigger]').forEach(button => {
+          const help = button.parentElement.querySelector('small');
+          if (!help) return;
+          if (!button.dataset.webmDescription) button.dataset.webmDescription = help.textContent;
+          if (!is3d) { help.textContent = button.dataset.webmDescription; return; }
+          const descriptions = {
+            iniciar: 'Enciende el ejecutable 3D y reproduce Start_Apareciendo_01.',
+            aparecer: 'Muestra a Rulo 3D con Start_Apareciendo_01.',
+            hablar: 'Pendiente: falta crear y asignar una animación 3D de habla.',
+            normal: 'Pendiente: falta crear y asignar una animación 3D de reposo/despertar.',
+            dormir: 'Pendiente: falta crear y asignar las animaciones 3D de sueño.',
+            ocultar: 'Oculta a Rulo 3D sin apagar la conexión del ejecutable.',
+            presentacion: 'Disponible solo para la fuente WebM de Presentación.',
+            despedida: 'Disponible solo para la fuente WebM de Presentación.'
+          };
+          help.textContent = descriptions[button.dataset.trigger] || 'Esta acción todavía no está asignada al ejecutable 3D.';
+        });
+        modeNotice.textContent = is3d
+          ? 'Conecta con la IP configurada y la clave compartida de RULO.exe por el puerto 4101. Solo están habilitadas las acciones que el ejecutable declara; las animaciones pendientes permanecen desactivadas.'
+          : 'El modo seleccionado se recuerda en este navegador. Cambiarlo no apaga el otro motor; evita dejar visibles ambos Rulos en OBS.';
+        if (!is3d) {
+          closeExe3dSocket();
+          exe3dConnection.textContent = 'Modo WebM seleccionado.';
+          exe3dConnection.className = 'mode-status';
+        } else {
+          const host = normalizeExe3dHost(exe3dHostInput.value) || location.hostname;
+          exe3dConnection.textContent = exe3dAccessToken
+            ? 'Conectando con RULO.exe en ' + host + ':4101…'
+            : 'Indica la IP del ejecutable y la clave compartida para conectar.';
+          exe3dConnection.className = exe3dAccessToken ? 'mode-status' : 'mode-status error';
+          connectExe3dSocket();
+        }
+        renderExe3dActionAvailability();
+        renderPower();
+      }
+
+      function sendExe3dCommand(action, extra = {}) {
+        return new Promise((resolve, reject) => {
+          if (!exe3dSocket || exe3dSocket.readyState !== WebSocket.OPEN || !exe3dAuthenticated) {
+            reject(new Error('RULO.exe no está autenticado. Comprueba la IP y la clave compartida.'));
+            return;
+          }
+          const id = 'panel-' + (++exe3dRequestSeq);
+          const timeout = setTimeout(() => { exe3dPending.delete(id); reject(new Error('RULO.exe no respondió a tiempo.')); }, 5000);
+          exe3dPending.set(id, {resolve, reject, timeout});
+          exe3dSocket.send(JSON.stringify({type:'rulo_3d_command', id, action, ...extra}));
+        });
+      }
+
+      function requestExe3dStatus() {
+        if (exe3dSocket && exe3dSocket.readyState === WebSocket.OPEN && exe3dAuthenticated) {
+          exe3dSocket.send(JSON.stringify({type:'rulo_3d_command', id:'status', action:'status'}));
+        }
+      }
+
+
+
+      async function waitForMediaPipeTracking(previousUpdatedAt, timeoutMs = 20000) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          if (!exe3dAuthenticated || !exe3dConnected) throw new Error('Se perdió la conexión autenticada con RULO.exe mientras se iniciaba la cámara.');
+          requestExe3dStatus();
+          const isFresh = Number(exe3dMediaPipeUpdatedAt || 0) > previousUpdatedAt;
+          if (isFresh && exe3dMediaPipeState === 'error') {
+            throw new Error(exe3dMediaPipeMessage || 'MediaPipe no pudo iniciar la cámara. Abre el dashboard en el equipo de RULO.exe.');
+          }
+          if (exe3dFaceTrackingActive || exe3dPoseTrackingActive) return 'Seguimiento activo: RULO.exe recibe señal de MediaPipe y aplica los movimientos.';
+          if (isFresh && exe3dMediaPipeState === 'stopped') {
+            throw new Error(exe3dMediaPipeMessage || 'El dashboard MediaPipe informa que el seguimiento está detenido.');
+          }
+          if (isFresh && exe3dMediaPipeState === 'active') {
+            mediapipeRemoteStatus.textContent = (exe3dMediaPipeMessage || 'Cámara abierta.') + ' Esperando detección de cara o cuerpo…';
+          } else {
+            mediapipeRemoteStatus.textContent = isFresh
+              ? (exe3dMediaPipeMessage || 'Preparando la cámara…')
+              : 'RULO.exe inició la solicitud. Esperando el estado de MediaPipe…';
+          }
+          mediapipeRemoteStatus.className = 'mode-status';
+          await new Promise(resolve => setTimeout(resolve, 650));
+        }
+        const isFresh = Number(exe3dMediaPipeUpdatedAt || 0) > previousUpdatedAt;
+        if (isFresh && exe3dMediaPipeState === 'active') {
+          throw new Error((exe3dMediaPipeMessage || 'La cámara está abierta.') + ' No detecta una cara o cuerpo. Revisa el encuadre y el modo de seguimiento.');
+        }
+        if (isFresh && exe3dMediaPipeMessage) {
+          throw new Error(exe3dMediaPipeMessage + ' Revisa el dashboard MediaPipe.');
+        }
+        throw new Error('RULO.exe no confirmó señal de cámara en 20 s. Usa “Abrir dashboard MediaPipe” para revisar la webcam y el mensaje de error.');
+      }
+
+      async function waitForMediaPipeStopped(previousUpdatedAt, timeoutMs = 15000) {
+        const deadline = Date.now() + timeoutMs;
+        while (Date.now() < deadline) {
+          if (!exe3dAuthenticated || !exe3dConnected) throw new Error('Se perdió la conexión autenticada con RULO.exe mientras se detenía la cámara.');
+          requestExe3dStatus();
+          const isFresh = Number(exe3dMediaPipeUpdatedAt || 0) > previousUpdatedAt;
+          if (isFresh && exe3dMediaPipeState === 'stopped') return exe3dMediaPipeMessage || 'Seguimiento detenido.';
+          if (isFresh && exe3dMediaPipeState === 'error') throw new Error(exe3dMediaPipeMessage || 'MediaPipe informó un error al detener el seguimiento.');
+          if (exe3dMediaPipeState === 'stopping') {
+            mediapipeRemoteStatus.textContent = exe3dMediaPipeMessage || 'Deteniendo la captura…';
+            mediapipeRemoteStatus.className = 'mode-status';
+          }
+          await new Promise(resolve => setTimeout(resolve, 350));
+        }
+        throw new Error('RULO.exe no confirmó que se detuvo el seguimiento. Revisa el dashboard MediaPipe.');
+      }
+      function closeExe3dSocket() {
+        clearTimeout(exe3dReconnectTimer);
+        clearTimeout(exe3dAuthTimer);
+        exe3dReconnectTimer = null;
+        exe3dAuthTimer = null;
+        const oldSocket = exe3dSocket;
+        exe3dSocket = null;
+        // Si está CONNECTING, se cerrará al abrir; close() aquí genera un error ruidoso en consola.
+        if (oldSocket && oldSocket.readyState === WebSocket.OPEN) oldSocket.close();
+        exe3dAuthenticated = false;
+        exe3dConnected = false;
+        exe3dFaceTrackingActive = false;
+        exe3dPoseTrackingActive = false;
+        exe3dMediaPipeState = 'unknown';
+        exe3dMediaPipeMessage = '';
+        exe3dMediaPipeUpdatedAt = 0;
+        renderExe3dActionAvailability();
+      }
+
+      function connectExe3dSocket() {
+        if (!usingExe3d() || (exe3dSocket && exe3dSocket.readyState < WebSocket.CLOSING)) return;
+        clearTimeout(exe3dReconnectTimer);
+        const host = normalizeExe3dHost(exe3dHostInput.value);
+        const token = exe3dAccessToken || exe3dTokenInput.value.trim();
+        if (!host) {
+          exe3dConnection.textContent = 'Escribe una IP o nombre de equipo válido para RULO.exe.';
+          exe3dConnection.className = 'mode-status error';
+          return;
+        }
+        if (!token || token.length < 16) {
+          exe3dConnection.textContent = 'Guarda una clave compartida de al menos 16 caracteres.';
+          exe3dConnection.className = 'mode-status error';
+          return;
+        }
+        exe3dConnectionError = '';
+        exe3dAuthRejected = false;
+        const protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const target = new WebSocket(protocol + host + ':4101/');
+        exe3dSocket = target;
+        target.onopen = () => {
+          if (target !== exe3dSocket) { target.close(1000, 'Superseded'); return; }
+          exe3dConnection.textContent = 'Autenticando con RULO.exe en ' + host + ':4101…';
+          exe3dConnection.className = 'mode-status';
+          target.send(JSON.stringify({type:'rulo_3d_auth', token}));
+          exe3dAuthTimer = setTimeout(() => {
+            if (target !== exe3dSocket || exe3dAuthenticated) return;
+            exe3dConnectionError = 'RULO.exe no respondió a la autenticación. Revisa la IP, la clave y el puerto 4101.';
+            target.close();
+          }, 5000);
+        };
+        target.onmessage = event => {
+          let data; try { data = JSON.parse(event.data); } catch (_) { return; }
+          if (data.type === 'rulo_3d_auth_result') {
+            clearTimeout(exe3dAuthTimer);
+            exe3dAuthTimer = null;
+            if (data.success !== true) {
+              exe3dAuthRejected = true;
+              exe3dConnectionError = data.message || 'La clave compartida no es válida.';
+              target.close();
+              return;
+            }
+            exe3dAuthenticated = true;
+            exe3dConnected = true;
+            exe3dConnection.textContent = 'RULO.exe autenticado en ' + host + ':4101.';
+            exe3dConnection.className = 'mode-status on';
+            renderExe3dActionAvailability();
+            renderPower();
+            requestExe3dStatus();
+            return;
+          }
+          if (!exe3dAuthenticated) return;
+          if (data.type === 'rulo_3d_status') {
+            exe3dPowerEnabled = data.enabled === true;
+            exe3dMateEnabled = data.mate_interaction_enabled === true;
+            exe3dFaceTrackingActive = data.face_tracking_active === true;
+            exe3dPoseTrackingActive = data.pose_tracking_active === true;
+            exe3dMediaPipeState = String(data.mediapipe_state || 'unknown');
+            exe3dMediaPipeMessage = String(data.mediapipe_message || '');
+            exe3dMediaPipeUpdatedAt = Number(data.mediapipe_updated_at || 0);
+            if (Array.isArray(data.available_actions)) exe3dAvailableActions = new Set(data.available_actions.map(String));
+            if (Array.isArray(data.mediapipe_actions)) exe3dMediapipeActions = new Set(data.mediapipe_actions.map(String));
+            const runtimeLabels = {apagado:'Apagado',encendido:'Encendido',reproduciendo:'Reproduciendo',en_cola:'Reproduciendo · acciones en cola',idle:'En reposo',seguimiento:'Siguiendo movimientos',oculto:'Oculto'};
+            const runtimeLabel = runtimeLabels[data.runtime_state] || data.runtime_state || 'Conectado';
+            const buildLabel = data.build_version ? ' · build ' + data.build_version : '';
+            const protocolLabel = data.protocol_version ? ' · protocolo ' + data.protocol_version : '';
+            exe3dConnection.textContent = 'RULO.exe autenticado en ' + host + buildLabel + protocolLabel + ' · ' + runtimeLabel + (data.animation ? ' · Animación: ' + data.animation : '') + (data.mate_near ? ' · Mate cerca' : '');
+            exe3dConnection.className = 'mode-status on';
+            renderExe3dActionAvailability();
+            renderPower();
+          } else if (data.type === 'rulo_3d_result') {
+            const pending = exe3dPending.get(data.id);
+            if (!pending) return;
+            clearTimeout(pending.timeout); exe3dPending.delete(data.id);
+            if (data.success) pending.resolve(data); else pending.reject(new Error(data.message || 'El ejecutable rechazó el comando.'));
+          } else if (data.type === 'rulo_3d_event' && data.event === 'mate_reaction_requested') {
+            status.textContent = data.message || 'Mate detectado por Rulo 3D.';
+          }
+        };
+        target.onerror = () => target.close();
+        target.onclose = () => {
+          clearTimeout(exe3dAuthTimer);
+          exe3dAuthTimer = null;
+          if (target !== exe3dSocket) return;
+          exe3dSocket = null;
+          exe3dAuthenticated = false;
+          exe3dConnected = false;
+          exe3dFaceTrackingActive = false;
+          exe3dPoseTrackingActive = false;
+          exe3dMediaPipeState = 'unknown';
+          exe3dMediaPipeMessage = '';
+          exe3dMediaPipeUpdatedAt = 0;
+          renderExe3dActionAvailability();
+          renderPower();
+          exe3dConnection.textContent = exe3dConnectionError || 'RULO.exe desconectado. Revisa que esté abierto y permite el puerto 4101 en el Firewall.';
+          exe3dConnection.className = 'mode-status error';
+          exe3dConnectionError = '';
+          const rejected = exe3dAuthRejected;
+          exe3dAuthRejected = false;
+          for (const [id, pending] of exe3dPending) { clearTimeout(pending.timeout); pending.reject(new Error('Se perdió la conexión con RULO.exe.')); exe3dPending.delete(id); }
+          if (usingExe3d() && !rejected) exe3dReconnectTimer = setTimeout(connectExe3dSocket, 2000);
+        };
+      }
+
+      function persistExe3dSettings() {
+        const host = normalizeExe3dHost(exe3dHostInput.value);
+        const token = exe3dTokenInput.value.trim();
+        if (!host) {
+          exe3dConnection.textContent = 'Escribe una IP o nombre de equipo válido, sin protocolo ni puerto.';
+          exe3dConnection.className = 'mode-status error';
+          return;
+        }
+        if (token.length < 16 || token.length > 256) {
+          exe3dConnection.textContent = 'La clave compartida debe tener entre 16 y 256 caracteres.';
+          exe3dConnection.className = 'mode-status error';
+          return;
+        }
+        localStorage.setItem(EXE3D_HOST_KEY, host);
+        localStorage.setItem(EXE3D_TOKEN_KEY, token);
+        exe3dAccessToken = token;
+        exe3dAuthRejected = false;
+        closeExe3dSocket();
+        exe3dHostInput.value = host;
+        exe3dConnection.textContent = 'Conectando con RULO.exe en ' + host + ':4101…';
+        exe3dConnection.className = 'mode-status';
+        if (usingExe3d()) connectExe3dSocket();
+      }
+      exe3dHostInput.addEventListener('input', renderRuloExeLaunch);
+      exe3dTokenInput.addEventListener('input', renderRuloExeLaunch);
+      launchRuloExe.addEventListener('click', async () => {
+        const host = normalizeExe3dHost(exe3dHostInput.value);
+        const token = exe3dTokenInput.value.trim() || exe3dAccessToken;
+        if (!host) {
+          ruloExeLaunchStatus.textContent = 'Escribe la IP del equipo donde corre RULO.exe.';
+          return;
+        }
+        if (token.length < 16) {
+          ruloExeLaunchStatus.textContent = 'Guarda primero la clave compartida del paquete RULO 3D.';
+          return;
+        }
+        ruloExeLaunchPending = true;
+        renderRuloExeLaunch();
+        ruloExeLaunchStatus.textContent = 'Solicitando el inicio de RULO.exe a través de Cortex…';
+        try {
+          const response = await fetch('/api/rulo-exe/launch', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({host, token})
+          });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo iniciar RULO.exe.');
+          ruloExeLaunchStatus.textContent = result.message || 'Solicitud de inicio enviada.';
+          if (result.started || result.starting || result.alreadyRunning || !exe3dConnected) {
+            closeExe3dSocket();
+            exe3dReconnectTimer = setTimeout(connectExe3dSocket, 1200);
+          }
+        } catch (error) {
+          ruloExeLaunchStatus.textContent = error.message || 'No se pudo iniciar RULO.exe a través de Cortex.';
+        } finally {
+          ruloExeLaunchPending = false;
+          renderRuloExeLaunch();
+        }
+      });      saveExe3dSettings.addEventListener('click', persistExe3dSettings);
+      forgetExe3dToken.addEventListener('click', () => {
+        localStorage.removeItem(EXE3D_TOKEN_KEY);
+        exe3dAccessToken = '';
+        exe3dTokenInput.value = '';
+        closeExe3dSocket();
+        exe3dConnection.textContent = 'Clave olvidada. Escribe la clave compartida para volver a conectar.';
+        exe3dConnection.className = 'mode-status error';
+        renderPower();
+      });
+      controlMode.addEventListener('change', () => {
+        const nextMode = controlMode.value === 'exe3d' ? 'exe3d' : 'webm';
+        if (usingExe3d() && nextMode === 'webm' && exe3dPowerEnabled) {
+          controlMode.value = 'exe3d';
+          status.textContent = 'Apaga Rulo 3D antes de cambiar al método WebM.';
+          return;
+        }
+        activeControlMode = nextMode;
+        localStorage.setItem(CONTROL_MODE_KEY, activeControlMode);
+        renderControlMode();
+      });
       const powerLabel = document.getElementById('powerLabel');
       const powerHint = document.getElementById('powerHint');
+      const clipInfoPower = document.getElementById('showAnimationClipInfo');
+      const clipInfoLabel = document.getElementById('clipInfoLabel');
+      const clipInfoHint = document.getElementById('clipInfoHint');
       const sleepMin = document.getElementById('sleepMin');
       const sleepMax = document.getElementById('sleepMax');
       const sleepStatus = document.getElementById('sleepStatus');
@@ -144,8 +693,122 @@
       function fillSleep(config) {
         sleepMin.value = config.sleepHideMinMinutes ?? 10;
         sleepMax.value = config.sleepHideMaxMinutes ?? 15;
+        renderClipInfo(config.showAnimationClipInfo === true);
       }
+      function renderClipInfo(enabled) {
+        clipInfoPower.checked = enabled;
+        clipInfoPower.disabled = false;
+        clipInfoLabel.textContent = enabled ? 'Información del clip activada' : 'Información del clip desactivada';
+        clipInfoHint.textContent = enabled ? 'Se muestra en OBS en texto blanco sobre fondo negro.' : 'Actívala para mostrar en OBS los datos del clip actual. Solo de prueba Recomendado tenerlo deshabilitado';
+      }
+      function renderSecondProp(enabled){secondPropPower.checked=enabled===true;secondPropPower.disabled=usingExe3d()||!power.checked||secondPropSaving||!secondPropAvailable;secondPropLabel.textContent=usingExe3d()?'Segundo objeto (solo WebM/OBS)':(secondPropPower.checked?'Objeto Termo activado':'Recoger Termo');secondPropHint.textContent=usingExe3d()?'El ejecutable 3D todavía no tiene control del segundo objeto.':!power.checked?'Primero enciende Rulo.':!secondPropAvailable?'Revisa que el PNG y los clips para recoger y guardar el segundo objeto estén disponibles en la Biblioteca.':secondPropPower.checked?'El termo permanece visible junto a Rulo durante sus demás animaciones. Al desactivarlo, Rulo lo guarda y luego oculta el objeto.':'Actívalo para reproducir el clip y dejar el termo junto al mate.';}
+      function renderMate(enabled) {
+        matePower.checked = enabled === true;
+        if (usingExe3d()) {
+          matePower.disabled = !exe3dConnected || !exe3dPowerEnabled || mateSaving;
+          drinkMateButton.textContent = 'Probar detección del mate';
+          drinkMateButton.disabled = !exe3dConnected || !exe3dPowerEnabled || !matePower.checked || mateDrinkPending;
+          mateLabel.textContent = matePower.checked ? 'Interacción con mate 3D activada' : 'Interacción con mate 3D';
+          mateHint.textContent = matePower.checked
+            ? 'Rulo detecta proximidad y emite un evento. Todavía no mueve el modelo ni reproduce una animación de mate.'
+            : (exe3dPowerEnabled ? 'Actívala para habilitar la detección de proximidad del mate en Godot.' : 'Enciende Rulo 3D primero.');
+          return;
+        }
+        drinkMateButton.textContent = 'Probar tomando mate';
+        matePower.disabled = !legacyPowerEnabled || mateSaving;
+        drinkMateButton.disabled = !legacyPowerEnabled || !matePower.checked || mateDrinkPending;
+        mateLabel.textContent = matePower.checked ? 'Tomar mate está activado' : 'Tomar mate';
+        mateHint.textContent = matePower.checked
+          ? 'El mate queda visible mientras Rulo hace otras animaciones. Al desactivarlo, se oculta el objeto estacionado y Rulo reproduce el clip para guardarlo.'
+          : (legacyPowerEnabled ? 'Actívala para reproducir el clip de agarrar el mate; al desactivarla, Rulo lo guardará.' : 'Primero enciende Rulo.');
+      }
+      fetch('/api/rulo-mate-state').then(r => r.json()).then(data => { legacyMateEnabled = data.enabled === true; if (!usingExe3d()) renderMate(legacyMateEnabled); }).catch(() => { if (!usingExe3d()) mateHint.textContent = 'No se pudo consultar el estado de Tomar mate.'; });
+      fetch('/api/rulo-second-prop-state').then(r=>r.json()).then(data=>{secondPropAvailable=data.available===true;legacySecondPropEnabled=data.enabled===true;if(!usingExe3d())renderSecondProp(legacySecondPropEnabled);}).catch(()=>{if(!usingExe3d())secondPropHint.textContent='No se pudo consultar el segundo objeto.';});
+      secondPropPower.addEventListener('change',async()=>{const enabled=secondPropPower.checked;secondPropSaving=true;renderSecondProp(enabled);try{const response=await fetch('/api/rulo-second-prop-state',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})}),result=await response.json();if(!response.ok||!result.success)throw Error(result.error||'No se pudo cambiar el termo.');legacySecondPropEnabled=result.enabled===true;renderSecondProp(legacySecondPropEnabled);status.textContent=enabled?'Clip para recoger el termo enviado.':'Clip para guardar el termo enviado; se ocultará al terminar.';}catch(error){legacySecondPropEnabled=!enabled;renderSecondProp(legacySecondPropEnabled);secondPropHint.textContent=error.message;}finally{secondPropSaving=false;renderSecondProp(legacySecondPropEnabled);}});
+      drinkMateButton.addEventListener('click', async () => {
+        if (usingExe3d()) {
+          if (!exe3dPowerEnabled || !matePower.checked || mateDrinkPending) return;
+          mateDrinkPending = true; renderMate(exe3dMateEnabled);
+          try {
+            const result = await sendExe3dCommand('mate_reaction');
+            status.textContent = result.message;
+          } catch (error) { status.textContent = error.message; }
+          finally { mateDrinkPending = false; renderMate(exe3dMateEnabled); }
+          return;
+        }
+        if (!legacyPowerEnabled || !matePower.checked || mateDrinkPending) return;
+        mateDrinkPending = true; drinkMateButton.disabled = true; drinkMateButton.textContent = 'Enviando…';
+        try {
+          const response = await fetch('/api/rulo-mate-drink', { method:'POST' });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo iniciar el clip de tomar mate.');
+          status.textContent = 'Animación de tomar mate enviada a la cola.';
+          refreshAnimationState();
+        } catch (error) { status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
+        finally { mateDrinkPending = false; drinkMateButton.textContent = 'Probar tomando mate'; drinkMateButton.disabled = !power.checked || !matePower.checked; }
+      });
+      baseIdleButton.addEventListener('click', async () => {
+        if (baseIdlePending) return;
+        if (usingExe3d()) {
+          if (!exe3dAuthenticated || !exe3dPowerEnabled) return;
+          baseIdlePending = true; renderBaseIdleControl();
+          try {
+            const result = await sendExe3dCommand('idle');
+            status.textContent = result.message;
+          } catch (error) { status.textContent = error.message || 'No se pudo activar el reposo 3D.'; }
+          finally { baseIdlePending = false; renderBaseIdleControl(); }
+          return;
+        }
+        if (!legacyPowerEnabled) return;
+        baseIdlePending = true; renderBaseIdleControl();
+        try {
+          const response = await fetch('/api/rulo-library/play', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({animationId:'Idle_Respirar_01',loop:true})});
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo iniciar la posición base.');
+          status.textContent = result.clients ? 'Posición base Idle_Respirar_01 enviada; quedará en bucle hasta que llegue otra acción.' : 'No hay una fuente de animaciones conectada. Recarga en OBS la fuente Navegador de rulo-animaciones.html y vuelve a probar.';
+          refreshAnimationState();
+        } catch (error) { status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
+        finally { baseIdlePending = false; renderBaseIdleControl(); }
+      });
+      matePower.addEventListener('change', async () => {
+        const enabled = matePower.checked;
+        if (usingExe3d()) {
+          if (enabled && !exe3dPowerEnabled) { renderMate(false); status.textContent = 'Enciende Rulo 3D primero.'; return; }
+          mateSaving = true; renderMate(enabled);
+          try {
+            const result = await sendExe3dCommand('mate_interaction', {enabled});
+            exe3dMateEnabled = enabled;
+            status.textContent = result.message;
+          } catch (error) { exe3dMateEnabled = !enabled; mateHint.textContent = error.message; }
+          finally { mateSaving = false; renderMate(exe3dMateEnabled); }
+          return;
+        }
+        if (enabled && !legacyPowerEnabled) { renderMate(false); status.textContent = 'Primero enciende Rulo.'; return; }
+        mateSaving = true; renderMate(enabled); mateHint.textContent = enabled ? 'Reproduciendo el clip para agarrar el mate…' : 'Desactivando Tomar mate…';
+        try {
+          const response = await fetch('/api/rulo-mate-state', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({enabled}) });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo cambiar Tomar mate.');
+          legacyMateEnabled = result.enabled === true; renderMate(legacyMateEnabled);
+          status.textContent = enabled ? 'Acción de agarrar el mate enviada.' : 'Animación para guardar el mate enviada; el objeto estacionado se ocultó al comenzar.';
+        } catch (error) { legacyMateEnabled = !enabled; renderMate(legacyMateEnabled); mateHint.textContent = error.message || 'No se pudo cambiar Tomar mate.'; }
+        finally { mateSaving = false; renderMate(legacyMateEnabled); }
+      });
       fetch('/api/rulo-config').then(r => r.json()).then(data => fillSleep(data.config)).catch(() => { sleepStatus.textContent = 'No se pudo cargar el tiempo guardado.'; });
+      clipInfoPower.addEventListener('change', async () => {
+        const enabled = clipInfoPower.checked;
+        clipInfoPower.disabled = true;
+        clipInfoHint.textContent = 'Guardando preferencia…';
+        try {
+          const response = await fetch('/api/rulo-config', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({showAnimationClipInfo:enabled}) });
+          const result = await response.json();
+          if (!response.ok || !result.success) throw new Error(result.error || 'No se pudo guardar la preferencia.');
+          renderClipInfo(result.config.showAnimationClipInfo === true);
+        } catch (error) {
+          renderClipInfo(!enabled);
+          clipInfoHint.textContent = error.message || 'No se pudo guardar la preferencia.';
+        }
+      });
       document.getElementById('sleepForm').addEventListener('submit', async event => {
         event.preventDefault();
         const min = Number(sleepMin.value), max = Number(sleepMax.value);
@@ -160,30 +823,41 @@
         } catch (error) { sleepStatus.textContent = error.message; }
         finally { button.disabled = false; }
       });
-      function renderPower(enabled) {
-        power.checked = enabled === true;
-        power.disabled = false;
-        powerLabel.textContent = power.checked ? 'Rulo está encendido' : 'Rulo está apagado';
-        powerHint.textContent = power.checked ? 'Animaciones y pedidos de música habilitados' : 'Animaciones y pedidos de música detenidos';
-      }
-      fetch('/api/rulo-mascota-state').then(response => response.json()).then(data => renderPower(data.enabled)).catch(() => { powerLabel.textContent = 'No se pudo cargar el estado'; powerHint.textContent = 'Comprueba que Control Cortex esté iniciado'; });
+      function renderLegacyPower(enabled) { legacyPowerEnabled = enabled === true; if (!usingExe3d()) renderPower(); }
+      fetch('/api/rulo-mascota-state').then(response => response.json()).then(data => renderLegacyPower(data.enabled)).catch(() => { if (!usingExe3d()) { powerLabel.textContent = 'No se pudo cargar el estado'; powerHint.textContent = 'Comprueba que Control Cortex esté iniciado'; } });
       power.addEventListener('change', async () => {
         const enabled = power.checked;
         power.disabled = true;
+        if (usingExe3d()) {
+          powerHint.textContent = enabled ? 'Encendiendo Rulo 3D y reproduciendo Start_Apareciendo_01…' : 'Apagando solo el ejecutable 3D…';
+          try {
+            const result = await sendExe3dCommand('power', {enabled});
+            exe3dPowerEnabled = enabled; renderPower(); status.textContent = result.message;
+          } catch (error) { exe3dPowerEnabled = !enabled; renderPower(); status.textContent = error.message; }
+          finally { renderPower(); }
+          return;
+        }
         powerHint.textContent = enabled ? 'Encendiendo y reproduciendo el inicio…' : 'Apagando…';
         try {
           const response = await fetch('/api/rulo-mascota-state', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({enabled})});
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'No se pudo cambiar el estado.');
-          renderPower(result.enabled);
+          renderLegacyPower(result.enabled);
+          if (!result.enabled) { legacyMateEnabled = false; renderMate(false); }
           if (result.shuttingDown) powerHint.textContent = 'Reproduciendo la despedida antes de ocultarse…';
-        } catch (error) { renderPower(!enabled); status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
+        } catch (error) { renderLegacyPower(!enabled); status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
       });
 
       document.querySelectorAll('[data-trigger]').forEach(button => {
         button.addEventListener('click', async () => {
           button.disabled = true;
+          button.dataset.pending = 'true';
           try {
+            if (usingExe3d()) {
+              const result = await sendExe3dCommand('trigger', {name:button.dataset.trigger});
+              status.textContent = result.message;
+              return;
+            }
             const response = await fetch('/api/rulo-animation-trigger', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:button.dataset.trigger}) });
             const result = await response.json();
             if (!response.ok) throw new Error(result.error || 'No se pudo enviar el control.');
@@ -194,13 +868,58 @@
               return;
             }
             status.textContent = result.overlayClients
-              ? 'Prueba enviada a la fuente OBS conectada. Si Rulo está durmiendo, terminará el video completo antes de cambiar.'
+              ? 'Acción enviada. Rulo terminará el ciclo actual y recorrerá las transiciones de la biblioteca.'
               : 'No hay una fuente de animaciones conectada. Recarga en OBS la fuente Navegador de rulo-animaciones.html y vuelve a probar.';
+            refreshAnimationState();
           } catch (error) { status.textContent = error.message || 'No se pudo contactar con Control Cortex.'; }
-          finally { button.disabled = false; }
+          finally { button.dataset.pending = 'false'; renderExe3dActionAvailability(); }
         });
       });
 
+      document.querySelectorAll('[data-mediapipe-action]').forEach(button => {
+        button.addEventListener('click', async () => {
+          const operation = button.dataset.mediapipeAction;
+          const stoppingTracking = operation === 'start_tracking' && isMediaPipeTrackingActive();
+          const descriptions = {
+            open_dashboard: 'Abriendo el dashboard MediaPipe en el equipo de RULO.exe…',
+            start_tracking: stoppingTracking
+              ? 'Enviando la solicitud para detener seguimiento…'
+              : 'Enviando la solicitud para iniciar seguimiento…',
+            recalibrate_pose: 'Enviando la solicitud de recalibración…'
+          };
+          button.dataset.pending = 'true';
+          if (operation === 'start_tracking') button.dataset.requestedTrackingState = stoppingTracking ? 'stopping' : 'starting';
+          renderExe3dActionAvailability();
+          mediapipeRemoteStatus.textContent = descriptions[operation] || 'Enviando acción remota…';
+          mediapipeRemoteStatus.className = 'mode-status';
+          try {
+            const previousMediaPipeStatusAt = operation === 'start_tracking'
+              ? Number(exe3dMediaPipeUpdatedAt || 0)
+              : 0;
+            await sendExe3dCommand('mediapipe_action', {operation});
+            if (operation === 'start_tracking' && stoppingTracking) {
+              mediapipeRemoteStatus.textContent = 'Solicitud enviada. Esperando que la captura se detenga…';
+              mediapipeRemoteStatus.textContent = await waitForMediaPipeStopped(previousMediaPipeStatusAt);
+              mediapipeRemoteStatus.className = 'mode-status';
+            } else if (operation === 'start_tracking') {
+              mediapipeRemoteStatus.textContent = 'Solicitud enviada. Esperando señal de la cámara…';
+              mediapipeRemoteStatus.textContent = await waitForMediaPipeTracking(previousMediaPipeStatusAt);
+              mediapipeRemoteStatus.className = 'mode-status on';
+            } else {
+              mediapipeRemoteStatus.textContent = 'Solicitud enviada al equipo de RULO.exe.';
+            }
+          } catch (error) {
+            mediapipeRemoteStatus.textContent = error instanceof TypeError
+              ? 'No se pudo contactar con RULO.exe. Revisa la conexión autenticada por TCP 4101.'
+              : (error.message || 'No se pudo enviar la acción de MediaPipe.');
+            mediapipeRemoteStatus.className = 'mode-status error';
+          } finally {
+            button.dataset.pending = 'false';
+            button.dataset.requestedTrackingState = '';
+            renderExe3dActionAvailability();
+          }
+        });
+      });
       document.querySelectorAll('[data-upload]').forEach(button => {
         button.addEventListener('click', async () => {
           const kind = button.dataset.upload;
@@ -234,10 +953,11 @@
         });
       });
 
+      renderControlMode();
       const socket = new WebSocket((location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host);
       socket.onopen = () => { connection.textContent = 'Cortex conectado'; connection.classList.add('on'); };
       socket.onclose = () => { connection.textContent = 'Desconectado'; connection.classList.remove('on'); };
-      socket.onmessage = event => { try { const data = JSON.parse(event.data); if(data.type === 'rulo_animation_clients') connection.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; if(data.type === 'rulo_presentation_clients') { const target = document.getElementById('presentationConnection'); target.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; target.classList.toggle('on', data.count > 0); } if(data.type === 'rulo_config_updated' && data.config) renderPower(data.config.mascotEnabled !== false); if(data.type === 'rulo_mascota_shutdown_complete') powerHint.textContent = 'Animaciones y pedidos de música detenidos'; } catch (_) {} };
+      socket.onmessage = event => { try { const data = JSON.parse(event.data); if(data.type === 'rulo_animation_clients') connection.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; if(data.type === 'rulo_presentation_clients') { const target = document.getElementById('presentationConnection'); target.textContent = data.count ? 'Fuente OBS conectada' : 'Fuente OBS desconectada'; target.classList.toggle('on', data.count > 0); } if(data.type === 'rulo_config_updated' && data.config) { legacyPowerEnabled = data.config.mascotEnabled !== false; legacyMateEnabled = data.config.mateEnabled === true; legacySecondPropEnabled = data.config.secondPropEnabled === true; if(!usingExe3d()){renderPower();renderSecondProp(legacySecondPropEnabled);} renderClipInfo(data.config.showAnimationClipInfo === true); } if(data.type === 'rulo_mascota_shutdown_complete' && !usingExe3d()) powerHint.textContent = 'Animaciones y pedidos de música detenidos'; } catch (_) {} };
       fetch('/api/rulo-animation-status').then(response => response.json()).then(data => {
         connection.textContent = data.overlayClients ? 'Fuente OBS conectada' : 'Fuente OBS desconectada';
         connection.classList.toggle('on', data.overlayClients > 0);
@@ -249,3 +969,6 @@
   </script>
 </body>
 </html>
+
+
+

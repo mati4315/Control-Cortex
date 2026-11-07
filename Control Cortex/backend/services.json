@@ -44,7 +44,7 @@
         "env":  {
                     "PORT":  "688"
                 },
-        "dashboardUrl":  "",
+        "dashboardUrl":  "/loteria/dashboard.html",
         "status":  "stopped"
     },
     {
@@ -69,6 +69,30 @@
                     "PORT":  "9742"
                 },
         "dashboardUrl":  "http://localhost:9742/dashboard.html",
+        "status":  "stopped"
+    },
+    {
+        "id":  "trigger-studio",
+        "name":  "TriggerStudio",
+        "description":  "Control de triggers y acciones de OBS",
+        "directory":  "../../Trigger Studio/server",
+        "script":  "dist/index.js",
+        "env":  {
+                    "PORT":  "2188"
+                },
+        "dashboardUrl":  "http://localhost:2188/",
+        "status":  "stopped"
+    },
+    {
+        "id":  "chat-bot-spotify",
+        "name":  "Chat Bot Spotify",
+        "description":  "Captura comentarios del DOM de Facebook y los integra con Rulo, la Ruleta y Spotify sin SocialStream Ninja",
+        "directory":  "../../Chat Bot Spotify",
+        "script":  "server.js",
+        "env":  {
+                    "CHAT_BOT_SPOTIFY_PORT":  "9765"
+                },
+        "dashboardUrl":  "http://localhost:9765/",
         "status":  "stopped"
     }
 ]

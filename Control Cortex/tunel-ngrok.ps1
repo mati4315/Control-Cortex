@@ -1,5 +1,5 @@
-# Tunel de ngrok: muestra (y copia) la URL publica para compartir el historial.
-# La levanta sola si no esta andando.
+# Tunel de ngrok: muestra (y copia) la URL publica de solo lectura del historial.
+# Cortex levanta el tunel seguro al puerto 4001; el panel y sus APIs no se exponen.
 #
 # La direccion CAMBIA en cada reinicio del tunel, por eso conviene abrir este
 # acceso directo en vez de guardar la URL en algun lado.
@@ -21,7 +21,7 @@ function Buscar-Ngrok {
 
 Write-Host ''
 Write-Host '  ============================================' -ForegroundColor Cyan
-Write-Host '   Tunel ngrok - acceso remoto al historial'   -ForegroundColor Cyan
+Write-Host '   Tunel ngrok - historial publico de lectura' -ForegroundColor Cyan
 Write-Host '  ============================================' -ForegroundColor Cyan
 Write-Host ''
 
@@ -33,13 +33,17 @@ if (-not $ngrok) {
   exit 1
 }
 
-# --- 1) Levantar el tunel si no esta andando ---
-if (Get-Process -Name ngrok) {
-  Write-Host '  [1/3] El tunel ya estaba andando.' -ForegroundColor Green
-} else {
-  Write-Host '  [1/3] Levantando el tunel...' -ForegroundColor Yellow
-  Start-Process -FilePath $ngrok -ArgumentList 'http', '4000' -WindowStyle Minimized
-  Start-Sleep -Seconds 9
+# --- 1) Pedir a Cortex que inicie el tunel de solo lectura ---
+Write-Host '  [1/3] Iniciando el tunel seguro desde Cortex...' -ForegroundColor Yellow
+try {
+  $inicio = Invoke-RestMethod -Uri 'http://127.0.0.1:4000/api/cortex-home/prepare' -Method Post -ContentType 'application/json' -Body '{"services":[],"ngrok":true}' -TimeoutSec 25
+  $fallo = $inicio.results | Where-Object { $_.id -eq 'ngrok' -and -not $_.ok } | Select-Object -First 1
+  if ($fallo) { throw $fallo.error }
+} catch {
+  Write-Host '  [!] No se pudo iniciar Cortex/ngrok: ' $_.Exception.Message -ForegroundColor Red
+  Write-Host '      Inicia Control Cortex y vuelve a abrir este acceso directo.' -ForegroundColor Gray
+  Read-Host '  Enter para salir'
+  exit 1
 }
 
 # --- 2) Leer la direccion publica desde la API local de ngrok ---
@@ -48,7 +52,7 @@ $publica = $null
 for ($i = 0; $i -lt 10 -and -not $publica; $i++) {
   try {
     $datos = Invoke-RestMethod -Uri 'http://127.0.0.1:4040/api/tunnels' -TimeoutSec 6
-    $publica = ($datos.tunnels | Where-Object { $_.public_url -like 'https*' } | Select-Object -First 1).public_url
+    $publica = ($datos.tunnels | Where-Object { $_.public_url -like 'https*' -and $_.config.addr -match '(:4001(?:/|$))' } | Select-Object -First 1).public_url
   } catch { }
   if (-not $publica) { Start-Sleep -Seconds 2 }
 }
@@ -62,13 +66,8 @@ if (-not $publica) {
   exit 1
 }
 
-# --- 3) Armar la URL del historial con el Session ID real del backend ---
-$session = 'XJ9hQ2JDHH'
-try {
-  $session = (Invoke-RestMethod -Uri 'http://127.0.0.1:4000/api/cortex-base-url' -TimeoutSec 5).sessionId
-} catch { }
-
-$full = "$publica/rulo-chat-historial.html?session=$session"
+# --- 3) Compartir solo la pagina publica de lectura del historial ---
+$full = "$publica/history"
 Set-Clipboard -Value $full
 
 Write-Host '  [3/3] Listo.' -ForegroundColor Green
