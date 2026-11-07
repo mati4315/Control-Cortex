@@ -11,6 +11,8 @@ service-account.json
 # Estado local del watcher
 .watcher-state.json
 .avatar-cache.json
+lottery-queue-state.json
+lottery-queue-state.json.tmp
 
 # Copias de seguridad
 copia de seguridad/

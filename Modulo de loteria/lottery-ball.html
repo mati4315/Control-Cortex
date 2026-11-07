@@ -565,6 +565,7 @@
       STOP_X:       19,        // where ball stops (left edge)
       REVEAL_X:    384,        // x at which banner starts opening
       STOP_MS:   10000,        // pause at bottom-left (ms)
+      QUEUE_STOP_MS: 3500,     // shorter pause while another ball is waiting
       PAUSE_MS:    600,        // pause before restart
       TRAIL_MS:     90,
       NUMBERS: Array.from({length: 90}, (_, i) => i + 1),
@@ -606,12 +607,21 @@
     const queueStatus = document.getElementById('ball-queue-status');
     const queueCount = document.getElementById('ball-queue-count');
     const queueList = document.getElementById('ball-queue-list');
+    const queueTitle = queueStatus?.querySelector('.ball-queue-header span');
 
     let x = 0, y = 0;
     let phase = 'pausing';   // falling | sliding | stopped | exit | pausing
     let currentDirection = 'rightToLeft';
     const ballQueue = [];
+    let currentBall = null;
+    let currentQueueId = '';
+    let queuePaused = false;
+    let pendingQueueCount = 0;
+    const offlineQueue = [];
+    let overlayQueueReady = false;
     let queueAdvanceTimer = null;
+    let stopStartedAt = 0;
+    let activeStopDuration = 0;
     let lastTime  = null;
     let trailTimer = null;
     let stopTimer  = null;
@@ -674,6 +684,7 @@
       if (!queueStatus || !queueCount || !queueList) return;
       const queuedCount = ballQueue.length;
       queueCount.textContent = String(queuedCount);
+      if (queueTitle) queueTitle.textContent = queuePaused ? 'Cola en pausa' : 'Próximas bolillas';
       queueList.replaceChildren();
       ballQueue.slice(0, 4).forEach((item) => {
         const row = document.createElement('li');
@@ -689,6 +700,65 @@
       }
       queueStatus.classList.toggle('visible', queuedCount > 0);
       queueStatus.setAttribute('aria-hidden', queuedCount > 0 ? 'false' : 'true');
+    }
+
+    function sendOverlayQueueMessage(message) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+      try {
+        ws.send(JSON.stringify({ ...message, ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+        return true;
+      } catch (error) {
+        console.error('No se pudo sincronizar la cola con el servidor:', error);
+        return false;
+      }
+    }
+
+    function makeQueueId() {
+      return globalThis.crypto?.randomUUID?.() || `ball-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function cleanQueueItem(item) {
+      const number = Number(item?.number);
+      if (!Number.isInteger(number) || number < 1 || number > 99) return null;
+      return {
+        queueId: String(item.queueId || makeQueueId()),
+        eventId: String(item.eventId || ''),
+        number,
+        name: String(item.name || 'Alguien'),
+        profilePicUrl: typeof item.profilePicUrl === 'string' ? item.profilePicUrl : '',
+        lotteryName: String(item.lotteryName || ''),
+        createdAt: Number(item.createdAt) || Date.now(),
+        direction: item.direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft',
+        forceReplay: item.forceReplay === true,
+        isTest: item.isTest === true
+      };
+    }
+
+    function applyServerQueueState(data) {
+      const pending = Array.isArray(data.pending) ? data.pending.map(cleanQueueItem).filter(Boolean) : [];
+      const seen = new Set(pending.flatMap(item => [item.queueId, item.eventId].filter(Boolean)));
+      const merged = [...pending];
+      for (const item of offlineQueue) {
+        if (!seen.has(item.queueId) && (!item.eventId || !seen.has(item.eventId))) merged.push(item);
+      }
+      merged.sort((a, b) => a.createdAt - b.createdAt);
+      ballQueue.splice(0, ballQueue.length, ...merged);
+      queuePaused = data.paused === true;
+      pendingQueueCount = ballQueue.length;
+      overlayQueueReady = true;
+      renderBallQueue();
+      shortenCurrentStopForQueue();
+      if ((!ws || ws.readyState !== WebSocket.OPEN) && phase === 'pausing' && !currentQueueId && !queuePaused && ballQueue.length && !queueAdvanceTimer) {
+        scheduleNextBall();
+      }
+    }
+
+    function submitBallToServer(message) {
+      const item = cleanQueueItem(message);
+      if (!item) return false;
+      item.eventId = item.eventId || `overlay-${item.queueId}`;
+      if (sendOverlayQueueMessage({ type: 'TRIGGER_BALL', ...item, source: 'overlay' })) return true;
+      return triggerBall(item.number, item.name, item.profilePicUrl, item.eventId, item.direction, item.forceReplay, item.queueId);
     }
 
     function hideTicker() {
@@ -936,15 +1006,41 @@
     /* ══════════════════════════════════════════════════════════
        COUNTDOWN RING  (fills up over STOP_MS)
        ══════════════════════════════════════════════════════════ */
-    function startCountdownRing() {
+    function startCountdownRing(durationMs = CONFIG.STOP_MS, initialFraction = 1) {
       ringEl.style.opacity = '1';
-      // Reset
       ringCircle.style.transition = 'none';
-      ringCircle.style.strokeDashoffset = '283';
-      // Force reflow then start fill
+      ringCircle.style.strokeDashoffset = String(283 * Math.max(0, Math.min(1, initialFraction)));
       void ringCircle.getBoundingClientRect();
-      ringCircle.style.transition = `stroke-dashoffset ${CONFIG.STOP_MS}ms linear`;
+      ringCircle.style.transition = `stroke-dashoffset ${Math.max(1, durationMs)}ms linear`;
       ringCircle.style.strokeDashoffset = '0';
+    }
+
+    function beginBallExit() {
+      if (phase !== 'stopped') return;
+      stopTimer = null;
+      phase = 'exit';
+      setSpinState('fast');
+      startTrail();
+    }
+
+    function shortenCurrentStopForQueue() {
+      if (phase !== 'stopped' || !stopStartedAt) return;
+      const standardStopMs = Math.max(1000, Number(CONFIG.STOP_MS) || 10000);
+      const queueStopMs = Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500);
+      const targetDuration = pendingQueueCount > 0 && !queuePaused
+        ? Math.min(standardStopMs, queueStopMs)
+        : standardStopMs;
+      if (targetDuration === activeStopDuration) return;
+      activeStopDuration = targetDuration;
+      const elapsedMs = Date.now() - stopStartedAt;
+      const remainingMs = targetDuration - elapsedMs;
+      if (stopTimer) clearTimeout(stopTimer);
+      if (remainingMs <= 0) {
+        beginBallExit();
+        return;
+      }
+      startCountdownRing(remainingMs, remainingMs / targetDuration);
+      stopTimer = setTimeout(beginBallExit, remainingMs);
     }
     function hideCountdownRing() {
       ringCircle.style.transition = 'none';
@@ -993,15 +1089,15 @@
           updateShadow(stopX, y, 0.12);
           phase = 'stopped';
           stopTrail();
-          startCountdownRing();
+          stopStartedAt = Date.now();
+          const standardStopMs = Math.max(1000, Number(CONFIG.STOP_MS) || 10000);
+          const queueStopMs = Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500);
+          activeStopDuration = pendingQueueCount > 0 && !queuePaused
+            ? Math.min(standardStopMs, queueStopMs)
+            : standardStopMs;
+          startCountdownRing(activeStopDuration);
           setSpinState('stop');
-
-          // After STOP_MS, leave through the side where this path ends.
-          stopTimer = setTimeout(() => {
-            phase = 'exit';
-            setSpinState('fast');
-            startTrail();
-          }, CONFIG.STOP_MS);
+          stopTimer = setTimeout(beginBallExit, activeStopDuration);
         } else {
           setPos(nx, y);
         }
@@ -1022,7 +1118,7 @@
           phase = 'pausing';
           shadow.style.opacity = '0';
           showTicker();
-          scheduleNextBall();
+          finishBallAndWait();
         } else {
           setPos(nx, y);
         }
@@ -1045,9 +1141,12 @@
       bannerAvatar.style.display = 'block';
     }
 
-    function startBall(item) {
+    function startBall(item, { serverQueue = false, isTest = false } = {}) {
+      currentBall = cleanQueueItem(item) || item;
+      currentQueueId = serverQueue ? String(currentBall.queueId || '') : '';
       currentDirection = item.direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft';
       if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
+      if (queueAdvanceTimer) { clearTimeout(queueAdvanceTimer); queueAdvanceTimer = null; }
       closeBanner();
       hideCountdownRing();
       hideTicker();
@@ -1072,12 +1171,17 @@
       phase = 'falling';
       startTrail();
       renderBallQueue();
+      if (!serverQueue) sendOverlayQueueMessage({ type: 'OVERLAY_BUSY', isTest: isTest === true });
     }
 
     function scheduleNextBall() {
       if (queueAdvanceTimer) {
         clearTimeout(queueAdvanceTimer);
         queueAdvanceTimer = null;
+      }
+      if (queuePaused && ballQueue.length) {
+        renderBallQueue();
+        return;
       }
       if (!ballQueue.length && CONFIG.MODE !== 'test') {
         renderBallQueue();
@@ -1086,8 +1190,16 @@
       const pauseMs = Math.max(0, parseInt(CONFIG.PAUSE_MS, 10) || 0);
       queueAdvanceTimer = setTimeout(() => {
         queueAdvanceTimer = null;
+        if (ws && ws.readyState === WebSocket.OPEN && overlayQueueReady) {
+          sendOverlayQueueMessage({ type: 'OVERLAY_IDLE' });
+          return;
+        }
         if (ballQueue.length) {
-          startBall(ballQueue.shift());
+          const next = ballQueue.shift();
+          const offlineIndex = offlineQueue.findIndex(item => item.queueId === next.queueId);
+          if (offlineIndex >= 0) offlineQueue.splice(offlineIndex, 1);
+          pendingQueueCount = ballQueue.length;
+          startBall(next);
           return;
         }
         if (CONFIG.MODE === 'test') resetBall();
@@ -1095,34 +1207,90 @@
       }, pauseMs);
     }
 
-    function triggerBall(number, name, profilePicUrl, eventId = '', direction = 'rightToLeft', forceReplay = false) {
+    function finishBallAndWait() {
+      if (queueAdvanceTimer) clearTimeout(queueAdvanceTimer);
+      const finishedQueueId = currentQueueId;
+      currentBall = null;
+      currentQueueId = '';
+      queueAdvanceTimer = setTimeout(() => {
+        queueAdvanceTimer = null;
+        if (finishedQueueId) {
+          if (!sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: finishedQueueId })) {
+            scheduleNextBall();
+          }
+          return;
+        }
+        if (sendOverlayQueueMessage({ type: 'OVERLAY_IDLE', isTest: CONFIG.MODE === 'test' })) return;
+        scheduleNextBall();
+      }, Math.max(0, parseInt(CONFIG.PAUSE_MS, 10) || 0));
+    }
+
+    function triggerBall(number, name, profilePicUrl, eventId = '', direction = 'rightToLeft', forceReplay = false, queueId = '') {
       if (!shouldAcceptTrigger(number, name, eventId, forceReplay)) {
         return false;
       }
       const item = {
+        queueId: queueId || makeQueueId(),
+        eventId,
         number,
         name: String(name || 'Alguien'),
         profilePicUrl: profilePicUrl || '',
-        direction: direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft'
+        direction: direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft',
+        forceReplay,
+        createdAt: Date.now()
       };
-      if (phase !== 'pausing' || queueAdvanceTimer) {
+      if (phase !== 'pausing' || queueAdvanceTimer || queuePaused) {
         ballQueue.push(item);
+        offlineQueue.push(item);
+        pendingQueueCount = ballQueue.length;
         renderBallQueue();
+        shortenCurrentStopForQueue();
         return true;
       }
       startBall(item);
       return true;
     }
 
+    function startQueuedBall(data) {
+      const item = cleanQueueItem(data);
+      if (!item) return;
+      if (currentQueueId && currentQueueId === item.queueId && phase !== 'pausing') return;
+      const localIndex = ballQueue.findIndex(pending => pending.queueId === item.queueId);
+      if (phase !== 'pausing' && currentQueueId !== item.queueId) {
+        if (localIndex < 0) ballQueue.push(item);
+        pendingQueueCount = ballQueue.length;
+        renderBallQueue();
+        sendOverlayQueueMessage({ type: 'OVERLAY_BUSY' });
+        return;
+      }
+      if (localIndex >= 0) ballQueue.splice(localIndex, 1);
+      const offlineIndex = offlineQueue.findIndex(pending => pending.queueId === item.queueId);
+      if (offlineIndex >= 0) offlineQueue.splice(offlineIndex, 1);
+      pendingQueueCount = ballQueue.length;
+      if (item.eventId && recentTriggerIds.has(item.eventId)) {
+        if (phase === 'pausing') sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: item.queueId });
+        return;
+      }
+      if (!shouldAcceptTrigger(item.number, item.name, item.eventId, true)) {
+        sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: item.queueId });
+        return;
+      }
+      startBall(item, { serverQueue: true });
+    }
+
     function resetBall() {
-      if (phase !== 'pausing' || queueAdvanceTimer || ballQueue.length) return;
+      if (phase !== 'pausing' || queueAdvanceTimer || (ballQueue.length && !queuePaused)) return;
       const n = randomNumber();
       startBall({
+        queueId: `test-${makeQueueId()}`,
+        eventId: `test-${makeQueueId()}`,
         number: n,
         name: CONFIG.WINNER_NAME,
         profilePicUrl: '',
-        direction: 'rightToLeft'
-      });
+        direction: 'rightToLeft',
+        createdAt: Date.now(),
+        isTest: true
+      }, { isTest: true });
     }
 
     /* ══════════════════════════════════════════════════════════
@@ -1140,16 +1308,56 @@
         ws.onopen = () => {
           console.log("Widget WebSocket conectado a", CONFIG.WEBSOCKET_URL);
           try {
+            const pendingToRelay = offlineQueue.slice();
             ws.send(JSON.stringify({
               type: 'WIDGET_HELLO',
               source: 'widget',
-              requestConfig: true
+              requestConfig: true,
+              busy: CONFIG.MODE === 'test' || phase !== 'pausing' || Boolean(queueAdvanceTimer),
+              ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {})
             }));
+            for (const item of pendingToRelay) {
+              ws.send(JSON.stringify({ type: 'TRIGGER_BALL', ...item, source: 'overlay', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+            }
+            ws.send(JSON.stringify({ type: 'REQUEST_BALL_QUEUE_STATE', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
           } catch (e) {}
         };
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            if (data?.type === 'TRIGGER_QUEUED') {
+              const offlineIndex = offlineQueue.findIndex(item => item.queueId === data.queueId);
+              if (offlineIndex >= 0) offlineQueue.splice(offlineIndex, 1);
+              return;
+            }
+            if (data?.type === 'TRIGGER_QUEUE_ERROR') {
+              const offlineIndex = offlineQueue.findIndex(item => item.eventId === data.eventId);
+              if (offlineIndex >= 0) {
+                const [failed] = offlineQueue.splice(offlineIndex, 1);
+                const pendingIndex = ballQueue.findIndex(item => item.queueId === failed.queueId);
+                if (pendingIndex >= 0) ballQueue.splice(pendingIndex, 1);
+                pendingQueueCount = ballQueue.length;
+                renderBallQueue();
+              }
+              console.warn(data.error || 'No se pudo agregar una bolilla a la cola.');
+              return;
+            }
+            if (data?.type === 'OVERLAY_AUTH_ERROR') {
+              console.error(data.error || 'El overlay todavía no está autorizado por el servidor.');
+              return;
+            }
+            if (data?.type === 'BALL_QUEUE_STATE') {
+              applyServerQueueState(data);
+              return;
+            }
+            if (data?.type === 'START_QUEUED_BALL') {
+              startQueuedBall(data);
+              return;
+            }
+            if (data?.type === 'BALL_QUEUE_IDLE') {
+              if (CONFIG.MODE === 'test' && phase === 'pausing' && !currentQueueId && !queueAdvanceTimer) resetBall();
+              return;
+            }
             if (data?.type === 'CONFIG_SNAPSHOT' && data?.config) {
               handleIncomingMessage({ type: 'UPDATE_CONFIG', config: data.config });
               return;
@@ -1162,19 +1370,11 @@
               handleIncomingMessage({ type: 'UPDATE_CONFIG', config: data.config });
               return;
             }
-            if (data && data.number && data.name) {
-              const accepted = triggerBall(data.number, data.name, data.profilePicUrl, data.eventId || '', data.direction || 'rightToLeft', data.forceReplay === true);
-              if (accepted) {
-                console.log('TRIGGER_BALL recibido:', {
-                  number: data.number,
-                  name: data.name,
-                  profilePicUrl: data.profilePicUrl || ''
-                });
-              }
-            }
+            if (data?.type === 'TRIGGER_BALL' && data.number && data.name) submitBallToServer(data);
           } catch(e){}
         };
         ws.onclose = () => {
+          overlayQueueReady = false;
           console.log("Widget WebSocket desconectado. Reconectando...");
           setTimeout(connectWebSocket, 5000);
         };
@@ -1205,7 +1405,13 @@
             const signature = data.id || data.timestamp || `${data.number}_${data.name}`;
             if (signature !== lastFetchedTime) {
               lastFetchedTime = signature;
-              triggerBall(data.number, data.name);
+              submitBallToServer({
+                number: data.number,
+                name: data.name,
+                profilePicUrl: data.profilePicUrl || '',
+                eventId: String(signature),
+                direction: 'rightToLeft'
+              });
             }
           }
         } catch(e) {
@@ -1229,7 +1435,7 @@
       
       if (msg.type === 'TRIGGER_BALL') {
         resolveInitialSync();
-        triggerBall(msg.number, msg.name, msg.profilePicUrl, msg.eventId || '', msg.direction || 'rightToLeft', msg.forceReplay === true);
+        submitBallToServer(msg);
       } else if (msg.type === 'CHANGE_MODE') {
         const oldMode = CONFIG.MODE;
         CONFIG.MODE = msg.mode;
@@ -1251,6 +1457,7 @@
         applyNumberStyles();
         renderTicker();
         syncTickerVisibility();
+        shortenCurrentStopForQueue();
         resolveInitialSync();
         
         if (CONFIG.MODE === 'test' && phase === 'pausing') {

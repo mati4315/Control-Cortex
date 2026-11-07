@@ -20,7 +20,8 @@ Este documento resume la implementación y arquitectura de los widgets interacti
    - Panel de disparo manual de número (1-99) y nombre de ganador con registro de lanzamientos histórico.
    - Soporte nativo para WebSockets y API Polling con indicadores de estado de conexión visuales ("Online", "Conectando...", "Desconectado").
    - Lista consultable de bolillas compradas en Firestore. Al volver a lanzar una compra desde el dashboard, el overlay usa una segunda trayectoria desde arriba a la izquierda hacia abajo a la derecha, sin cambiar el número asignado.
-   - Cola FIFO para serializar compras y relanzamientos; la animación entrante espera a que termine la actual y el overlay muestra las próximas bolillas pendientes.
+   - Cola FIFO administrada por WebSocket, persistida localmente y recuperable tras reinicios. El dashboard permite pausar, reanudar, quitar, saltar o vaciar pendientes; el overlay muestra el turno y las próximas bolillas.
+   - Ritmo configurable cuando hay pendientes y búsqueda de compras por número, comprador o lotería.
 
 3. **[developer_brief.md](file:///d:/usuario/Desktop/testear%20plugins%20para%20obss/loteria/developer_brief.md):** 
    - Guía técnica detallada y preguntas formateadas en español que puedes enviarle a tu desarrollador web para integrar el sistema dinámicamente con tu sitio web.

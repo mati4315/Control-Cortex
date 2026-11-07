@@ -265,6 +265,11 @@
       margin: -4px 0 14px;
     }
 
+    .purchased-search {
+      width: min(360px, 100%);
+      min-width: 180px;
+    }
+
     .btn-refresh-purchases {
       border: 1px solid rgba(255, 214, 0, 0.35);
       border-radius: 9px;
@@ -318,6 +323,53 @@
     .purchased-entry-lottery { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-size: 0.72rem; }
     .purchased-entry-action { color: var(--text-muted); font-size: 0.7rem; font-weight: 800; text-transform: uppercase; }
     .purchased-empty { grid-column: 1 / -1; padding: 20px; color: var(--text-muted); text-align: center; }
+
+    .queue-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: -4px 0 14px;
+    }
+
+    .queue-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+
+    .queue-control-button, .queue-remove-button {
+      border: 1px solid rgba(139, 92, 246, 0.38);
+      border-radius: 8px;
+      padding: 8px 11px;
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--text-main);
+      font: inherit;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .queue-control-button:hover:not(:disabled), .queue-remove-button:hover:not(:disabled) {
+      background: rgba(139, 92, 246, 0.2);
+      border-color: rgba(167, 139, 250, 0.7);
+    }
+
+    .queue-control-button:disabled, .queue-remove-button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+    .queue-current {
+      margin-bottom: 14px;
+      padding: 12px 14px;
+      border: 1px solid rgba(255, 214, 0, 0.28);
+      border-radius: 10px;
+      background: rgba(255, 214, 0, 0.06);
+      color: var(--text-main);
+    }
+
+    .queue-current-label { display: block; margin-bottom: 4px; color: var(--primary); font-size: 0.7rem; font-weight: 900; letter-spacing: 0.12em; text-transform: uppercase; }
+    .queue-pending-list { display: grid; gap: 8px; max-height: 300px; overflow-y: auto; padding: 2px; }
+    .queue-pending-row { display: grid; grid-template-columns: 38px 54px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid rgba(139, 92, 246, 0.18); border-radius: 9px; background: rgba(4, 8, 20, 0.42); }
+    .queue-position { color: var(--text-muted); font-size: 0.72rem; font-weight: 800; }
+    .queue-number { color: #c4b5fd; font-size: 1.05rem; font-weight: 900; }
+    .queue-name { overflow: hidden; color: var(--text-main); font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+    .queue-empty { padding: 16px; color: var(--text-muted); text-align: center; }
 
     /* Number Selector widget inside Manual trigger */
     .number-selector-wrap {
@@ -695,12 +747,30 @@
         <h2 class="card-title">🎟️ Números comprados</h2>
         <div class="purchased-toolbar">
           <span class="help-text" id="purchased-entries-status" aria-live="polite">Conectando para cargar las compras…</span>
-          <button class="btn-refresh-purchases" id="btn-refresh-purchases" type="button">↻ Actualizar</button>
+          <div style="display:flex; flex-wrap:wrap; align-items:center; gap:8px;">
+            <input class="input-control purchased-search" id="purchased-filter" type="search" placeholder="Buscar número, comprador o lotería…" aria-label="Buscar compras">
+            <button class="btn-refresh-purchases" id="btn-refresh-purchases" type="button">↻ Actualizar</button>
+          </div>
         </div>
         <div class="purchased-entry-list" id="purchased-entry-list" aria-live="polite">
           <div class="purchased-empty">La lista aparecerá cuando el servidor WebSocket esté conectado.</div>
         </div>
         <p class="help-text">Haz clic en una compra para volver a lanzar esa bolilla. La repetición sale desde arriba a la izquierda y se desplaza hacia la derecha. Guardá el dashboard en modo manual o integración web.</p>
+      </div>
+
+      <div class="card card-full" id="card-ball-queue">
+        <h2 class="card-title">⏳ Cola de animaciones</h2>
+        <div class="queue-toolbar">
+          <span class="help-text" id="ball-queue-dashboard-status" aria-live="polite">Conectando con la cola…</span>
+          <div class="queue-controls">
+            <button class="queue-control-button" id="btn-queue-pause" type="button">Pausar cola</button>
+            <button class="queue-control-button" id="btn-queue-skip" type="button">Saltar siguiente</button>
+            <button class="queue-control-button" id="btn-queue-clear" type="button">Vaciar pendientes</button>
+          </div>
+        </div>
+        <div class="queue-current" id="ball-queue-current"><span class="queue-current-label">Ahora</span><span>Sin bolilla activa.</span></div>
+        <ol class="queue-pending-list" id="ball-queue-pending-list" aria-live="polite"></ol>
+        <p class="help-text">Pausar la cola deja terminar la bolilla actual, pero retiene las siguientes. Quitar o vaciar afecta solo los lanzamientos pendientes; no modifica las compras.</p>
       </div>
 
       <!-- CARD 3: CONFIGURACIONES DINÁMICAS (WEBSOCKET/API) -->
@@ -761,6 +831,14 @@
                 <input type="range" class="input-control" id="cfg-stop-ms" min="2000" max="20000" step="500" value="10000" oninput="updateConfigValue('STOP_MS', this.value)">
                 <span class="slider-val" id="val-stop-ms">10000</span>
               </div>
+            </div>
+            <div class="form-group">
+              <label>Espera máxima cuando hay cola (s)</label>
+              <div class="slider-container">
+                <input type="range" class="input-control" id="cfg-queue-stop-ms" min="1000" max="8000" step="500" value="3500" oninput="updateConfigValue('QUEUE_STOP_MS', this.value)">
+                <span class="slider-val" id="val-queue-stop-ms">3.5 s</span>
+              </div>
+              <p class="help-text">Si otra bolilla espera su turno, la parada actual se acorta como máximo a este tiempo.</p>
             </div>
           </div>
           <div>
@@ -887,6 +965,7 @@
       SLIDE_SPEED: 240,
       EXIT_SPEED: 320,
       STOP_MS: 10000,
+      QUEUE_STOP_MS: 3500,
       PAUSE_MS: 600,
       WINNER_NAME: 'Matias Moreira',
       MODE: 'test',
@@ -911,6 +990,7 @@
     };
     let config = { ...DEFAULT_CONFIG };
     let purchasedEntries = [];
+    let ballQueueState = { current: null, pending: [], paused: false, overlayConnected: false };
     let purchasedEntriesRequestId = '';
     let purchasedEntriesRequestTimer = null;
 
@@ -925,6 +1005,7 @@
       SLIDE_SPEED: 'val-slide',
       EXIT_SPEED: 'val-exit',
       STOP_MS: 'val-stop-ms',
+      QUEUE_STOP_MS: 'val-queue-stop-ms',
       PAUSE_MS: 'val-pause-ms',
       NUMBER_FONT_REM: 'val-number-font',
       BADGE_SIZE_REM: 'val-badge-size',
@@ -949,6 +1030,7 @@
           config = Object.assign(config, parsed);
         } catch(e) {}
       }
+      config.QUEUE_STOP_MS = Number(config.QUEUE_STOP_MS) || DEFAULT_CONFIG.QUEUE_STOP_MS;
       if (!['test', 'manual', 'dynamic'].includes(config.MODE)) config.MODE = DEFAULT_CONFIG.MODE;
 
       // Sincronizar UI
@@ -963,6 +1045,9 @@
 
       document.getElementById('cfg-stop-ms').value = config.STOP_MS;
       document.getElementById('val-stop-ms').textContent = config.STOP_MS;
+
+      document.getElementById('cfg-queue-stop-ms').value = config.QUEUE_STOP_MS;
+      document.getElementById('val-queue-stop-ms').textContent = `${(config.QUEUE_STOP_MS / 1000).toFixed(1)} s`;
 
       document.getElementById('cfg-pause-ms').value = config.PAUSE_MS;
       document.getElementById('val-pause-ms').textContent = config.PAUSE_MS;
@@ -991,6 +1076,11 @@
       renderTickerEditor();
       setMode(config.MODE); // Carga el modo guardado sin aplicarlo de nuevo
       document.getElementById('btn-refresh-purchases').addEventListener('click', requestPurchasedEntries);
+      document.getElementById('purchased-filter').addEventListener('input', renderPurchasedEntries);
+      document.getElementById('btn-queue-pause').addEventListener('click', () => sendQueueControl(ballQueueState.paused ? 'resume' : 'pause'));
+      document.getElementById('btn-queue-skip').addEventListener('click', () => sendQueueControl('skip'));
+      document.getElementById('btn-queue-clear').addEventListener('click', clearPendingQueue);
+      renderBallQueueDashboard();
       connectDynamicWS();
     }
 
@@ -1054,20 +1144,20 @@
       const msg = {
         type: 'TRIGGER_BALL',
         number: num,
-        name: name
+        name: name,
+        direction: 'rightToLeft',
+        eventId: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       };
-      if (config.WS_TOKEN) {
-        msg.token = config.WS_TOKEN;
-      }
-      broadcast(msg);
 
       if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        sendMessageWS(msg);
+        sendMessageWS({ ...msg, ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
+      } else {
+        broadcast(msg, { sendWs: false });
       }
 
       const wsOk = !!(wsClient && wsClient.readyState === WebSocket.OPEN);
       showEventFeedback(
-        wsOk ? `Enviado: bolilla #${num} para ${name}` : `Enviado localmente (#${num}). WS no conectado.`,
+        wsOk ? `Solicitada: bolilla #${num} para ${name}` : `Enviada localmente (#${num}). WS no conectado.`,
         wsOk ? 'ok' : 'warn'
       );
 
@@ -1100,6 +1190,7 @@
           }
           console.log("WebSocket Dashboard conectado a", config.WEBSOCKET_URL);
           sendConfigSnapshotWS('dashboard_onopen');
+          sendMessageWS({ type: 'REQUEST_BALL_QUEUE_STATE', ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
           setTimeout(requestPurchasedEntries, 500);
         };
 
@@ -1108,6 +1199,34 @@
             const data = JSON.parse(event.data);
             if (data?.type === 'WIDGET_HELLO' || data?.type === 'REQUEST_CONFIG') {
               sendConfigSnapshotWS('widget_request');
+              return;
+            }
+            if (data?.type === 'BALL_QUEUE_STATE') {
+              ballQueueState = {
+                current: data.current || null,
+                pending: Array.isArray(data.pending) ? data.pending : [],
+                paused: data.paused === true,
+                overlayConnected: data.overlayConnected === true
+              };
+              renderBallQueueDashboard();
+              return;
+            }
+            if (data?.type === 'BALL_QUEUE_STATE_ERROR') {
+              const queueStatus = document.getElementById('ball-queue-dashboard-status');
+              if (queueStatus) queueStatus.textContent = data.error || 'No se pudo consultar el estado de la cola.';
+              showEventFeedback(data.error || 'No se pudo consultar el estado de la cola.', 'warn');
+              return;
+            }
+            if (data?.type === 'BALL_QUEUE_CONTROL_ERROR') {
+              showEventFeedback(data.error || 'No se pudo controlar la cola.', 'warn');
+              return;
+            }
+            if (data?.type === 'TRIGGER_QUEUED') {
+              showEventFeedback(`Bolilla agregada a la cola. Posición ${data.position || 1}.`, 'ok');
+              return;
+            }
+            if (data?.type === 'TRIGGER_QUEUE_ERROR') {
+              showEventFeedback(data.error || 'No se pudo agregar la bolilla a la cola.', 'warn');
               return;
             }
             if (data?.type === 'PURCHASED_ENTRIES' && data.requestId === purchasedEntriesRequestId) {
@@ -1127,8 +1246,8 @@
               setPurchasedEntriesStatus(data.error || 'No se pudo cargar la lista de compras.', true);
               return;
             }
-            if (data && data.number && data.name) {
-              // Recibimos compra y la disparamos
+            if ((data?.type === 'PURCHASE_ENTRY_EVENT' || data?.type === 'TRIGGER_BALL') && data.number && data.name) {
+              // El servidor ya encoló la compra; el dashboard solo refresca la lista y el registro.
               if (data.entryKey) {
                 upsertPurchasedEntry({
                   entryKey: data.entryKey,
@@ -1139,15 +1258,6 @@
                   createdAt: Number(data.createdAt) || Date.now()
                 });
               }
-              broadcast({
-                type: 'TRIGGER_BALL',
-                number: data.number,
-                name: data.name,
-                profilePicUrl: data.profilePicUrl || '',
-                eventId: data.eventId || '',
-                direction: data.direction || 'rightToLeft',
-                forceReplay: data.forceReplay === true
-              }, { sendWs: false });
               addLog(data.number, data.name, 'dynamic');
             }
           } catch(e) {
@@ -1169,6 +1279,8 @@
           purchasedEntriesRequestId = '';
           renderPurchasedEntries();
           setPurchasedEntriesStatus('Servidor WebSocket desconectado. Reintentando…', true);
+          ballQueueState.overlayConnected = false;
+          renderBallQueueDashboard();
           // Reintentar en 5 segundos
           setTimeout(connectDynamicWS, 5000);
         };
@@ -1218,15 +1330,23 @@
       if (!list || !refreshButton) return;
       refreshButton.disabled = Boolean(purchasedEntriesRequestId);
       list.replaceChildren();
-      if (!purchasedEntries.length) {
+      const query = String(document.getElementById('purchased-filter')?.value || '').trim().toLocaleLowerCase();
+      const filteredEntries = purchasedEntries.filter(entry => {
+        if (!query) return true;
+        return [entry.number, String(entry.number).padStart(2, '0'), entry.name, entry.lotteryName]
+          .some(value => String(value || '').toLocaleLowerCase().includes(query));
+      });
+      if (!filteredEntries.length) {
         const empty = document.createElement('div');
         empty.className = 'purchased-empty';
-        empty.textContent = 'No hay números comprados cargados. Pulsa Actualizar para consultar Firestore.';
+        empty.textContent = purchasedEntries.length
+          ? 'No hay compras que coincidan con la búsqueda.'
+          : 'No hay números comprados cargados. Pulsa Actualizar para consultar Firestore.';
         list.appendChild(empty);
         return;
       }
 
-      for (const entry of purchasedEntries) {
+      for (const entry of filteredEntries) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'purchased-entry-button';
@@ -1274,11 +1394,9 @@
         forceReplay: true,
         eventId: `replay-${entry.entryKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       };
-      // No guardes el token del WS en localStorage: solo viaja por el socket.
-      broadcast(msg, { sendWs: false });
       sendMessageWS({ ...msg, ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
       addLog(msg.number, msg.name, config.MODE);
-      showEventFeedback(`Relanzando bolilla #${msg.number} de ${msg.name} hacia la derecha.`);
+      showEventFeedback(`Relanzamiento solicitado. #${msg.number} de ${msg.name} se agregó a la cola.`);
     }
 
     function upsertPurchasedEntry(entry) {
@@ -1287,6 +1405,84 @@
       if (!key || !Number.isInteger(number) || number < 1 || number > 99) return;
       purchasedEntries = [entry, ...purchasedEntries.filter(item => item.entryKey !== key)];
       renderPurchasedEntries();
+    }
+
+    function renderBallQueueDashboard() {
+      const status = document.getElementById('ball-queue-dashboard-status');
+      const current = document.getElementById('ball-queue-current');
+      const list = document.getElementById('ball-queue-pending-list');
+      const pauseButton = document.getElementById('btn-queue-pause');
+      const skipButton = document.getElementById('btn-queue-skip');
+      const clearButton = document.getElementById('btn-queue-clear');
+      if (!status || !current || !list || !pauseButton || !skipButton || !clearButton) return;
+
+      const pending = Array.isArray(ballQueueState.pending) ? ballQueueState.pending : [];
+      const isConnected = !!(wsClient && wsClient.readyState === WebSocket.OPEN);
+      status.textContent = `${pending.length} pendiente(s)${ballQueueState.paused ? ' · Pausada' : ''} · ${ballQueueState.overlayConnected ? 'Overlay conectado' : 'Overlay desconectado'}`;
+      pauseButton.textContent = ballQueueState.paused ? 'Reanudar cola' : 'Pausar cola';
+      pauseButton.disabled = !isConnected;
+      skipButton.disabled = !isConnected || pending.length === 0;
+      clearButton.disabled = !isConnected || pending.length === 0;
+
+      current.replaceChildren();
+      const currentLabel = document.createElement('span');
+      currentLabel.className = 'queue-current-label';
+      currentLabel.textContent = 'Ahora';
+      const currentText = document.createElement('span');
+      currentText.textContent = ballQueueState.current
+        ? `Bolilla #${String(ballQueueState.current.number).padStart(2, '0')} · ${ballQueueState.current.name || 'Alguien'}`
+        : 'Sin bolilla activa.';
+      current.append(currentLabel, currentText);
+
+      list.replaceChildren();
+      if (!pending.length) {
+        const empty = document.createElement('li');
+        empty.className = 'queue-empty';
+        empty.textContent = 'No hay bolillas esperando.';
+        list.appendChild(empty);
+        return;
+      }
+
+      pending.forEach((entry, index) => {
+        const row = document.createElement('li');
+        row.className = 'queue-pending-row';
+        const position = document.createElement('span');
+        position.className = 'queue-position';
+        position.textContent = `#${index + 1}`;
+        const number = document.createElement('span');
+        number.className = 'queue-number';
+        number.textContent = String(entry.number).padStart(2, '0');
+        const name = document.createElement('span');
+        name.className = 'queue-name';
+        name.textContent = `${entry.name || 'Alguien'}${entry.direction === 'leftToRight' ? ' · relanzamiento' : ''}`;
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'queue-remove-button';
+        remove.textContent = 'Quitar';
+        remove.disabled = !isConnected;
+        remove.addEventListener('click', () => sendQueueControl('remove', entry.queueId));
+        row.append(position, number, name, remove);
+        list.appendChild(row);
+      });
+    }
+
+    function sendQueueControl(action, queueId = '') {
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
+        showEventFeedback('Conecta el servidor WebSocket para controlar la cola.', 'warn');
+        return;
+      }
+      sendMessageWS({
+        type: 'BALL_QUEUE_CONTROL',
+        action,
+        queueId,
+        ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {})
+      });
+    }
+
+    function clearPendingQueue() {
+      if (!ballQueueState.pending.length) return;
+      if (!confirm('¿Vaciar todas las bolillas pendientes? La bolilla activa y las compras seguirán intactas.')) return;
+      sendQueueControl('clear');
     }
 
     function disconnectDynamicWS() {
@@ -1431,7 +1627,7 @@
     function updateConfigValue(key, val) {
       const labelId = VALUE_LABEL_IDS[key];
       const label = labelId ? document.getElementById(labelId) : null;
-      if (label) label.textContent = val;
+      if (label) label.textContent = key === 'QUEUE_STOP_MS' ? `${(parseInt(val, 10) / 1000).toFixed(1)} s` : val;
       config[key] = parseInt(val);
       markDirty();
       saveConfig();
@@ -1496,6 +1692,7 @@
       config.RANDOM_LINKED_SPEED = !!document.getElementById('cfg-random-linked-speed').checked;
       config.TICKER_ENABLED = !!document.getElementById('cfg-ticker-enabled').checked;
       config.TICKER_SCROLL_MS = parseInt(document.getElementById('cfg-ticker-scroll').value, 10) || 28000;
+      config.QUEUE_STOP_MS = parseInt(document.getElementById('cfg-queue-stop-ms').value, 10) || DEFAULT_CONFIG.QUEUE_STOP_MS;
       if (!tickerRenderLock) {
         syncTickerConfigFromEditor();
       }
@@ -1543,6 +1740,8 @@
       document.getElementById('val-exit').textContent = config.EXIT_SPEED;
       document.getElementById('cfg-stop-ms').value = config.STOP_MS;
       document.getElementById('val-stop-ms').textContent = config.STOP_MS;
+      document.getElementById('cfg-queue-stop-ms').value = config.QUEUE_STOP_MS;
+      document.getElementById('val-queue-stop-ms').textContent = `${(config.QUEUE_STOP_MS / 1000).toFixed(1)} s`;
       document.getElementById('cfg-pause-ms').value = config.PAUSE_MS;
       document.getElementById('val-pause-ms').textContent = config.PAUSE_MS;
       document.getElementById('cfg-default-name').value = config.WINNER_NAME;

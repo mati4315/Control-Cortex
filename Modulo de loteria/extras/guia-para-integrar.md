@@ -17,7 +17,11 @@ Modos soportados:
 
 En el dashboard, **Números comprados** consulta las entradas de las loterías activas en Firestore. El botón **Actualizar** vuelve a leer la lista; al pulsar una compra, se vuelve a mostrar su bolilla en el mismo overlay con una trayectoria inversa: empieza arriba a la izquierda, cae y se desplaza hacia la derecha. Esta repetición es visual y no cambia la compra ni el número asignado. Para usarla, guarda el dashboard en modo `manual` o `dynamic`.
 
-El overlay procesa los lanzamientos en una cola FIFO según el orden en que los recibe. Si llega una compra durante una animación, espera a que la bolilla actual termine su pausa, salida y el intervalo `PAUSE_MS`; después comienza la siguiente conservando su trayectoria normal o inversa. Mientras espera, el overlay muestra las próximas cuatro bolillas y el total pendiente.
+El servidor WebSocket mantiene la cola FIFO y entrega un lanzamiento por vez al overlay registrado. El dashboard muestra la bolilla actual y las pendientes, y permite pausar/reanudar la cola, quitar una pendiente, saltar la siguiente o vaciar las pendientes. Estas acciones no cambian las compras. El overlay también muestra las próximas cuatro bolillas y el total pendiente.
+
+La cola se guarda localmente en `lottery-queue-state.json` (excluido de Git). Si OBS o el servidor se reinician, el overlay recupera la bolilla activa y las pendientes. Si el proceso se interrumpe antes de confirmar que una animación terminó, esa bolilla activa puede volver a lanzarse para no perderla. Una compra recibida cuando OBS está desconectado queda pendiente en el servidor. Si `WS_TOKEN` está activo, abre primero el dashboard autenticado desde el mismo origen del overlay (por ejemplo, ambos desde Cortex); el servidor autoriza esa conexión de overlay. Si usa otro origen, carga el token en la configuración local del overlay. El token nunca viaja en los snapshots de configuración ni en los estados de cola.
+
+En **Ajustes Físicos y Velocidad**, **Espera máxima cuando hay cola** (`QUEUE_STOP_MS`, 3.5 s por defecto) acorta la parada de la bolilla actual cuando hay pendientes. Si la cola se vacía o se pausa, vuelve a regir `STOP_MS`. La lista de compras del dashboard admite búsqueda por número, comprador o nombre de lotería.
 
 Sincronizacion robusta ya implementada:
 - `BroadcastChannel` + `localStorage` (mismo navegador/perfil).
