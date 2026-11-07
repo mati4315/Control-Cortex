@@ -2,7 +2,7 @@
 
 Cortex crea un respaldo al iniciar y cada 24 horas. El historial también permite crear uno manual. Se conservan los siete respaldos más recientes en `Control Cortex/backend/backups/rulo-data/`.
 
-Cada carpeta contiene `manifest.json`, la base SQLite `spotify-analytics.db`, `rulo-chat-history.json` y, si existen, los avatares de `profile-avatars/`. Los comentarios de modo de pruebas no se incluyen porque viven solo en memoria. Los respaldos contienen datos personales y permanecen fuera de Git.
+Cada carpeta contiene `manifest.json`, la base SQLite `spotify-analytics.db`, `rulo-chat-history.json` y, si existen, los avatares de `profile-avatars/`. Los comentarios de modo de pruebas no se incluyen porque viven solo en memoria. Los respaldos contienen datos personales y permanecen fuera de Git. La retención automática de interacciones Spotify y el botón **Vaciar historial activo** operan sobre la base activa; los respaldos existentes mantienen sus copias hasta que se eliminen manualmente o salgan de la rotación de siete copias.
 
 ## Recuperar una copia
 

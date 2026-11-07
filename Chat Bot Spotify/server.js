@@ -6,6 +6,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const SpotifyBot = require('./src/spotify');
+const { isolatedSearchOptions, isolatedPlaybackOptions, isolatedCommentOptions } = require('./src/isolation-options');
 const FacebookStatsStore = require('./src/facebook-stats');
 const { streamId: facebookStreamId } = require('./extension/facebook-stats');
 const facebookStats = new FacebookStatsStore();
@@ -16,7 +17,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = path.join(ROOT, 'data');
 const CONFIG_FILE = path.join(DATA_DIR, 'config.json');
 const PORT = Number(process.env.CHAT_BOT_SPOTIFY_PORT || 9765);
-const HOST = process.env.CHAT_BOT_SPOTIFY_HOST || '0.0.0.0';
+const HOST = process.env.CHAT_BOT_SPOTIFY_HOST || '127.0.0.1';
 const MAX_BODY = 64 * 1024;
 const MAX_RECENT = 120;
 
@@ -857,7 +858,7 @@ saveConfig();
     // marker so handleMessage's chat-intent guard accepts it, and force the
     // exact query so users do not need to phrase it like a Facebook request.
     const message = { type: 'facebook', chatname: 'Prueba', chatmessage: `!tema ${query}`, userid: 'dashboard-test', textonly: true };
-    const result = await spotifyBot.handleMessage(message, { analysis: true, forceQuery: query, suppressLog: true, silent: true });
+    const result = await spotifyBot.handleMessage(message, isolatedSearchOptions(query));
     if (result?.ok) return sendJson(res, 200, result);
     const error = result?.error || result?.response || (result?.ignored
       ? 'No se pudo interpretar la búsqueda. Escribe el nombre de una canción o artista.'
@@ -879,13 +880,7 @@ saveConfig();
       userid: 'dashboard-isolated-playback-test',
       textonly: true
     };
-    const result = await spotifyBot.handleMessage(message, {
-      forceQuery: query,
-      skipCooldown: true,
-      explicitTestPlayback: true,
-      suppressLog: true,
-      silent: true
-    });
+    const result = await spotifyBot.handleMessage(message, { forceQuery: query, ...isolatedPlaybackOptions() });
     if (!result?.ok) {
       return sendJson(res, 422, {
         ok: false,
@@ -969,20 +964,13 @@ saveConfig();
       type: liveSimulation ? 'facebook' : 'spotify-isolated-test', platform: liveSimulation ? 'facebook' : 'dashboard', chatname: requester,
       chatmessage: comment, userid: requesterId || `dashboard-comment-test-${Date.now()}`, textonly: true
     };
-    const result = await spotifyBot.handleMessage(message, {
-      analysis: parseOnly,
-      skipCooldown: !liveSimulation,
-      explicitTestPlayback: !parseOnly && !liveSimulation,
-      isolatedLiveSimulation: !parseOnly && liveSimulation,
+    const result = await spotifyBot.handleMessage(message, isolatedCommentOptions({
+      parseOnly,
+      liveSimulation,
       simulationCommentId,
       simulationKey,
-      timeScale,
-      allowAliasLearning: !(liveSimulation && parseOnly),
-      updateSelectionState: !(liveSimulation && parseOnly),
-      suppressReplyHistory: liveSimulation && parseOnly,
-      suppressLog: true,
-      silent: true
-    });
+      timeScale
+    }));
     const interpretationDetails = {
       interpretationSource: ['ai', 'rules', 'rules-fallback', 'manual', 'none'].includes(result?.interpretationSource) ? result.interpretationSource : 'none',
       aiInterpreted: result?.aiInterpreted === true,

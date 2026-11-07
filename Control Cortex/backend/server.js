@@ -860,6 +860,11 @@ const CHAT_BOT_SPOTIFY_CONFIG_PATH = path.join(WORKSPACE_ROOT, 'Chat Bot Spotify
 const CHAT_BOT_SPOTIFY_URL = process.env.CHAT_BOT_SPOTIFY_URL || 'http://127.0.0.1:9765';
 const COMMENTS_BASE_URL = String(process.env.COMENTARIOS_BASE_URL || 'http://127.0.0.1:9742').replace(/\/+$/, '');
 const SPOTIFY_REQUEST_LOG_LIMIT = 50;
+const configuredSpotifyRetentionDays = Number.parseInt(process.env.CORTEX_SPOTIFY_LOG_RETENTION_DAYS, 10);
+const SPOTIFY_LOG_RETENTION_DAYS = Number.isInteger(configuredSpotifyRetentionDays) && configuredSpotifyRetentionDays >= 1 && configuredSpotifyRetentionDays <= 3650
+  ? configuredSpotifyRetentionDays
+  : 90;
+const SPOTIFY_LOG_RETENTION_MS = SPOTIFY_LOG_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 const SPOTIFY_COMMAND_TTL_MS = 120000;
 let globalTestModeState = null;
 
@@ -1180,12 +1185,21 @@ function saveSpotifyRequestLog() {
   clearTimeout(spotifyRequestLogSaveTimer);
   spotifyRequestLogSaveTimer = setTimeout(() => {
     try {
+      pruneSpotifyRequestLog();
       fs.mkdirSync(SPOTIFY_DIR, { recursive: true });
       fs.writeFileSync(SPOTIFY_REQUEST_LOG_PATH, JSON.stringify(spotifyRequestLog.slice(-SPOTIFY_REQUEST_LOG_LIMIT), null, 2), 'utf8');
     } catch (error) {
       console.warn('[Spotify] No se pudo guardar el registro de pedidos:', error.message);
     }
   }, 400);
+}
+
+function pruneSpotifyRequestLog(now = Date.now()) {
+  const cutoff = now - SPOTIFY_LOG_RETENTION_MS;
+  const previousLength = spotifyRequestLog.length;
+  const retained = spotifyRequestLog.filter(entry => Number(entry?.timestamp) >= cutoff).slice(-SPOTIFY_REQUEST_LOG_LIMIT);
+  spotifyRequestLog.splice(0, spotifyRequestLog.length, ...retained);
+  return previousLength - retained.length;
 }
 
 // Limpia lo que venga en spotify-aliases.json (lo puede escribir una IA):
@@ -1526,9 +1540,11 @@ if (chatBotConfigAtStartup && chatBotConfigAtStartup.testMode !== globalTestMode
 try {
   if (fs.existsSync(SPOTIFY_REQUEST_LOG_PATH)) {
     const savedLog = JSON.parse(fs.readFileSync(SPOTIFY_REQUEST_LOG_PATH, 'utf8'));
-    if (Array.isArray(savedLog)) savedLog.slice(-SPOTIFY_REQUEST_LOG_LIMIT).forEach(entry => {
-      if (entry && entry.timestamp) spotifyRequestLog.push(entry);
-    });
+    if (Array.isArray(savedLog)) {
+      const retained = savedLog.filter(entry => entry && Number(entry.timestamp) >= Date.now() - SPOTIFY_LOG_RETENTION_MS).slice(-SPOTIFY_REQUEST_LOG_LIMIT);
+      retained.forEach(entry => spotifyRequestLog.push(entry));
+      if (retained.length !== savedLog.length) saveSpotifyRequestLog();
+    }
   }
 } catch (error) {
   console.warn('[Spotify] No se pudo leer el registro de pedidos:', error.message);
@@ -3480,6 +3496,15 @@ if (spotifyAnalytics.enabled) {
   const importedComments = spotifyAnalytics.importLegacyAudienceComments(ruloChatItems);
   const archiveSummary = spotifyAnalytics.audienceSummary();
   console.log(`[Rulo] Archivo permanente listo: ${archiveSummary?.comments || 0} comentarios; ${importedComments} recuperados de historiales existentes.`);
+  const pruneSpotifyInteractionHistory = () => {
+    const removed = spotifyAnalytics.pruneInteractionsBefore(Date.now() - SPOTIFY_LOG_RETENTION_MS);
+    const removedRecent = pruneSpotifyRequestLog();
+    if (removedRecent > 0) saveSpotifyRequestLog();
+    if (removed > 0) console.log(`[Spotify] Se eliminaron ${removed} interacciones vencidas (retención: ${SPOTIFY_LOG_RETENTION_DAYS} días).`);
+  };
+  pruneSpotifyInteractionHistory();
+  const spotifyInteractionRetentionTimer = setInterval(pruneSpotifyInteractionHistory, 24 * 60 * 60 * 1000);
+  spotifyInteractionRetentionTimer.unref?.();
 }
 
 function safeRemoveBackupPath(target) {
@@ -4134,6 +4159,7 @@ app.post('/api/spotify-request-log', (req, res) => {
     eventTraceStore.record({ traceId, component: 'spotify', stage: 'request.result', status: body.ok === true ? 'ok' : 'failed', details: { source: entry.platform === 'facebook' ? 'facebook' : 'dashboard', result } });
   }
   spotifyRequestLog.push(entry);
+  pruneSpotifyRequestLog();
   while (spotifyRequestLog.length > SPOTIFY_REQUEST_LOG_LIMIT) spotifyRequestLog.shift();
   saveSpotifyRequestLog();
   // Historial completo en SQLite: el JSON del dashboard guarda solo los ultimos 50.
@@ -4198,13 +4224,15 @@ app.post('/api/event-traces', (req, res) => {
 app.post('/api/spotify-request-log-clear', (req, res) => {
   spotifyRequestLog.length = 0;
   clearTimeout(spotifyRequestLogSaveTimer);
+  const removedInteractions = spotifyAnalytics.clearInteractions();
   try {
     fs.writeFileSync(SPOTIFY_REQUEST_LOG_PATH, JSON.stringify([], null, 2), 'utf8');
   } catch (error) {
     console.warn('[Spotify] No se pudo vaciar el registro:', error.message);
   }
   broadcast({ type: 'spotify_request_cleared' });
-  res.json({ success: true });
+  const interactionsCleared = Number.isInteger(removedInteractions);
+  res.json({ success: true, interactionsCleared, removedInteractions: interactionsCleared ? removedInteractions : null });
 });
 
 app.post('/api/spotify-devices-report', (req, res) => {

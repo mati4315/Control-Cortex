@@ -154,6 +154,8 @@ Cada comentario también lleva un `traceId` aleatorio, visible en el feed del ca
 
 El modo global de pruebas mantiene los eventos solo en memoria temporal. No los agrega al historial normal de Rulo, a SQLite, a la carpeta de avatares ni a los participantes reales de la ruleta. Los módulos verifican que el receptor admita aislamiento antes de reenviar; una versión antigua bloquea la prueba hasta reiniciar.
 
+Chat Bot Spotify escucha en `127.0.0.1` salvo que `CHAT_BOT_SPOTIFY_HOST` habilite explícitamente otra interfaz. La extensión filtra mutaciones ajenas a filas de comentarios y reconcilia la página completa cada cinco segundos. El registro de pedidos visible conserva 50 entradas; Cortex retiene las interacciones Spotify 90 días por defecto (`CORTEX_SPOTIFY_LOG_RETENTION_DAYS` permite configurar entre 1 y 3650). «Vaciar historial activo» elimina las interacciones de SQLite y el registro reciente, pero no las tablas permanentes `audience_comments` y `user` ni los respaldos SQLite ya creados.
+
 El archivo permanente de audiencia se exporta como CSV en `/api/rulo-audience-comments.csv?dias=30`. Cortex crea copias consistentes al iniciar y cada 24 horas, conserva las siete más recientes y ofrece creación manual desde el historial de Rulo. Las copias incluyen SQLite, el historial visual y avatares, y están excluidas de Git. La recuperación está documentada en `Control Cortex/backend/RESPALDOS-RULO.md`.
 
 Para iniciar: `Chat Bot Spotify/iniciar-Chat-Bot-Spotify.bat`. Dashboard local: `http://127.0.0.1:9765/`.

@@ -6,7 +6,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test tests/facebook-stats.test.cjs tests/spotify-playback.test.cjs"
+    "test": "node --test tests/facebook-stats.test.cjs tests/spotify-playback.test.cjs tests/spotify-isolation.test.cjs"
   },
   "engines": {
     "node": ">=20"

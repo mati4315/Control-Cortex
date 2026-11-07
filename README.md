@@ -50,6 +50,8 @@ Chat Bot Spotify usa su propio OAuth PKCE, bearer token local y cola serializada
 
 El dashboard `/rulo-spotify.html` pasa por el proxy de Cortex, que obtiene localmente el bearer token. No envíes tokens al navegador o a la IA y no dirijas controles nuevos a la cola heredada de SocialStream Ninja. Con offset, confirma silencio, posición y restauración del volumen incluso si ocurre un error. Las reglas completas están en [`Chat Bot Spotify/AGENTS.md`](Chat%20Bot%20Spotify/AGENTS.md) y en el AGENTS general.
 
+Chat Bot Spotify escucha solo en `127.0.0.1` por defecto; el acceso LAN requiere habilitar `CHAT_BOT_SPOTIFY_HOST` explícitamente y restringir el firewall. Cortex conserva como máximo 50 registros recientes y 90 días de interacciones en SQLite por defecto (`CORTEX_SPOTIFY_LOG_RETENTION_DAYS` ajusta el plazo entre 1 y 3650 días). El botón del dashboard elimina el registro reciente y las interacciones de la base activa, pero conserva `audience_comments` y `user`, que son el archivo permanente de audiencia, además de los respaldos SQLite ya creados.
+
 ## Ruleta y entrega de premios
 
 La Ruleta importa personas únicas desde el historial SQLite de Rulo. La configuración de premios vive en `comentarios/config.json`; el dashboard de `:9742` permite crear, habilitar, pausar y eliminar definiciones.

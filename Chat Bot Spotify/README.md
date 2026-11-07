@@ -49,7 +49,7 @@ Los eventos conservan el formato compatible con SocialStream: `id`, `mid`, `type
 
 Requiere Node.js 20 o superior. No hay dependencias npm externas.
 
-1. Abre `iniciar-Chat-Bot-Spotify.bat` o ejecuta `npm start` en esta carpeta.
+1. Abre `iniciar-Chat-Bot-Spotify.bat` o ejecuta `npm start` en esta carpeta. De fábrica, el servicio escucha solo en `127.0.0.1`.
 2. Abre `http://127.0.0.1:9765/` en la misma PC para configurar el módulo. También puedes usar la IP LAN de esa PC desde su propio navegador; el panel identifica que la conexión vuelve a una interfaz de esta misma máquina. Desde otra PC, el panel no entrega el token local.
 3. Instala la extensión local siguiendo el panel. Activa el modo desarrollador en `brave://extensions` o `chrome://extensions` y carga la carpeta `extension`.
 4. Copia el token del dashboard al popup de la extensión. Escribe una etiqueta para la cuenta (por ejemplo, `Facebook personal 1`) y enciende **Módulo activo**, **Leer comentarios del navegador** y los dos interruptores del popup.
@@ -132,9 +132,21 @@ Control Cortex. El proxy toma el bearer token desde `data/config.json` en el ser
 expone al navegador. Esos controles no usan la cola de comandos de SocialStream Ninja; deja esa
 cola solo como compatibilidad antigua.
 
+## Escucha de red y retención
+
+El servidor escucha en `127.0.0.1` por defecto. Establece `CHAT_BOT_SPOTIFY_HOST=0.0.0.0` solo si necesitas que OBS u otro cliente de la red local se conecte; restringe entonces el puerto `9765` en Firewall de Windows a los equipos necesarios. La extensión está pensada para ejecutarse en esta misma PC.
+
+El registro visible guarda los últimos 50 pedidos y la tabla SQLite activa de interacciones conserva 90 días por defecto (`CORTEX_SPOTIFY_LOG_RETENTION_DAYS`, configurable entre 1 y 3650 en Cortex). **Vaciar historial activo** elimina el JSON reciente y las interacciones Spotify de la base activa, incluidos comentarios y nombres de solicitantes; no elimina el archivo permanente de audiencia (`audience_comments` / `user`) ni modifica respaldos SQLite ya creados.
+
+Si OBS está en otra PC, habilita el acceso LAN explícitamente al iniciar el servicio, por ejemplo en PowerShell: `$env:CHAT_BOT_SPOTIFY_HOST='0.0.0.0'; npm start`. Luego usa la dirección LAN de la PC del servidor y limita la regla del firewall a los equipos de confianza.
+
 ## Límites de captura DOM
 
 La extensión procesa los comentarios que Facebook expone y representa en la página abierta. Los cambios de diseño, los comentarios ocultos/colapsados, el contenido que no llegó al navegador o un cambio de estructura de Facebook pueden requerir actualizar `extension/content.js`. Mantén la pestaña conectada a la transmisión y confirma en el feed del dashboard que aparecen nuevos eventos.
+
+El observador ignora mutaciones de la página que no tocan filas de comentarios y hace una reconciliación completa cada cinco segundos. Esto reduce el trabajo en páginas de Facebook con actualizaciones frecuentes de elementos ajenos al chat, manteniendo un respaldo para cambios que el observador no detecte.
+
+Las rutas aisladas de prueba de búsqueda, reproducción y comentario suprimen la escritura del registro de pedidos y del historial de plantillas de respuesta. La vista previa y las simulaciones no deben contaminar las interacciones normales.
 
 ## Integración actual con Rulo y la Ruleta
 

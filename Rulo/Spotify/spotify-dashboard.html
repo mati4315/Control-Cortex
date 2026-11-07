@@ -260,14 +260,15 @@
       <div class="devices" id="aliasList"><span class="empty">Sin correcciones guardadas.</span></div>
     </div>
 
-    <h2>Registro de pedidos <small id="logCount"></small></h2>
+    <h2>Registro de pedidos Spotify <small id="logCount"></small></h2>
+    <span class="hint">SQLite conserva las interacciones activas 90 días por defecto (plazo configurable en Cortex). Vaciar elimina el registro reciente y las interacciones de la base activa, pero no borra la audiencia permanente ni modifica los respaldos SQLite ya creados.</span>
     <div class="row" style="margin-bottom:8px">
-      <button class="small secondary" id="btnClearLog" type="button">Vaciar registro</button>
+      <button class="small secondary" id="btnClearLog" type="button">Vaciar historial activo</button>
       <span id="notice"></span>
     </div>
     <ul class="log" id="log"><li class="empty">Sin pedidos registrados todavía.</li></ul>
 
-    <h2>Análisis <small>(historial completo, no solo los últimos 50)</small></h2>
+    <h2>Análisis <small>(historial SQLite, 90 días por defecto)</small></h2>
     <span class="hint">Se guarda en SQLite (<code>Rulo/Spotify/spotify-analytics.db</code>): cada comentario que pidió música, cómo lo entendió el bot, qué contestó y si en eso participó la IA. Sirve para ver qué falla y entrenarlo mejor. Los números son del período elegido.</span>
     <div class="card">
       <div class="chips">
@@ -849,7 +850,13 @@
       });
 
       el('btnClearLog').addEventListener('click', () => {
-        post('/api/spotify-request-log-clear', {}).then(() => { showNotice('Registro vaciado'); refresh(); });
+        if (!window.confirm('Se eliminarán el registro reciente y las interacciones Spotify de la base activa, incluidos comentarios y nombres de solicitantes. La audiencia permanente no se borrará y los respaldos existentes no se modificarán. ¿Continuar?')) return;
+        post('/api/spotify-request-log-clear', {}).then(data => {
+          showNotice(data.interactionsCleared === false
+            ? 'Registro reciente vaciado; no se pudo confirmar la limpieza SQLite.'
+            : `Historial activo vaciado (${Number(data.removedInteractions) || 0} interacciones eliminadas)`);
+          refresh();
+        });
       });
 
       refresh();

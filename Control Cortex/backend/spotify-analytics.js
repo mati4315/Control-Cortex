@@ -1,7 +1,8 @@
 'use strict';
 // Historial de interacciones en SQLite (Rulo/Spotify/spotify-analytics.db).
 //
-// Guarda TODO lo que pasa con los pedidos para poder analizarlo despues:
+// Guarda las interacciones recientes de pedidos para analizarlas despues
+// (Cortex aplica una retencion por antiguedad):
 //   interactions -> cada comentario ("pregunta") y lo que contesto el bot, con
 //                   el resultado, si lo interpreto la IA y de que contexto salio
 //                   la respuesta (y si esa respuesta la genero la IA).
@@ -288,6 +289,8 @@ function createAnalytics(options) {
       enabled: false,
       filePath,
       recordInteraction: () => false,
+      pruneInteractionsBefore: () => null,
+      clearInteractions: () => null,
       recordAudienceComment: () => false,
       updateAudienceAvatar: () => 0,
       importLegacyAudienceComments: () => 0,
@@ -341,6 +344,7 @@ function createAnalytics(options) {
     }
     db.exec('PRAGMA journal_mode = WAL;');
     db.exec('PRAGMA foreign_keys = ON;');
+    db.exec('PRAGMA secure_delete = ON;');
     db.exec(SCHEMA);
     const simulationRunColumns = db.prepare('PRAGMA table_info(rulo_simulation_runs)').all().map(column => column.name);
     if (!simulationRunColumns.includes('time_scale')) db.exec('ALTER TABLE rulo_simulation_runs ADD COLUMN time_scale INTEGER NOT NULL DEFAULT 1');
@@ -399,6 +403,8 @@ function createAnalytics(options) {
       enabled: false,
       filePath,
       recordInteraction: () => false,
+      pruneInteractionsBefore: () => null,
+      clearInteractions: () => null,
       recordAudienceComment: () => false,
       updateAudienceAvatar: () => 0,
       importLegacyAudienceComments: () => 0,
@@ -1370,6 +1376,36 @@ function createAnalytics(options) {
     }
   }
 
+  function pruneInteractionsBefore(cutoffTimestamp) {
+    const cutoff = Number(cutoffTimestamp);
+    if (!Number.isFinite(cutoff) || cutoff <= 0) return 0;
+    try {
+      const removed = Number(db.prepare('DELETE FROM interactions WHERE ts < ?').run(Math.floor(cutoff)).changes) || 0;
+      if (removed > 0) checkpointInteractionDeletion();
+      return removed;
+    } catch (error) {
+      log('No se pudieron eliminar las interacciones vencidas: ' + error.message);
+      return null;
+    }
+  }
+
+  function clearInteractions() {
+    try {
+      const removed = Number(db.prepare('DELETE FROM interactions').run().changes) || 0;
+      if (removed > 0) checkpointInteractionDeletion();
+      return removed;
+    }
+    catch (error) {
+      log('No se pudo vaciar el historial de interacciones: ' + error.message);
+      return null;
+    }
+  }
+
+  function checkpointInteractionDeletion() {
+    try { db.exec('PRAGMA wal_checkpoint(TRUNCATE)'); }
+    catch (error) { log('No se pudo compactar el WAL tras borrar interacciones: ' + error.message); }
+  }
+
   function recordEvent(type, detail, aiModel) {
     const ts = Date.now();
     try {
@@ -1707,6 +1743,8 @@ function createAnalytics(options) {
     enabled: true,
     filePath,
     recordInteraction,
+    pruneInteractionsBefore,
+    clearInteractions,
     recordAudienceComment,
     updateAudienceAvatar,
     importLegacyAudienceComments,

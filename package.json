@@ -3,6 +3,6 @@
   "private": true,
   "description": "Comprobaciones de regresión seguras para los módulos propios del workspace.",
   "scripts": {
-    "test:regression": "node --test \"Control Cortex/backend/tests/event-trace-store.test.cjs\" \"Control Cortex/backend/tests/rulo-evaluation-suite.test.cjs\" \"Modulo de sorteo scraping/tests/security-config.test.cjs\" \"Modulo de sorteo scraping/tests/auth-security.test.cjs\" \"comentarios/tests/prize-award-idempotency.test.cjs\" \"Chat Bot Spotify/tests/facebook-stats.test.cjs\" \"Chat Bot Spotify/tests/spotify-playback.test.cjs\" \"Rulo/tests/spotify-request-queue.test.cjs\" \"Rulo/tests/spotify-silent-start.test.cjs\""
+    "test:regression": "node --test \"Control Cortex/backend/tests/event-trace-store.test.cjs\" \"Control Cortex/backend/tests/rulo-evaluation-suite.test.cjs\" \"Control Cortex/backend/tests/spotify-analytics-retention.test.cjs\" \"Modulo de sorteo scraping/tests/security-config.test.cjs\" \"Modulo de sorteo scraping/tests/auth-security.test.cjs\" \"comentarios/tests/prize-award-idempotency.test.cjs\" \"Chat Bot Spotify/tests/facebook-stats.test.cjs\" \"Chat Bot Spotify/tests/spotify-playback.test.cjs\" \"Chat Bot Spotify/tests/spotify-isolation.test.cjs\" \"Rulo/tests/spotify-request-queue.test.cjs\" \"Rulo/tests/spotify-silent-start.test.cjs\""
   }
 }

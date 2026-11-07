@@ -334,7 +334,6 @@
   }
 
   function extract(article, producerComments = false) {
-    if (!visible(article)) return null;
     const aria = String(article.getAttribute('aria-label') || '').toLowerCase();
     const content = cleanText(article.innerText || article.textContent);
     // A Facebook post itself can also be role=article. Require comment-like reply
@@ -394,6 +393,8 @@
     };
   }
 
+  const producerCommentRowSelector = '[role="article"], [role="listitem"], [role="row"]';
+
   function scan() {
     scanTimer = null;
     if (!enabled || !captureFacebook || !isVideoContext()) return;
@@ -404,11 +405,9 @@
       return;
     }
     const producerComments = isProducerCommentsPage();
-    const rows = [...document.querySelectorAll(producerComments
-      ? '[role="article"], [role="listitem"], [role="row"]'
-      : '[role="article"]')];
+    const rows = [...document.querySelectorAll(producerComments ? producerCommentRowSelector : '[role="article"]')].filter(visible);
     metrics.lastScanAt = Date.now();
-    metrics.visibleCommentRows = rows.filter(visible).length;
+    metrics.visibleCommentRows = rows.length;
     let recognizedComments = 0;
     for (const row of rows) {
       const message = extract(row, producerComments);
@@ -476,7 +475,19 @@
 
   function scheduleScan() {
     if (scanTimer) return;
-    scanTimer = setTimeout(scan, 350);
+    scanTimer = setTimeout(scan, 600);
+  }
+
+  function mutationTouchesComment(mutation, selector) {
+    const target = mutation.target?.nodeType === Node.ELEMENT_NODE
+      ? mutation.target
+      : mutation.target?.parentElement;
+    if (target?.closest?.(selector)) return true;
+    for (const node of mutation.addedNodes || []) {
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      if (node.matches(selector) || node.querySelector(selector)) return true;
+    }
+    return false;
   }
 
   function updateConfig() {
@@ -498,7 +509,11 @@
     });
   }
 
-  const observer = new MutationObserver(scheduleScan);
+  const observer = new MutationObserver(mutations => {
+    if (!enabled || !captureFacebook || !isVideoContext()) return;
+    const selector = isProducerCommentsPage() ? producerCommentRowSelector : '[role="article"]';
+    if (mutations.some(mutation => mutationTouchesComment(mutation, selector))) scheduleScan();
+  });
   observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
   chrome.storage.onChanged.addListener(updateConfig);
   updateConfig();
@@ -525,7 +540,9 @@
       metrics.lastError = '';
       reportCaptureStatus(true);
     }
-    scheduleScan();
   }, 1500);
+  // Facebook also changes unrelated page chrome frequently. Keep a slower full
+  // reconciliation as a fallback in case a comment update escaped the observer.
+  setInterval(scheduleScan, 5000);
   setInterval(() => reportCaptureStatus(true), 5000);
 })();

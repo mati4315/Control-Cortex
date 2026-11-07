@@ -238,9 +238,13 @@ la extensión de Facebook. Si el archivo no tiene el bloque (instalación vieja)
 
 ## Historial de análisis en SQLite (`spotify-analytics.db`)
 
-Todo lo que pasa con los pedidos queda guardado en `Rulo/Spotify/spotify-analytics.db` para poder
-analizarlo después y buscar mejoras. Usa **`node:sqlite`**, que viene dentro de Node: no hay que
-instalar nada.
+Las interacciones de pedidos se guardan en `Rulo/Spotify/spotify-analytics.db` para analizarlas y
+buscar mejoras. Se conservan hasta 90 días por defecto; Cortex permite configurar entre 1 y 3650
+días con `CORTEX_SPOTIFY_LOG_RETENTION_DAYS`. Usa **`node:sqlite`**, que viene dentro de Node: no hay
+que instalar nada. El botón **Vaciar historial activo** borra la tabla `interactions` y el registro
+reciente; no borra el archivo permanente de audiencia (`audience_comments` y `user`), las tablas
+de evaluación de Rulo ni los respaldos SQLite ya creados. Los respaldos conservan hasta siete
+copias y se rotan según `Control Cortex/backend/RESPALDOS-RULO.md`.
 
 **Qué guarda (`interactions`)** — una fila por cada comentario que llegó, con:
 
