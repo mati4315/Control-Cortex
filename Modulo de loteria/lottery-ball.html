@@ -40,6 +40,72 @@
       transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s linear 0s;
     }
 
+    #ball-queue-status {
+      display: none;
+      position: absolute;
+      top: 22px;
+      right: 20px;
+      width: min(300px, calc(100% - 40px));
+      padding: 12px 14px;
+      border: 1px solid rgba(139, 92, 246, 0.48);
+      border-radius: 14px;
+      background: linear-gradient(135deg, rgba(10, 18, 31, 0.94), rgba(28, 20, 55, 0.92));
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      color: #f8fafc;
+      font-family: 'Montserrat', sans-serif;
+      z-index: 40;
+      pointer-events: none;
+    }
+
+    #ball-queue-status.visible { display: block; }
+
+    .ball-queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      color: #c4b5fd;
+      font-size: 0.68rem;
+      font-weight: 900;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    #ball-queue-count {
+      display: inline-flex;
+      min-width: 26px;
+      height: 26px;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #8b5cf6, #c026d3);
+      color: #fff;
+      font-size: 0.8rem;
+      letter-spacing: 0;
+    }
+
+    #ball-queue-list {
+      display: grid;
+      gap: 5px;
+      list-style: none;
+    }
+
+    #ball-queue-list li {
+      overflow: hidden;
+      color: rgba(248, 250, 252, 0.9);
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    #ball-queue-list li span {
+      margin-right: 7px;
+      color: #d8b4fe;
+      font-weight: 900;
+    }
+
     .ticker-shell {
       width: 100%;
       height: 100%;
@@ -425,6 +491,11 @@
     </div>
   </div>
 
+  <aside id="ball-queue-status" aria-live="polite" aria-hidden="true">
+    <div class="ball-queue-header"><span>Próximas bolillas</span><span id="ball-queue-count">0</span></div>
+    <ol id="ball-queue-list"></ol>
+  </aside>
+
   <div id="ball-shadow"></div>
 
   <!-- Name banner – starts collapsed, left edge anchored to ball stop point -->
@@ -532,10 +603,15 @@
     const tickerTrack = document.getElementById('ticker-track');
     const ringEl     = document.getElementById('countdown-ring');
     const ringCircle = document.getElementById('ring-circle');
+    const queueStatus = document.getElementById('ball-queue-status');
+    const queueCount = document.getElementById('ball-queue-count');
+    const queueList = document.getElementById('ball-queue-list');
 
     let x = 0, y = 0;
     let phase = 'pausing';   // falling | sliding | stopped | exit | pausing
     let currentDirection = 'rightToLeft';
+    const ballQueue = [];
+    let queueAdvanceTimer = null;
     let lastTime  = null;
     let trailTimer = null;
     let stopTimer  = null;
@@ -592,6 +668,27 @@
 
     function showTicker() {
       syncTickerVisibility();
+    }
+
+    function renderBallQueue() {
+      if (!queueStatus || !queueCount || !queueList) return;
+      const queuedCount = ballQueue.length;
+      queueCount.textContent = String(queuedCount);
+      queueList.replaceChildren();
+      ballQueue.slice(0, 4).forEach((item) => {
+        const row = document.createElement('li');
+        const number = document.createElement('span');
+        number.textContent = `#${String(item.number).padStart(2, '0')}`;
+        row.append(number, document.createTextNode(String(item.name || 'Alguien')));
+        queueList.appendChild(row);
+      });
+      if (queuedCount > 4) {
+        const more = document.createElement('li');
+        more.textContent = `y ${queuedCount - 4} más`;
+        queueList.appendChild(more);
+      }
+      queueStatus.classList.toggle('visible', queuedCount > 0);
+      queueStatus.setAttribute('aria-hidden', queuedCount > 0 ? 'false' : 'true');
     }
 
     function hideTicker() {
@@ -925,9 +1022,7 @@
           phase = 'pausing';
           shadow.style.opacity = '0';
           showTicker();
-          if (CONFIG.MODE === 'test') {
-            setTimeout(resetBall, CONFIG.PAUSE_MS);
-          }
+          scheduleNextBall();
         } else {
           setPos(nx, y);
         }
@@ -950,11 +1045,8 @@
       bannerAvatar.style.display = 'block';
     }
 
-    function triggerBall(number, name, profilePicUrl, eventId = '', direction = 'rightToLeft', forceReplay = false) {
-      if (!shouldAcceptTrigger(number, name, eventId, forceReplay)) {
-        return false;
-      }
-      currentDirection = direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft';
+    function startBall(item) {
+      currentDirection = item.direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft';
       if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
       closeBanner();
       hideCountdownRing();
@@ -962,10 +1054,10 @@
       stopTrail();
       applyRandomLinkedSpeedIfNeeded();
 
-      numEl.textContent = number;
-      bannerName.textContent = name;
-      setBannerAvatar(profilePicUrl);
-      applyColor(number);
+      numEl.textContent = item.number;
+      bannerName.textContent = item.name;
+      setBannerAvatar(item.profilePicUrl);
+      applyColor(item.number);
 
       setSpinState('fast');
 
@@ -979,12 +1071,58 @@
       bannerOpen = false;
       phase = 'falling';
       startTrail();
+      renderBallQueue();
+    }
+
+    function scheduleNextBall() {
+      if (queueAdvanceTimer) {
+        clearTimeout(queueAdvanceTimer);
+        queueAdvanceTimer = null;
+      }
+      if (!ballQueue.length && CONFIG.MODE !== 'test') {
+        renderBallQueue();
+        return;
+      }
+      const pauseMs = Math.max(0, parseInt(CONFIG.PAUSE_MS, 10) || 0);
+      queueAdvanceTimer = setTimeout(() => {
+        queueAdvanceTimer = null;
+        if (ballQueue.length) {
+          startBall(ballQueue.shift());
+          return;
+        }
+        if (CONFIG.MODE === 'test') resetBall();
+        else renderBallQueue();
+      }, pauseMs);
+    }
+
+    function triggerBall(number, name, profilePicUrl, eventId = '', direction = 'rightToLeft', forceReplay = false) {
+      if (!shouldAcceptTrigger(number, name, eventId, forceReplay)) {
+        return false;
+      }
+      const item = {
+        number,
+        name: String(name || 'Alguien'),
+        profilePicUrl: profilePicUrl || '',
+        direction: direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft'
+      };
+      if (phase !== 'pausing' || queueAdvanceTimer) {
+        ballQueue.push(item);
+        renderBallQueue();
+        return true;
+      }
+      startBall(item);
       return true;
     }
 
     function resetBall() {
+      if (phase !== 'pausing' || queueAdvanceTimer || ballQueue.length) return;
       const n = randomNumber();
-      triggerBall(n, CONFIG.WINNER_NAME);
+      startBall({
+        number: n,
+        name: CONFIG.WINNER_NAME,
+        profilePicUrl: '',
+        direction: 'rightToLeft'
+      });
     }
 
     /* ══════════════════════════════════════════════════════════

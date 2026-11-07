@@ -40,7 +40,7 @@ El backend de Control Cortex vuelve a sincronizar los overrides e inyecta el loa
 | Bienvendos y Banner | Banner/overlay de bienvenida | Propia |
 | comentarios | Modulo de comentarios/ruleta | Propia |
 | luces | Control y overlay de luces | Propia |
-| Modulo de loteria | Overlay de bolilla OBS con relanzamiento inverso y lista de compras Firestore | Propia |
+| Modulo de loteria | Overlay de bolilla OBS con relanzamiento inverso, cola FIFO y lista de compras Firestore | Propia |
 | Modulo de sorteo scraping | Sorteos y scraping con dashboard | Propia |
 | modulo de tiempo y clima | Tiempo, clima y overlay | Propia |
 | Trigger Studio | Aplicacion separada cliente/servidor para triggers | Propia; revisar antes de integrar |

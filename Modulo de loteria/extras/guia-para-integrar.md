@@ -17,6 +17,8 @@ Modos soportados:
 
 En el dashboard, **Números comprados** consulta las entradas de las loterías activas en Firestore. El botón **Actualizar** vuelve a leer la lista; al pulsar una compra, se vuelve a mostrar su bolilla en el mismo overlay con una trayectoria inversa: empieza arriba a la izquierda, cae y se desplaza hacia la derecha. Esta repetición es visual y no cambia la compra ni el número asignado. Para usarla, guarda el dashboard en modo `manual` o `dynamic`.
 
+El overlay procesa los lanzamientos en una cola FIFO según el orden en que los recibe. Si llega una compra durante una animación, espera a que la bolilla actual termine su pausa, salida y el intervalo `PAUSE_MS`; después comienza la siguiente conservando su trayectoria normal o inversa. Mientras espera, el overlay muestra las próximas cuatro bolillas y el total pendiente.
+
 Sincronizacion robusta ya implementada:
 - `BroadcastChannel` + `localStorage` (mismo navegador/perfil).
 - WebSocket para sincronizar entre OBS, incognito y otros programas/perfiles.
