@@ -8,6 +8,25 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/banner/css/banner.css">
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css';
+  css.rel = 'stylesheet';
+  css.href = base + '/cortex-module-nav.css';
+  document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script';
+  script.src = base + '/cortex-module-nav.js';
+  script.defer = true;
+  document.head.append(script);
+})();
+</script>
 </head>
 <body class="dashboard-page">
   <main class="dashboard-shell">
