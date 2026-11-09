@@ -302,6 +302,7 @@ function Safe-RefreshBehindRepos {
       if ($OriginalHash -ne $RestoredHash) { throw "No pude verificar la restauración del ajuste local. Su copia sigue en '$RecoveryRoot'." }
     }
   }
+  if ($Updated) { $script:UpdatedBecauseBehind = $true }
   if ($Updated -and $Stashes.Count -gt 0) {
     Write-Host "`nLa copia quedó actualizada. Conservé los cambios previos en estos stashes de Git (no se publicaron):" -ForegroundColor Cyan
     foreach ($Saved in $Stashes) { Write-Host " - $($Saved.Label): $($Saved.Hash.Substring(0, [Math]::Min(12, $Saved.Hash.Length)))" }
@@ -425,7 +426,9 @@ try {
   }
 
   if ($Auto) {
-    if (Publish-All) { Sync-Down }
+    $script:UpdatedBecauseBehind = $false
+    $PublishResult = Publish-All
+    if ($PublishResult -and -not $script:UpdatedBecauseBehind) { Sync-Down }
     exit 0
   }
   Write-Host 'Sincronización de Cortex con GitHub' -ForegroundColor Cyan
