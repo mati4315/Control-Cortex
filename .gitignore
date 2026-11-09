@@ -20,9 +20,15 @@ desktop.ini
 *.swp
 *.swo
 Thumbs.db
+.codex-remote-attachments/
+*.before-*
+*.backup-*
+media carpeta de multimedia.lnk
 Control Cortex/backend/cortex-home.json*
 Control Cortex/backend/cortex-project-context.json*
 Control Cortex/backend/cortex-assistant-history.json*
+Control Cortex/backend/cortex-preflight-history.json
+Control Cortex/backend/rulo-exe-launch.json
 
 # Medios locales de Rulo: se distribuyen fuera del repositorio
 Rulo/animaciones/**/*.mp4

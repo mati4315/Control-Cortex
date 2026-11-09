@@ -95,3 +95,4 @@ Desde la raíz, ejecuta `npm run test:regression` para validar trazas, evaluaci�
 - [`Rulo - Cuaderno Vivo/README.md`](Rulo%20-%20Cuaderno%20Vivo/README.md): perfil y migración gradual de personalidad y memoria de Rulo.
 - [`Chat Bot Spotify/README.md`](Chat%20Bot%20Spotify/README.md): instalación del capturador y APIs del módulo propio.
 - [`Chat Bot Spotify/AGENTS.md`](Chat%20Bot%20Spotify/AGENTS.md): reglas de trabajo específicas de Spotify y la captura Facebook.
+- [`SINCRONIZAR-ENTRE-PC.md`](SINCRONIZAR-ENTRE-PC.md): instrucciones para mantener dos PC sincronizadas con Git.

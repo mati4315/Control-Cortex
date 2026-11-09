@@ -1,0 +1,286 @@
+$ErrorActionPreference = 'Stop'
+$ProgressPreference = 'SilentlyContinue'
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Modules = @()
+$LocalOnly = @{
+  '.' = @('Control Cortex/backend/spotify-device-target.json')
+  'SocialStream Ninja' = @('local-overrides/cortex-base-url.js')
+}
+
+function Invoke-Git {
+  param(
+    [Parameter(Mandatory = $true)][string]$Repo,
+    [Parameter(Mandatory = $true)][string[]]$GitArgs,
+    [switch]$Silent,
+    [switch]$AllowFailure
+  )
+  $Output = @(& git -C $Repo @GitArgs 2>&1 | ForEach-Object { [string]$_ })
+  $Code = $LASTEXITCODE
+  $script:LastGitExitCode = $Code
+  if (-not $Silent -and $Output.Count -gt 0) { $Output | ForEach-Object { Write-Host $_ } }
+  if ($Code -ne 0 -and -not $AllowFailure) {
+    throw "Falló git $($GitArgs -join ' ') dentro de '$Repo' (código $Code)."
+  }
+  return ,$Output
+}
+
+function Get-DirtyPaths {
+  param([string]$Repo)
+  $Lines = Invoke-Git -Repo $Repo -GitArgs @('status', '--porcelain=v1', '--untracked-files=all') -Silent
+  $Paths = @()
+  foreach ($Line in $Lines) {
+    if ($Line.Length -lt 4) { continue }
+    $Path = $Line.Substring(3)
+    if ($Path.StartsWith('"')) {
+      try { $Path = ConvertFrom-Json -InputObject $Path } catch { }
+    }
+    $Paths += ($Path -replace '\\', '/')
+  }
+  return ,$Paths
+}
+
+function Get-ExcludedPaths {
+  param([string]$RepoKey)
+  if ($LocalOnly.ContainsKey($RepoKey)) { return @($LocalOnly[$RepoKey]) }
+  return @()
+}
+
+function Get-SharedDirtyPaths {
+  param([string]$Repo, [string]$RepoKey)
+  $Excluded = Get-ExcludedPaths $RepoKey
+  return ,@(Get-DirtyPaths $Repo | Where-Object {
+    $Candidate = $_
+    -not ($Excluded | Where-Object { $Candidate -eq $_ })
+  })
+}
+
+function Show-RepoStatus {
+  param([string]$Repo, [string]$Label)
+  Write-Host "`n--- $Label ---" -ForegroundColor Cyan
+  Invoke-Git -Repo $Repo -GitArgs @('status', '--short', '--branch')
+}
+
+function Get-BranchName {
+  param([string]$Repo)
+  $Branch = Invoke-Git -Repo $Repo -GitArgs @('branch', '--show-current') -Silent
+  if ($script:LastGitExitCode -ne 0 -or -not $Branch -or -not $Branch[0].Trim()) {
+    throw "No se pudo identificar la rama activa en '$Repo'."
+  }
+  return $Branch[0].Trim()
+}
+
+function Ensure-ModuleBranch {
+  param([string]$Repo, [string]$RepoKey)
+  if ($RepoKey -eq '.') { return (Get-BranchName $Repo) }
+  $Configured = Invoke-Git -Repo $Root -GitArgs @('config', '-f', '.gitmodules', '--get', "submodule.$RepoKey.branch") -Silent -AllowFailure
+  $Branch = if ($script:LastGitExitCode -eq 0 -and $Configured.Count -gt 0) { $Configured[0].Trim() } else { '' }
+  if (-not $Branch) { throw "Falta definir la rama del submódulo '$RepoKey' en .gitmodules." }
+  $Current = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '--abbrev-ref', 'HEAD') -Silent
+  if ($script:LastGitExitCode -ne 0) { throw "No se pudo leer la rama de '$RepoKey'." }
+  if ($Current[0].Trim() -eq 'HEAD') {
+    $LocalExists = Invoke-Git -Repo $Repo -GitArgs @('show-ref', '--verify', "refs/heads/$Branch") -Silent -AllowFailure
+    if ($script:LastGitExitCode -eq 0) {
+      Invoke-Git -Repo $Repo -GitArgs @('switch', $Branch) | Out-Null
+    } else {
+      Invoke-Git -Repo $Repo -GitArgs @('switch', '-c', $Branch) | Out-Null
+    }
+  }
+  $CurrentBranch = Get-BranchName $Repo
+  if ($CurrentBranch -ne $Branch) { throw "'$RepoKey' quedó en la rama '$CurrentBranch', se esperaba '$Branch'." }
+  Invoke-Git -Repo $Repo -GitArgs @('branch', '--set-upstream-to', "origin/$Branch", $Branch) -AllowFailure | Out-Null
+  return $Branch
+}
+
+function Get-StashRef {
+  param([string]$Repo, [string]$RepoKey)
+  $Before = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
+  if ($script:LastGitExitCode -ne 0) { $Before = @('') }
+  $StashArgs = @('stash', 'push', '-m', 'Cortex Sync: conservar ajustes locales', '--')
+  $StashArgs += Get-ExcludedPaths $RepoKey
+  Invoke-Git -Repo $Repo -GitArgs $StashArgs | Out-Null
+  $After = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
+  if ($script:LastGitExitCode -ne 0) { return $null }
+  if ($Before.Count -gt 0 -and $Before[0].Trim() -eq $After[0].Trim()) { return $null }
+  return 'stash@{0}'
+}
+
+function Restore-LocalStash {
+  param([string]$Repo, [string]$StashRef)
+  if (-not $StashRef) { return }
+  Write-Host 'Restaurando los ajustes locales de esta PC...'
+  Invoke-Git -Repo $Repo -GitArgs @('stash', 'pop', '--index', $StashRef)
+}
+
+function Stage-RepoChanges {
+  param([string]$Repo, [string]$RepoKey)
+  $Excludes = Get-ExcludedPaths $RepoKey
+  $Args = @('add', '-A', '--', '.')
+  foreach ($Path in $Excludes) { $Args += ":(exclude)$Path" }
+  Invoke-Git -Repo $Repo -GitArgs $Args
+  foreach ($Path in $Excludes) {
+    Invoke-Git -Repo $Repo -GitArgs @('restore', '--staged', '--', $Path) -AllowFailure | Out-Null
+  }
+}
+
+function Publish-Repo {
+  param([string]$Repo, [string]$RepoKey, [string]$Label)
+  $SharedChanges = @(Get-SharedDirtyPaths $Repo $RepoKey)
+  if ($SharedChanges.Count -gt 0) {
+    Show-RepoStatus $Repo $Label
+    $Answer = Read-Host "¿Preparar y publicar los cambios mostrados en $Label? (S/N)"
+    if ($Answer -match '^(s|si|sí|y|yes)$') {
+      Stage-RepoChanges $Repo $RepoKey
+      $Staged = Invoke-Git -Repo $Repo -GitArgs @('diff', '--cached', '--name-only') -Silent
+      if ($Staged.Count -gt 0) {
+        $DefaultMessage = "Sincronizar $Label desde $env:COMPUTERNAME"
+        $Message = Read-Host "Mensaje del commit (Enter usa '$DefaultMessage')"
+        if (-not $Message.Trim()) { $Message = $DefaultMessage }
+        Invoke-Git -Repo $Repo -GitArgs @('commit', '-m', $Message)
+      } else {
+        Write-Host "No quedaron cambios compartibles para confirmar en $Label." -ForegroundColor DarkYellow
+      }
+    } else {
+      Write-Host "Se omiten los cambios locales de $Label." -ForegroundColor DarkYellow
+      return $false
+    }
+  }
+
+  $StashRef = $null
+  $DirtyLocal = @(Get-DirtyPaths $Repo | Where-Object {
+    $Candidate = $_
+    (Get-ExcludedPaths $RepoKey) -contains $Candidate
+  })
+  if ($DirtyLocal.Count -gt 0) { $StashRef = Get-StashRef $Repo $RepoKey }
+  try {
+    $Branch = Ensure-ModuleBranch $Repo $RepoKey
+    Invoke-Git -Repo $Repo -GitArgs @('fetch', '--prune', 'origin')
+    $AheadCount = 0
+    $Upstream = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}') -Silent -AllowFailure
+    if ($script:LastGitExitCode -eq 0 -and $Upstream.Count -gt 0) {
+      $Counts = Invoke-Git -Repo $Repo -GitArgs @('rev-list', '--left-right', '--count', "$($Upstream[0].Trim())...HEAD") -Silent
+      if ($Counts.Count -gt 0) {
+        $Parts = $Counts[0].Trim() -split '\s+'
+        if ($Parts.Count -gt 1) { $AheadCount = [int]$Parts[1] }
+      }
+    } else {
+      $AheadCount = 1
+    }
+
+    if ($AheadCount -gt 0) {
+      Invoke-Git -Repo $Repo -GitArgs @('pull', '--rebase', 'origin', $Branch)
+      Invoke-Git -Repo $Repo -GitArgs @('push', '--set-upstream', 'origin', $Branch)
+    }
+  } finally {
+    Restore-LocalStash $Repo $StashRef
+  }
+  return $true
+}
+
+function Sync-Down {
+  foreach ($Module in $Modules) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Module.FullPath '.git'))) { continue }
+    $SharedChanges = @(Get-SharedDirtyPaths $Module.FullPath $Module.Path)
+    if ($SharedChanges.Count -gt 0) {
+      Show-RepoStatus $Module.FullPath $Module.Path
+      throw "Hay cambios locales en '$($Module.Path)'. Primero publícalos o guárdalos; no voy a mezclarlos automáticamente."
+    }
+  }
+  $ModuleStashes = @()
+  foreach ($Module in $Modules) {
+    if (@(Get-DirtyPaths $Module.FullPath | Where-Object { (Get-ExcludedPaths $Module.Path) -contains $_ }).Count -gt 0) {
+      $Ref = Get-StashRef $Module.FullPath $Module.Path
+      if ($Ref) { $ModuleStashes += [pscustomobject]@{ Repo = $Module.FullPath; Ref = $Ref } }
+    }
+  }
+  $RootStash = $null
+  if (@(Get-DirtyPaths $Root | Where-Object { (Get-ExcludedPaths '.') -contains $_ }).Count -gt 0) {
+    $RootStash = Get-StashRef $Root '.'
+  }
+  $RootSharedChanges = @(Get-SharedDirtyPaths $Root '.')
+  if ($RootSharedChanges.Count -gt 0) {
+    foreach ($Saved in $ModuleStashes) { Restore-LocalStash $Saved.Repo $Saved.Ref }
+    Restore-LocalStash $Root $RootStash
+    Show-RepoStatus $Root 'Cortex'
+    throw 'Hay cambios locales en Cortex. Primero publícalos o guárdalos; no voy a mezclarlos automáticamente.'
+  }
+  try {
+    Invoke-Git -Repo $Root -GitArgs @('pull', '--rebase', 'origin', (Get-BranchName $Root))
+    Invoke-Git -Repo $Root -GitArgs @('submodule', 'sync', '--recursive')
+    Invoke-Git -Repo $Root -GitArgs @('submodule', 'update', '--init', '--recursive')
+  } finally {
+    foreach ($Saved in $ModuleStashes) { Restore-LocalStash $Saved.Repo $Saved.Ref }
+    Restore-LocalStash $Root $RootStash
+  }
+  Write-Host "`nCortex y sus módulos quedaron sincronizados con las referencias del repo principal." -ForegroundColor Green
+}
+
+function Publish-All {
+  $Missing = @($Modules | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.FullPath '.git')) })
+  if ($Missing.Count -gt 0) { throw 'Primero usa «Descargar cambios» para inicializar los módulos que faltan.' }
+  $AllChildrenPublished = $true
+  foreach ($Module in $Modules) {
+    if (-not (Publish-Repo $Module.FullPath $Module.Path $Module.Path)) { $AllChildrenPublished = $false }
+  }
+
+  $LocalStashes = @()
+  foreach ($Module in $Modules) {
+    if (@(Get-DirtyPaths $Module.FullPath | Where-Object { (Get-ExcludedPaths $Module.Path) -contains $_ }).Count -gt 0) {
+      $Ref = Get-StashRef $Module.FullPath $Module.Path
+      if ($Ref) { $LocalStashes += [pscustomobject]@{ Repo = $Module.FullPath; Ref = $Ref } }
+    }
+  }
+  try {
+    $RootPublished = Publish-Repo $Root '.' 'Cortex'
+  } finally {
+    foreach ($Saved in $LocalStashes) { Restore-LocalStash $Saved.Repo $Saved.Ref }
+  }
+  if (-not $AllChildrenPublished -or -not $RootPublished) {
+    Write-Host "`nHay cambios omitidos. No hagas pull en otra PC hasta decidir si quieres publicarlos." -ForegroundColor Yellow
+    return $false
+  }
+  Write-Host "`nCambios compartidos publicados. Si había actualizaciones remotas, también se integraron." -ForegroundColor Green
+  return $true
+}
+
+try {
+  if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git no está instalado o no está en PATH.' }
+  $GitRoot = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '--show-toplevel') -Silent
+  if ($script:LastGitExitCode -ne 0) { throw 'Esta carpeta no es un repositorio Git.' }
+  if (-not (Test-Path -LiteralPath (Join-Path $Root '.gitmodules'))) { throw 'No se encontró el archivo .gitmodules.' }
+  $CurrentModule = $null
+  foreach ($Line in Get-Content -LiteralPath (Join-Path $Root '.gitmodules')) {
+    if ($Line -match '^\s*\[submodule\s+"(.+)"\]\s*$') { $CurrentModule = $Matches[1]; continue }
+    if ($CurrentModule -and $Line -match '^\s*path\s*=\s*(.+?)\s*$') {
+      $RelativePath = $Matches[1]
+      $FullPath = Join-Path $Root $RelativePath
+      $Modules += [pscustomobject]@{ Path = $RelativePath.Replace('\', '/'); FullPath = $FullPath }
+      if (-not (Test-Path -LiteralPath (Join-Path $FullPath '.git'))) {
+        Write-Host "El submódulo '$RelativePath' aún no está inicializado; se descargará al sincronizar." -ForegroundColor DarkYellow
+      }
+      $CurrentModule = $null
+    }
+  }
+
+  Write-Host 'Sincronización de Cortex con GitHub' -ForegroundColor Cyan
+  Write-Host '1) Descargar cambios para esta PC'
+  Write-Host '2) Revisar, confirmar y subir cambios de esta PC'
+  Write-Host '3) Publicar y luego sincronizar'
+  Write-Host '4) Ver estado de todos los repositorios'
+  Write-Host '0) Salir'
+  $Choice = Read-Host 'Elige una opción'
+  switch ($Choice) {
+    '1' { Sync-Down }
+    '2' { [void](Publish-All) }
+    '3' { if (Publish-All) { Sync-Down } }
+    '4' {
+      Show-RepoStatus $Root 'Cortex'
+      foreach ($Module in $Modules) { Show-RepoStatus $Module.FullPath $Module.Path }
+    }
+    '0' { exit 0 }
+    default { Write-Host 'Opción no reconocida.' -ForegroundColor Yellow; exit 1 }
+  }
+} catch {
+  Write-Host "`nNo se completó la sincronización: $($_.Exception.Message)" -ForegroundColor Red
+  Write-Host 'Los cambios locales se conservan. Resuelve el mensaje indicado y vuelve a abrir el BAT.' -ForegroundColor Yellow
+  exit 1
+}
