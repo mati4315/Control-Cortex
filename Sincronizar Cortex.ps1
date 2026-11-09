@@ -1,4 +1,4 @@
-param([switch]$Auto)
+﻿param([switch]$Auto)
 
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
@@ -302,13 +302,15 @@ try {
   if ($script:LastGitExitCode -ne 0) { throw 'Esta carpeta no es un repositorio Git.' }
   $GitmodulesPath = Join-Path $Root '.gitmodules'
   if (-not (Test-Path -LiteralPath $GitmodulesPath)) {
-    if (@(Get-SharedDirtyPaths $Root '.').Count -gt 0) {
-      throw 'Esta copia no tiene .gitmodules y además contiene cambios compartibles. Sincroniza primero una copia limpia para actualizar su estructura.'
-    }
-    Write-Host 'Esta copia aún no tiene .gitmodules; actualizaré el repo principal primero.' -ForegroundColor Yellow
+    Write-Host 'Esta copia aún no tiene .gitmodules; guardaré temporalmente los cambios rastreados y actualizaré el repo principal.' -ForegroundColor Yellow
     $BootstrapStash = $null
-    if (@(Get-DirtyPaths $Root | Where-Object { (Get-ExcludedPaths '.') -contains $_ }).Count -gt 0) {
-      $BootstrapStash = Get-StashRef $Root '.'
+    $TrackedStatus = Invoke-Git -Repo $Root -GitArgs @('status', '--porcelain=v1', '--untracked-files=no') -Silent
+    if (@($TrackedStatus | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+      $Before = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
+      if ($script:LastGitExitCode -ne 0) { $Before = @('') }
+      Invoke-Git -Repo $Root -GitArgs @('stash', 'push', '-m', 'Cortex Sync: preparar actualización de estructura') | Out-Null
+      $After = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
+      if ($script:LastGitExitCode -eq 0 -and ($Before.Count -eq 0 -or $Before[0].Trim() -ne $After[0].Trim())) { $BootstrapStash = 'stash@{0}' }
     }
     try {
       Invoke-Git -Repo $Root -GitArgs @('fetch', '--prune', 'origin')
