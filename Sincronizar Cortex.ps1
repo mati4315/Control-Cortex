@@ -96,7 +96,8 @@ function Get-StashRef {
   $Before = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
   if ($script:LastGitExitCode -ne 0) { $Before = @('') }
   $StashArgs = @('stash', 'push', '-m', 'Cortex Sync: conservar ajustes locales', '--')
-  $StashArgs += Get-ExcludedPaths $RepoKey
+  $StashPaths = Get-ExcludedPaths $RepoKey
+  $StashArgs += $StashPaths
   Invoke-Git -Repo $Repo -GitArgs $StashArgs | Out-Null
   $After = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
   if ($script:LastGitExitCode -ne 0) { return $null }
