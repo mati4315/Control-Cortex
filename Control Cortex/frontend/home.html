@@ -2,6 +2,19 @@
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#10120d"><meta name="description" content="Panel privado de control para tu estudio Cortex."><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icons/cortex.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/cortex.svg"><title>Cortex · Inicio</title><link rel="stylesheet" href="/home.css"><script src="/home.js" defer></script><script src="/pwa-register.js" defer></script></head>
 <body>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css'; css.rel = 'stylesheet'; css.href = base + '/cortex-module-nav.css'; document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script'; script.src = base + '/cortex-module-nav.js'; script.defer = true; document.head.append(script);
+})();
+</script>
 <aside class="sidebar">
   <a class="brand" href="/"><span class="logo">C</span><span>CORTEX<small>TU ESPACIO DE CONTROL</small></span></a>
   <div class="workspace"><label for="profile">PERFIL ACTIVO</label><select id="profile" aria-label="Perfil activo" disabled></select><span id="profile-hint">Conectando con Cortex…</span></div>

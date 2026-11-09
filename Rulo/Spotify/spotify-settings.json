@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "testMode": true,
+  "testMode": false,
   "cooldownSeconds": 40,
   "userCooldownSeconds": 60,
   "minTextLength": 8,

@@ -595,7 +595,19 @@
       const row = node('div', undefined, 'preflight-service-choice'), label = node('label'), input = document.createElement('input'); input.type = 'checkbox'; input.dataset.serviceId = module.serviceId;
       input.checked = Array.isArray(profile.services) ? profile.services.includes(module.serviceId) : false;
       input.onchange = saveStreamProfile;
-      label.append(input, document.createTextNode(module.name)); row.append(label);
+      label.append(input, node('span', module.name));
+      const name = node('div', undefined, 'preflight-service-name'); name.append(label);
+      const dashboardHref = destination(module.url);
+      if (dashboardHref) {
+        const dashboardLink = node('a', undefined, 'preflight-dashboard-link'); dashboardLink.href = dashboardHref;
+        dashboardLink.title = 'Abrir el dashboard de ' + module.name;
+        dashboardLink.setAttribute('aria-label', 'Abrir el dashboard de ' + module.name);
+        const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('aria-hidden', 'true'); icon.setAttribute('focusable', 'false');
+        const glyph = document.createElementNS('http://www.w3.org/2000/svg', 'path'); glyph.setAttribute('d', 'M14 3h7v7M21 3 10 14m8-1v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5'); icon.append(glyph); dashboardLink.append(icon);
+        if (new URL(dashboardHref).origin !== location.origin) { dashboardLink.target = '_blank'; dashboardLink.rel = 'noopener noreferrer'; }
+        name.append(dashboardLink);
+      }
+      row.append(name);
       const service = services.find(item => item.id === module.serviceId);
       const running = service?.status === 'online';
       row.append(node('span', service ? (running ? '✓ ACTIVO' : '○ APAGADO') + (servicesAreStale ? ' · GUARDADO' : '') : '… CONSULTANDO', 'preflight-module-state ' + (running ? 'is-ready' : service ? 'is-off' : '')));

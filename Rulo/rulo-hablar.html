@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Hablar con Rulo · Cortex</title>
+  <title>Rulator · Hablar con Rulo · Cortex</title>
   <style>
     :root { color-scheme:dark; --bg:#0a0f16; --panel:#111925; --panel2:#0d141e; --line:#263346; --text:#e9eef5; --muted:#91a0b3; --accent:#a5d80b; --blue:#77a9ff; --warn:#efc65e; --bad:#ff7f84; }
     * { box-sizing:border-box; }
@@ -21,6 +21,8 @@
     .badge::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--accent); box-shadow:0 0 12px #a5d80b55; }
     .badge.private::before { background:var(--blue); box-shadow:0 0 12px #77a9ff55; }
     .layout { display:grid; grid-template-columns:minmax(0,1fr) 340px; align-items:start; gap:16px; }
+    body.real-chat-profile .layout { grid-template-columns:minmax(0,1fr); }
+    body.real-chat-profile .side { display:none; }
     .card { min-width:0; border:1px solid var(--line); border-radius:15px; background:linear-gradient(160deg,#121b28,#0e151f); box-shadow:0 16px 45px #0003; }
     .chat { display:grid; grid-template-rows:auto auto minmax(420px,1fr) auto auto; min-height:min(760px,calc(100vh - 160px)); overflow:hidden; }
     .chat-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 17px; border-bottom:1px solid var(--line); background:#111a26; }
@@ -37,6 +39,25 @@
     .live-toggle .check-row input { width:17px; height:17px; accent-color:var(--accent); }
     .live-mode-badge { padding:4px 8px; border:1px solid #465437; border-radius:999px; color:#cde99a; font-size:10px; font-weight:850; white-space:nowrap; }
     .live-options { display:grid; gap:9px; margin-top:10px; }
+    .live-options[hidden], .real-chat-controls[hidden], #live-legacy-controls[hidden] { display:none; }
+    .real-chat-controls { display:grid; gap:10px; margin-top:9px; padding:11px; border:1px solid #38503d; border-radius:10px; background:#101a16; }
+    .real-chat-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .real-chat-readiness { display:grid; gap:9px; padding:10px; border:1px solid #29384c; border-radius:9px; background:#0b131d; }
+    .real-chat-readiness-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .real-chat-readiness-head strong,.real-chat-readiness-head small { display:block; }
+    .real-chat-readiness-head small { color:var(--muted); font-size:10px; }
+    .real-chat-module-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(185px,1fr)); gap:7px; }
+    .real-chat-module { min-width:0; padding:8px 9px; border:1px solid #344357; border-radius:8px; background:#101925; }
+    .real-chat-module.ready { border-color:#4b6834; }
+    .real-chat-module.missing { border-color:#705b31; }
+    .real-chat-module strong { display:block; color:#e6edf5; font-size:11px; }
+    .real-chat-module span { display:block; margin-top:2px; color:#9aa9bb; font-size:10px; overflow-wrap:anywhere; }
+    .real-chat-module a { display:inline-block; margin-top:5px; color:#c5e77f; font-size:10px; font-weight:800; }
+    .real-chat-module button { display:inline-block; min-height:27px; margin:6px 6px 0 0; padding:4px 8px; border:1px solid #718b38; border-radius:7px; color:#e5f4c3; background:#263315; font-size:10px; font-weight:800; }
+    .real-chat-module button:disabled { opacity:.55; cursor:wait; }
+    .real-chat-backend-action { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px; border:1px solid #795f32; border-radius:8px; color:#f2d99a; background:#211d12; font-size:11px; }
+    .real-chat-backend-action[hidden] { display:none; }
+    .real-chat-event { align-self:center; max-width:92%; padding:6px 10px; border:1px solid var(--line); border-radius:999px; color:var(--muted); background:#111820; font-size:11px; text-align:center; }
     .live-fields { display:grid; grid-template-columns:minmax(140px,.8fr) minmax(180px,1.2fr); gap:10px; }
     .live-fields .field { margin:0; }
     .help-button { display:inline-grid; width:17px; height:17px; place-items:center; vertical-align:middle; margin-left:4px; padding:0; border:1px solid #71849c; border-radius:50%; color:#dce7f2; background:#172434; font:800 11px/1 Inter,"Segoe UI",Arial,sans-serif; cursor:pointer; }
@@ -54,6 +75,11 @@
     .live-subsection textarea:focus { border-color:var(--accent); }
     .live-library-actions { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
     .live-library-actions .live-action-button { min-height:30px; }
+    .rulo-improvement-result { margin-top:8px; padding:9px; border:1px solid #35465a; border-radius:8px; color:#c7d4e3; background:#101a27; font-size:11px; white-space:pre-wrap; }
+    .rulo-rule-list { display:grid; gap:7px; margin-top:9px; }
+    .rulo-rule-item { display:flex; align-items:flex-start; justify-content:space-between; gap:9px; padding:8px; border:1px solid #344357; border-radius:8px; background:#101925; }
+    .rulo-rule-item strong,.rulo-rule-item small { display:block; }
+    .rulo-rule-item small { margin-top:3px; color:#a7b5c5; font-size:10px; white-space:pre-wrap; }
     .live-review-actions { display:flex; gap:7px; margin-top:7px; }
     .live-review-actions button { min-height:29px; padding:4px 8px; border:1px solid #344357; border-radius:7px; color:#dbe6f0; background:#121e2c; font-size:10px; font-weight:750; }
     .live-review-actions button:hover { border-color:#7186a2; }
@@ -149,26 +175,64 @@
 <body>
   <main class="page">
     <section class="intro">
-      <div><span class="eyebrow">RULO · CHAT PRIVADO</span><h1>Hablar con <span>Rulo</span></h1><p>Conversá con la IA de Cortex, probá identidades y módulos, o recreá un vivo guardado en SQLite con un participante de ese programa.</p></div>
+      <div><span class="eyebrow">RULATOR · SALA VIRTUAL</span><h1>Hablar con <span>Rulo</span> en Rulator</h1><p>Rulo es quien conversa contigo; Rulator es la sala virtual que simula un chat en vivo. Escribe como espectador, reproduce comentarios archivados y observa cuándo Rulo responde o deja pasar el mensaje.</p></div>
       <div class="mode-badges"><span class="badge">Modo de simulación</span><span id="publish-badge" class="badge private">No se publica al stream</span></div>
     </section>
 
     <div class="layout">
-      <section class="card chat" aria-label="Conversación privada con Rulo">
+      <section class="card chat" aria-label="Sala virtual Rulator para hablar con Rulo">
         <header class="chat-head">
       <div class="rulo-title"><span class="avatar" aria-hidden="true">R</span><div><strong>Rulo</strong><small id="profile-caption">Espectador anónimo · invitado del streaming</small></div></div>
           <div class="chat-head-actions"><button id="clear-chat" class="subtle-button" type="button" title="Borrar esta conversación">Limpiar chat</button><span id="provider-chip" class="badge">IA…</span></div>
         </header>
-        <section id="live-simulation-panel" class="live-simulation" aria-label="Simulación de un vivo histórico">
+        <section id="live-simulation-panel" class="live-simulation" aria-label="Simulación de un chat histórico">
           <div class="live-toggle">
-            <label class="check-row"><input id="live-simulation-enabled" type="checkbox"><span><strong>Simular Streaming en VIVO <button class="help-button" type="button" data-help="Recrea una conversación usando los comentarios archivados de un programa. Exige Modo de pruebas aislado y los módulos reales necesarios activos." aria-label="Ayuda: Simular Streaming en VIVO" aria-expanded="false" aria-controls="option-help-popover">?</button></strong><small>Elige un programa archivado y habla como un espectador de ese directo.</small></span></label>
-            <span class="live-mode-badge">Prueba aislada</span>
+            <label class="check-row"><input id="live-simulation-enabled" type="checkbox" checked><span><strong>Rulator · sala virtual <button class="help-button" type="button" data-help="Rulo es la IA/personaje que responde. Rulator es esta sala: tus mensajes entran como comentarios y Rulo decide si responde. Puede reproducir pedidos reales de Spotify solo con Modo de pruebas aislado; no publica en OBS ni escribe en la lotería." aria-label="Ayuda: Rulator, sala virtual" aria-expanded="false" aria-controls="option-help-popover">?</button></strong><small>Habla con Rulo dentro de un chat de programa; puedes escribir, reproducir el archivo o simular otros participantes.</small></span></label>
+            <span id="live-mode-badge" class="live-mode-badge">Simulación</span>
           </div>
           <div id="live-simulation-options" class="live-options" hidden>
-            <div class="live-fields">
+            <label class="field" for="live-simulation-profile"><span>Modo de la sala</span><select id="live-simulation-profile"><option value="real-chat" selected>Rulator · chat en vivo simulado</option><option value="conversation">Conversación de prueba con Rulo · responde cada mensaje</option></select></label>
+            <div class="live-fields" id="live-shared-chat-fields">
               <label class="field" for="live-program"><span>Programa de los comentarios <button class="help-button" type="button" data-help="Selecciona el programa archivado en SQLite que servirá como contexto de la simulación." aria-label="Ayuda: Programa de los comentarios" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-program"><option value="">Cargando programas…</option></select></label>
-              <label class="field" for="live-participant"><span>Persona del programa (opcional) <button class="help-button" type="button" data-help="Rulo adopta el nombre y el historial de comentarios de esta persona. La selección da contexto, pero no verifica su identidad." aria-label="Ayuda: Persona del programa" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-participant" disabled><option value="">Espectador anónimo del programa</option></select></label>
+              <label class="field" for="live-participant"><span>Persona del programa (opcional) <button class="help-button" type="button" data-help="En el perfil Chat REAL puedes alternar este participante al escribir; la repetición usa los participantes del archivo en orden." aria-label="Ayuda: Persona del programa" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-participant" disabled><option value="">Espectador anónimo del programa</option></select></label>
             </div>
+            <div id="live-real-chat-controls" class="real-chat-controls" hidden>
+              <p class="note"><strong>Rulator · sala local y temporal:</strong> reproduce comentarios archivados, permite escribir como participante y generar comentarios anónimos sintéticos. Rulo puede responder o guardar silencio según las reglas del vivo. Los pedidos musicales reproducen en Spotify por defecto; exige Modo de pruebas aislado y usa la cola/cooldowns separados por programa. No publica en OBS ni escribe en lotería. El operador puede consultar números personales de la grilla actual y asistencia de programas anteriores solo cuando coincide el ID estable archivado; la respuesta se muestra en esta sala, sin exponer el ID a la IA. La selección identifica registros archivados, pero no autentica a la persona que usa el panel. El acceso conserva el control actual de origen de Cortex. Las consultas públicas históricas requieren una captura verificada.</p>
+              <div class="live-inline">
+                <label class="field" for="real-chat-spotify-mode"><span>Pedidos musicales</span><select id="real-chat-spotify-mode"><option value="play" selected>Reproducir en Spotify · modo aislado</option><option value="preview">Vista previa · sin reproducir</option></select></label>
+                <label class="field" for="real-chat-speed"><span>Velocidad de reproducción</span><select id="real-chat-speed"><option value="1">1× · ritmo archivado</option><option value="10">10× · acelerado</option></select></label>
+              </div>
+              <div id="real-chat-isolation-action" class="real-chat-backend-action" hidden><span>La reproducción real requiere Modo de pruebas aislado. Al activarlo se pausan los pedidos automáticos reales de Facebook.</span><button id="real-chat-enable-isolated-mode" class="live-action-button" type="button">Activar modo aislado</button></div>
+              <div class="live-inline">
+                <div class="field"><span>Archivo del programa</span><div class="real-chat-actions"><button id="real-chat-replay" class="live-action-button" type="button">Reproducir comentarios</button><button id="real-chat-pause" class="live-action-button" type="button" disabled>Pausar</button><button id="real-chat-generate" class="live-action-button" type="button">Simular participantes</button><button id="real-chat-reset" class="live-action-button" type="button">Reiniciar sala</button></div></div>
+              </div>
+              <details class="live-subsection" id="rulo-improvement-panel">
+                <summary>Mejorar a Rulo con IA</summary>
+                <p>Analiza el último comentario y la respuesta o silencio de Rulo. La IA detecta el tipo de mejora y propone una regla borrador. Revisa y edita antes de guardarla: solo entonces influye en las conversaciones generales futuras.</p>
+                <div class="live-library-actions"><button id="analyze-rulo-interaction" class="live-action-button" type="button">Analizar última interacción</button></div>
+                <div id="rulo-improvement-status" class="live-state">Todavía no se analizó una interacción.</div>
+                <div id="rulo-improvement-result" class="rulo-improvement-result" hidden></div>
+                <div id="rulo-improvement-editor" hidden>
+                  <label class="field" for="rulo-improvement-title"><span>Título de la regla</span><input id="rulo-improvement-title" type="text" maxlength="100" placeholder="Ej.: Aclarar cuándo dejar pasar un saludo"></label>
+                  <label class="field" for="rulo-improvement-category"><span>Tipo</span><select id="rulo-improvement-category"><option value="general">General</option><option value="conversation">Conversación</option><option value="tone">Tono</option></select></label>
+                  <label class="field" for="rulo-improvement-rule"><span>Regla propuesta (puedes editarla)</span><textarea id="rulo-improvement-rule" maxlength="700" placeholder="Instrucción general que Rulo debería aplicar"></textarea></label>
+                  <div id="rulo-improvement-fact-proof" hidden>
+                    <label class="field" for="rulo-improvement-source"><span>Fuente verificada del dato</span><input id="rulo-improvement-source" type="text" maxlength="300" placeholder="Ej.: reglamento oficial del programa, sección de preguntas frecuentes"></label>
+                    <label class="check-row"><input id="rulo-improvement-fact-verified" type="checkbox"><span><strong>Confirmo que revisé esta fuente</strong><small>Incluye en la regla solo el dato comprobado y cómo responder si no está disponible.</small></span></label>
+                  </div>
+                  <div class="note">La interacción original no se guarda como entrenamiento. No incluyas nombres, IDs, números personales ni datos privados en esta regla.</div>
+                  <div class="live-library-actions"><button id="save-rulo-improvement-rule" class="live-action-button" type="button">Revisé y guardar regla activa</button><a href="/rulo-spotify-training.html" target="_blank" rel="noopener">Abrir Entrenamiento e IA</a><a href="/rulo-lottery-dashboard.html" target="_blank" rel="noopener">Abrir reglas de lotería</a></div>
+                </div>
+                <div><strong>Reglas aprobadas que usa Rulo</strong><div id="rulo-behavior-rule-list" class="rulo-rule-list"><div class="live-state">Cargando reglas…</div></div></div>
+              </details>
+              <div class="real-chat-readiness">
+                <div class="real-chat-readiness-head"><div><strong>Estado de módulos</strong><small>Detecta lo que falta y ofrece abrir su panel.</small></div><button id="real-chat-refresh-modules" class="subtle-button" type="button">Actualizar</button></div>
+                <div id="real-chat-module-list" class="real-chat-module-list" aria-live="polite"><div class="real-chat-module"><strong>Cortex</strong><span>Comprobando la versión del simulador…</span></div></div>
+                <div id="real-chat-backend-action" class="real-chat-backend-action" hidden><span id="real-chat-backend-message"></span><button id="real-chat-restart-cortex" class="live-action-button" type="button">Reiniciar Cortex</button></div>
+              </div>
+              <div id="real-chat-status" class="live-state">Elige un programa archivado para empezar.</div>
+            </div>
+            <div id="live-legacy-controls">
             <div class="live-inline">
               <label class="field" for="live-spotify-mode"><span>Pedidos de Spotify <button class="help-button" type="button" data-help="Reproducción real puede cambiar el tema que suena. Vista previa busca e interpreta sin tocar el reproductor ni consumir cooldowns." aria-label="Ayuda: Pedidos de Spotify" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-spotify-mode"><option value="play" selected>Reproducción real aislada</option><option value="preview">Vista previa · no reproduce</option></select></label>
               <label class="field" for="live-time-scale"><span>Tiempo de cooldowns <button class="help-button" type="button" data-help="Define cuánto avanza el reloj temporal de este programa: 1× usa tiempo real y 10× acelera diez veces las esperas entre pedidos." aria-label="Ayuda: Tiempo de cooldowns" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-time-scale"><option value="1">1× · tiempo real</option><option value="10">10× · acelerado</option></select></label>
@@ -215,20 +279,21 @@
               <div id="evaluation-status" class="live-state">Elige un caso o guarda una pregunta para empezar.</div>
             </details>
             <div class="live-actions"><a href="/rulo-dashboard.html">Abrir ajustes de Rulo</a><a href="/rulo-spotify.html">Abrir panel de Spotify</a></div>
+            </div>
           </div>
         </section>
         <div id="messages" class="messages" role="log" aria-live="polite" aria-relevant="additions text">
-          <div class="welcome" id="welcome-message"><strong>¡Buenas! Soy Rulo.</strong><p>Preguntame lo que quieras sobre Cortex, el stream o cualquier tema. En Simular Streaming en VIVO puedo procesar pedidos musicales siguiendo las reglas activas de Spotify; fuera de ese modo no ejecuto acciones desde este panel.</p></div>
+          <div class="welcome" id="welcome-message"><strong>¡Buenas! Soy Rulo, el bot de la sala.</strong><p>Rulator es la caja virtual donde conversamos como en un chat en vivo. Escribe un comentario como participante; puedo responder o dejarlo pasar según las reglas del chat.</p></div>
         </div>
-        <div class="quick-prompts" aria-label="Preguntas de ejemplo">
-          <button type="button" data-prompt="Como espectador sin cuenta de Cdelu, ¿qué información puede darme Rulo sobre mis números de lotería?">Probar identidad anónima</button>
-          <button type="button" data-prompt="Rulo, anota el número 77 para Juliana Unter. ¿Qué harías según las reglas del proyecto?">Probar regla de lotería</button>
-          <button type="button" data-prompt="Explicame cómo se conectan Cortex, Rulo y Chat Bot Spotify para procesar un pedido musical.">Explorar arquitectura</button>
-          <button type="button" data-prompt="¿Qué debería revisar antes de iniciar un directo con la lotería?">Preparar un directo</button>
+        <div class="quick-prompts" aria-label="Comentarios de ejemplo para Rulator">
+          <button type="button" data-prompt="¡Hola Rulo! ¿Cómo va el vivo?">Saludar a Rulo</button>
+          <button type="button" data-prompt="Rulo, ¿qué está pasando hoy en el chat?">Preguntar por el chat</button>
+          <button type="button" data-prompt="¡Vamos Rulo, saludos desde acá!">Mandar un saludo</button>
+          <button type="button" data-prompt="Rulo, te quiero pedir un tema.">Pedir un tema</button>
         </div>
         <form id="composer" class="composer">
-          <div class="composer-box"><textarea id="message-input" maxlength="2000" rows="2" placeholder="Escribile a Rulo…" aria-label="Mensaje para Rulo"></textarea><button id="send" class="send" type="submit"><span>Enviar</span><b aria-hidden="true">↗</b></button></div>
-          <div class="composer-foot"><span>Enter envía · Shift+Enter agrega una línea</span><span id="chat-status" role="status" aria-live="polite">La conversación existe solo mientras esta página está abierta.</span></div>
+          <div class="composer-box"><textarea id="message-input" maxlength="500" rows="2" placeholder="Escribe un comentario en Rulator…" aria-label="Comentario para la sala virtual Rulator"></textarea><button id="send" class="send" type="submit"><span>Enviar</span><b aria-hidden="true">↗</b></button></div>
+          <div class="composer-foot"><span>Enter envía · Shift+Enter agrega una línea</span><span id="chat-status" role="status" aria-live="polite">Comentario temporal en Rulator; no se publica.</span></div>
           <div id="live-isolation-prompt" class="live-isolation-prompt" role="status" hidden><p><strong>Activa el Modo de pruebas aislado para simular el vivo.</strong> Esto pausa temporalmente los pedidos automáticos reales de Facebook en Spotify y mantiene las pruebas fuera del historial y la Ruleta. Tu pregunta queda escrita para que la envíes después.</p><button id="live-enable-test-mode" class="live-action-button" type="button">Activar aquí</button></div>
         </form>
       </section>
@@ -282,6 +347,16 @@
     let liveParticipants = [];
     let simulationCaseItems = [];
     let evaluationRunItems = [];
+    let ruloBehaviorRuleItems = [];
+    let currentRuloImprovementDestination = 'none';
+    let realChatSessionId = crypto.randomUUID();
+    let realChatFeed = [];
+    let realChatReplayToken = 0;
+    let realChatReplayPaused = false;
+    let realChatReplayRunning = false;
+    let realChatApiAvailable = null;
+    let realChatReadinessRequest = 0;
+    let legacySimulationControlsPrepared = false;
     let activeEvaluationCaseId = '';
     let lotterySnapshotItem = null;
     let isolatedModeEnabled = false;
@@ -348,6 +423,7 @@
     window.addEventListener('resize', closeOptionHelp);
     window.addEventListener('scroll', closeOptionHelp, true);
     function conversation() { return conversations[$('profile').value] || conversations.anonymous; }
+    function isRealChatProfile() { return $('live-simulation-enabled').checked && $('live-simulation-profile').value === 'real-chat'; }
     function activeDisabledModules() { return [...document.querySelectorAll('[data-disabled-module]:checked')].map(input => input.value); }
     function selectedLiveParticipant() { return liveParticipants.find(item => item.commentId === $('live-participant').value) || null; }
     function liveParticipantName() { return selectedLiveParticipant()?.name || ($('live-program').value ? `Espectador del programa ${$('live-program').value}` : 'Espectador anónimo'); }
@@ -362,6 +438,11 @@
     function setProfileCaption() {
       if ($('live-simulation-enabled').checked) {
         const program = $('live-program').value;
+        if (isRealChatProfile()) {
+          $('profile-caption').textContent = program ? `Rulator · sala del programa ${program}` : 'Rulator · elige un programa';
+          $('identity-note').textContent = 'La sala alterna las personas archivadas y reproduce sus mensajes en orden. Cada comentario conserva su identidad estable solo dentro de esta sesión temporal.';
+          return;
+        }
         $('profile-caption').textContent = program ? `${liveParticipantName()} · programa ${program}` : 'Elige un programa archivado';
         $('identity-note').textContent = selectedLiveParticipant()
           ? 'Rulo conversa en el rol del participante seleccionado. Puede consultar la lotería en modo de solo lectura; la identidad no habilita Admin ni permisos para escribir.'
@@ -391,6 +472,7 @@
       return row;
     }
     function renderConversation() {
+      if (isRealChatProfile()) { renderRealChat(); return; }
       const panel = $('messages'); panel.replaceChildren();
       const transcript = conversation();
       if (!transcript.length) {
@@ -401,6 +483,342 @@
       }
       for (const item of transcript) addMessage(item.role,item.content);
       panel.scrollTop = panel.scrollHeight;
+    }
+    function addRealChatBubble(role, nameText, content, meta = '') {
+      $('welcome-message')?.remove();
+      const row = document.createElement('article'); row.className = `message ${role === 'rulo' ? 'assistant' : role === 'participant' ? 'user' : ''}`;
+      const avatar = document.createElement('span'); avatar.className = 'message-avatar'; avatar.textContent = role === 'rulo' ? ruloBotName.slice(0, 1).toUpperCase() : String(nameText || 'E').slice(0, 1).toUpperCase(); avatar.setAttribute('aria-hidden', 'true');
+      const wrap = document.createElement('div'); wrap.className = 'bubble-wrap';
+      const name = document.createElement('div'); name.className = 'message-name'; name.textContent = role === 'rulo' ? ruloBotName : String(nameText || 'Espectador');
+      const bubble = document.createElement('div'); bubble.className = 'bubble'; bubble.textContent = String(content || '');
+      wrap.append(name, bubble);
+      if (meta) { const detail = document.createElement('div'); detail.className = 'message-meta'; detail.textContent = meta; wrap.append(detail); }
+      row.append(avatar, wrap); $('messages').append(row); $('messages').scrollTop = $('messages').scrollHeight;
+    }
+    function addRealChatEvent(text) {
+      const row = document.createElement('div'); row.className = 'real-chat-event'; row.textContent = String(text || '');
+      $('messages').append(row); $('messages').scrollTop = $('messages').scrollHeight;
+    }
+    function formatRealChatOffset(value) {
+      const seconds = Math.max(0, Math.floor((Number(value) || 0) / 1000));
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const remainder = seconds % 60;
+      return `+${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+    }
+    function renderRealChat() {
+      const panel = $('messages'); panel.replaceChildren();
+      if (!realChatFeed.length) {
+        const welcome = document.createElement('div'); welcome.id = 'welcome-message'; welcome.className = 'welcome';
+        const heading = document.createElement('strong'); heading.textContent = `Rulator · ${ruloBotName}`;
+        const description = document.createElement('p'); description.textContent = 'Rulator es esta sala virtual; Rulo es el bot que conversa dentro de ella. Escribe como espectador o como la persona seleccionada: Rulo puede responder o dejar pasar el comentario. También puedes reproducir los mensajes archivados del programa.';
+        welcome.append(heading, description); panel.append(welcome); return;
+      }
+      for (const item of realChatFeed) {
+        if (item.role === 'event') addRealChatEvent(item.text);
+        else addRealChatBubble(item.role, item.name, item.text, item.meta || '');
+      }
+      panel.scrollTop = panel.scrollHeight;
+    }
+    function describeRealChatOutcome(data) {
+      const reasons = {
+        'chat-not-captured':'Chat Bot Spotify o la captura de Facebook están apagados; ese comentario no llegaría a Rulo.',
+        'rulo-disabled':'Rulo está apagado; no respondería.',
+        alert:'Es una alerta o reacción; Rulo la ignora.',
+        'lottery-write-disabled':'Pedido de lotería detectado; la escritura quedó bloqueada en esta sala.',
+        'personal-data-not-read':'Pregunta personal de lotería; no se consultaron datos reales de la persona.',
+        'no-verified-historical-grid':'Pregunta pública de lotería; falta una captura histórica verificada.',
+        'lottery-chat-disabled':'Las respuestas de lotería están apagadas.',
+        'public-verified-snapshot':'Consulta pública respondida con la captura verificada del programa.',
+        'requires-private-account':'Vincular cuentas requiere una cuenta real; no se ejecutó.',
+        'track-found-no-playback':'Spotify encontró un tema y el simulador aplicó la cola y el cooldown virtuales; no se reprodujo ni se anunció como sonando.',
+        'track-not-found':'Spotify no encontró el tema; Rulo respondería con el aviso de búsqueda fallida.',
+        'global-cooldown':'Spotify aplicó el cooldown global del chat.',
+        'participant-cooldown':'Spotify aplicó el cooldown de esta persona.',
+        'duplicate-track':'Ese tema ya aparece en la cola virtual; no se agregó otra copia.',
+        'spotify-disabled':'Los pedidos musicales están apagados.',
+        'rulo-disabled':'Rulo está apagado; no procesaría el pedido.',
+        'spotify-unavailable':'Spotify no está disponible para hacer una vista previa.',
+        'spotify-error':'Spotify falló durante la vista previa; se mostró el aviso configurado de Rulo.',
+        'not-understood':'Parecía un pedido musical, pero Rulo no pudo interpretarlo; no respondió.',
+        'transport-preview':'Comando de Spotify detectado; la sala no ejecutó controles del reproductor.',
+        'track-not-found':'Spotify no encontró un tema para ese pedido.',
+        'ai-error':'La IA casual no pudo responder esta vez.',
+        'ai-declined':'La IA decidió dejar pasar este comentario.',
+        'not-candidate':'El comentario no cumple los filtros de charla casual.',
+        'casual-disabled':'La charla casual está apagada en la configuración actual.',
+        'ai-disabled':'La IA casual está apagada.',
+        'casual-cooldown':'Rulo todavía está dentro del cooldown de charla casual.',
+        'recent-rulo-reply':'Rulo ya respondió hace poco; evita otra respuesta seguida.',
+        'random-gate':'La probabilidad del 20 % dejó pasar este comentario sin respuesta.',
+        busy:'Rulo está procesando otra respuesta.'
+      };
+      return reasons[data.reason] || (data.reason ? `Rulo no responde · ${data.reason}.` : 'Rulo no responde a este comentario.');
+    }
+    function appendRealChatResult(data) {
+      const elapsed = formatRealChatOffset(data.timeOffsetMs);
+      realChatFeed.push({ role:'participant', name:data.requester || 'Espectador', text:data.comment || '', meta:data.synthetic === true ? `Participante sintético · IA · ${elapsed}` : `Chat · ${elapsed}` });
+      for (const reply of Array.isArray(data.responses) ? data.responses : []) {
+        const meta = reply.source === 'casual-ai' ? 'Charla casual · IA' : reply.source === 'lottery-read-only' ? 'Lotería · solo lectura histórica' : reply.source === 'lottery-personal-read' ? 'Lotería · consulta personal del operador' : reply.source === 'lottery-personal-identity-required' ? 'Lotería · requiere ID estable' : reply.source === 'attendance-read' ? 'Audiencia · asistencia histórica del operador' : reply.source === 'attendance-identity-required' ? 'Audiencia · requiere ID estable' : reply.source === 'spotify-playback' ? 'Spotify · reproducción real aislada verificada' : reply.source === 'spotify-queue-preview' ? 'Spotify · cola virtual; no se reprodujo' : reply.source === 'spotify-global-cooldown' ? 'Spotify · cooldown global' : reply.source === 'spotify-user-cooldown' ? 'Spotify · cooldown de persona' : reply.source === 'spotify-not-found' ? 'Spotify · búsqueda sin coincidencia' : reply.source === 'spotify-error' ? 'Spotify · aviso de error' : 'Respuesta simulada';
+        realChatFeed.push({ role:'rulo', name:ruloBotName, text:reply.text, source:String(reply.source || ''), meta:`${elapsed} · ${meta}` });
+      }
+      if (!data.responded) {
+        let detail = describeRealChatOutcome(data);
+        if (data.track?.name) detail += ` · Vista previa: ${data.track.name}${data.track.artists?.length ? ` — ${data.track.artists.join(', ')}` : ''}.`;
+        if (data.virtualQueueLength > 0 && data.action === 'music-queued-preview') detail += ` Cola virtual: ${data.virtualQueueLength}.`;
+        realChatFeed.push({ role:'event', text:`${elapsed} · ${detail}`, reason:String(data.reason || ''), source:String(data.source || '') });
+      }
+      if (realChatFeed.length > 1200) realChatFeed.splice(0, realChatFeed.length - 1200);
+      renderRealChat();
+    }
+    function latestRuloInteraction() {
+      for (let index = realChatFeed.length - 1; index >= 0; index -= 1) {
+        const participant = realChatFeed[index];
+        if (participant.role !== 'participant') continue;
+        const following = realChatFeed.slice(index + 1).find(item => item.role === 'participant');
+        const end = following ? realChatFeed.indexOf(following) : realChatFeed.length;
+        const exchange = realChatFeed.slice(index + 1, end);
+        const reply = exchange.find(item => item.role === 'rulo');
+        const event = exchange.find(item => item.role === 'event');
+        return {
+          comment:participant.text,
+          answer:reply?.text || '',
+          source:reply?.source || event?.source || '',
+          silenceReason:event?.reason || '',
+          outcome:reply ? 'respuesta' : 'silencio'
+        };
+      }
+      return null;
+    }
+    function stopRealChatReplay() {
+      realChatReplayToken += 1; realChatReplayRunning = false; realChatReplayPaused = false;
+      const button = $('real-chat-pause');
+      if (button) { button.disabled = true; button.textContent = 'Pausar'; }
+      if ($('real-chat-replay')) { $('real-chat-replay').disabled = false; $('real-chat-replay').textContent = 'Reproducir comentarios'; }
+      if ($('live-program')) $('live-program').disabled = liveProgramItems.length === 0;
+      if ($('live-participant')) $('live-participant').disabled = liveParticipants.length === 0;
+      if ($('live-simulation-profile')) $('live-simulation-profile').disabled = false;
+      if (!sending && $('send')) $('send').disabled = false;
+      if (!sending && $('message-input')) $('message-input').disabled = false;
+    }
+    function resetRealChatSession(updateStatus = true) {
+      stopRealChatReplay(); realChatSessionId = crypto.randomUUID(); realChatFeed = [];
+      if (isRealChatProfile()) renderRealChat();
+      if (updateStatus && $('real-chat-status')) $('real-chat-status').textContent = $('live-program').value ? 'Sala reiniciada. La sesión empieza sin memoria de la repetición anterior.' : 'Elige un programa archivado para empezar.';
+    }
+    function renderRealChatModules(items) {
+      const panel = $('real-chat-module-list');
+      panel.replaceChildren();
+      for (const item of items) {
+        const card = document.createElement('div'); card.className = `real-chat-module ${item.ready ? 'ready' : 'missing'}`;
+        const title = document.createElement('strong'); title.textContent = item.name;
+        const detail = document.createElement('span'); detail.textContent = item.detail;
+        card.append(title, detail);
+        if (item.startService) {
+          const startButton = document.createElement('button'); startButton.type = 'button'; startButton.textContent = 'Iniciar módulo';
+          startButton.addEventListener('click', () => { void startRealChatService(item.startService, startButton); });
+          card.append(startButton);
+        }
+        if (!item.ready && item.href) {
+          const link = document.createElement('a'); link.href = item.href; link.target = '_blank'; link.rel = 'noopener'; link.textContent = item.linkLabel || 'Abrir panel';
+          card.append(link);
+        }
+        panel.append(card);
+      }
+    }
+    function showRealChatBackendRestart(message) {
+      realChatApiAvailable = false;
+      $('real-chat-backend-message').textContent = message;
+      $('real-chat-backend-action').hidden = false;
+      renderRealChatModules([{ name:'Cortex', ready:false, detail:'La página nueva está abierta, pero el backend aún no reconoce esta ruta.' }]);
+      $('real-chat-status').textContent = 'Reinicia Cortex para activar Rulator.';
+    }
+    async function refreshRealChatReadiness() {
+      if (!isRealChatProfile()) return;
+      const requestId = ++realChatReadinessRequest;
+      const button = $('real-chat-refresh-modules'); button.disabled = true; button.textContent = 'Consultando…';
+      try {
+        const response = await fetch('/api/cortex-home/rulo-real-chat-simulation/status', { cache:'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (requestId !== realChatReadinessRequest) return;
+        if (response.status === 404 || data.error === 'Acción desconocida.' || (response.ok && data.profileAvailable !== true)) {
+          showRealChatBackendRestart('Cortex todavía no cargó el perfil nuevo. Puedes reiniciarlo desde aquí; sus WebSockets se cortarán unos segundos.');
+          return;
+        }
+        if (!response.ok || data.profileAvailable !== true) throw new Error(data.error || `Cortex respondió HTTP ${response.status}.`);
+        realChatApiAvailable = true; $('real-chat-backend-action').hidden = true;
+        isolatedModeEnabled = data.isolatedModeReady === true;
+        $('real-chat-isolation-action').hidden = isolatedModeEnabled || $('real-chat-spotify-mode').value !== 'play';
+        const program = $('live-program').value;
+        const hasSelectedArchive = program ? liveArchiveItems.some(item => String(item.comment || '').trim()) : data.archiveAvailable === true;
+        renderRealChatModules([
+          { name:'Rulo', ready:data.ruloEnabled === true, detail:data.ruloEnabled ? 'Encendido.' : 'Apagado; no respondería en este escenario.', href:'/rulo-dashboard.html' },
+          { name:'Chat Bot Spotify', ready:data.chatBotReachable && data.chatBotEnabled, detail:!data.chatBotReachable ? 'No responde; el archivo puede reproducirse, pero no se procesa el chat.' : data.chatBotEnabled ? 'Activo.' : 'Apagado; los comentarios no llegarían a Rulo.', href:'/rulo-spotify.html', linkLabel:'Abrir Spotify', startService:!data.chatBotReachable && data.chatBotServiceStatus === 'stopped' ? 'chat-bot-spotify' : '' },
+          { name:'Captura de Facebook', ready:data.captureFacebook === true, detail:data.captureFacebook ? 'Activa.' : 'Apagada; el chat real no entregaría comentarios.', href:'/rulo-spotify.html', linkLabel:'Abrir ajustes' },
+          { name:'Pedidos musicales', ready:data.spotifyEnabled && data.spotifyConnected, detail:!data.spotifyEnabled ? 'Apagados; Rulator no podrá procesar pedidos.' : !data.spotifyConnected ? 'Spotify no está conectado.' : data.isolatedModeReady ? 'Spotify conectado; reproducción real aislada disponible.' : 'Spotify conectado; la reproducción real espera Modo de pruebas aislado.', href:'/rulo-spotify.html', linkLabel:'Abrir Spotify' },
+          { name:'Respuestas casuales con IA', ready:data.aiEnabled && data.casualChatEnabled, detail:data.aiEnabled && data.casualChatEnabled ? 'Disponibles; Rulo aún aplica su probabilidad y cooldown.' : 'No disponibles; Rulo dejará pasar la charla casual.', href:'/rulo-spotify-training.html', linkLabel:'Abrir Entrenamiento e IA' },
+          { name:'Archivo del programa', ready:hasSelectedArchive, detail:program ? hasSelectedArchive ? `${liveArchiveItems.length} comentarios cargados.` : 'No hay comentarios disponibles para este programa.' : data.archiveAvailable ? `${data.archivedPrograms} programas archivados; elige uno arriba.` : 'No hay archivo de comentarios disponible.', href:'/rulo-chat-historial.html', linkLabel:'Abrir historial' }
+        ]);
+      } catch (error) {
+        if (requestId !== realChatReadinessRequest) return;
+        realChatApiAvailable = null;
+        renderRealChatModules([{ name:'Cortex', ready:false, detail:error.message || 'No se pudo consultar el estado de los módulos.' }]);
+      } finally {
+        if (requestId === realChatReadinessRequest) { button.disabled = false; button.textContent = 'Actualizar'; }
+      }
+    }
+    async function restartCortexForRealChat() {
+      if (!confirm('Cortex se reiniciará y los WebSockets del panel se cortarán unos segundos. ¿Quieres reiniciarlo ahora?')) return;
+      const button = $('real-chat-restart-cortex'); button.disabled = true; button.textContent = 'Reiniciando…';
+      $('real-chat-backend-message').textContent = 'Esperando que Cortex vuelva a estar disponible…';
+      try {
+        const response = await fetch('/api/cortex/restart', { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}', cache:'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.restarting !== true) throw new Error(data.error || `Cortex respondió HTTP ${response.status}.`);
+        for (let attempt = 0; attempt < 30; attempt += 1) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          try {
+            const check = await fetch('/api/cortex-home/rulo-real-chat-simulation/status', { cache:'no-store' });
+            const state = await check.json().catch(() => ({}));
+            if (check.ok && state.profileAvailable === true) { window.location.reload(); return; }
+          } catch { /* Cortex todavía está reiniciando. */ }
+        }
+        throw new Error('Cortex no confirmó que el perfil nuevo esté cargado. Pulsa Actualizar cuando vuelva el panel.');
+      } catch (error) {
+        $('real-chat-backend-message').textContent = error.message || 'No se pudo reiniciar Cortex.';
+        button.disabled = false; button.textContent = 'Reintentar reinicio';
+      }
+    }
+    async function startRealChatService(serviceId, button) {
+      if (serviceId !== 'chat-bot-spotify') return;
+      if (!confirm('Chat Bot Spotify puede volver a procesar comentarios reales de Facebook y pedidos que cambien la música cuando sus ajustes estén activos. ¿Quieres iniciar el módulo?')) return;
+      button.disabled = true; button.textContent = 'Iniciando…';
+      try {
+        const response = await fetch(`/api/services/${encodeURIComponent(serviceId)}/start`, { method:'POST', headers:{'Content-Type':'application/json'}, body:'{}', cache:'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || data.details || `Cortex respondió HTTP ${response.status}.`);
+        $('real-chat-status').textContent = 'Chat Bot Spotify está iniciando; comprobando el módulo…';
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        await refreshRealChatReadiness();
+      } catch (error) {
+        button.disabled = false; button.textContent = 'Reintentar inicio';
+        $('real-chat-status').textContent = error.message || 'No se pudo iniciar Chat Bot Spotify.';
+      }
+    }
+    async function postRealChatEvent(payload) {
+      const requestSessionId = realChatSessionId;
+      const response = await fetch('/api/cortex-home/rulo-real-chat-simulation', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ program:$('live-program').value, sessionId:requestSessionId, ...payload }), cache:'no-store'
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok !== true) {
+        if (data.error === 'Acción desconocida.') {
+          showRealChatBackendRestart('Cortex todavía no cargó el perfil nuevo. Puedes reiniciarlo desde aquí; sus WebSockets se cortarán unos segundos.');
+          throw new Error('Cortex necesita reiniciarse para cargar Rulator.');
+        }
+        throw new Error(data.error || `Cortex respondió HTTP ${response.status}.`);
+      }
+      if (requestSessionId === realChatSessionId && isRealChatProfile() && !Array.isArray(data.generatedComments)) appendRealChatResult(data);
+      return data;
+    }
+    async function sendRealChatMessage(content) {
+      if (!$('live-program').value) { status('Elige un programa antes de enviar un comentario.', true); return; }
+      if (realChatApiAvailable === false) { status('Reinicia Cortex desde el aviso de módulos para cargar este perfil.', true); return; }
+      if (realChatApiAvailable === null) await refreshRealChatReadiness();
+      if (realChatApiAvailable === false) { status('Reinicia Cortex desde el aviso de módulos para cargar este perfil.', true); return; }
+      sending = true; $('send').disabled = true; $('clear-chat').disabled = true; $('message-input').disabled = true; $('live-simulation-enabled').disabled = true;
+      status('Comparando el comentario con el comportamiento del chat en vivo…');
+      try {
+        const data = await postRealChatEvent({ participantCommentId:$('live-participant').value, comment:content, eventId:crypto.randomUUID(), spotifyMode:$('real-chat-spotify-mode').value, timeScale:Number($('real-chat-speed').value) });
+        $('real-chat-status').textContent = data.responded
+          ? `Rulo respondió · ${data.action.replace(/-/g, ' ')} · sala temporal, sin publicación.`
+          : describeRealChatOutcome(data);
+        status(data.action === 'music-played' ? 'Pedido reproducido y verificado en el Spotify seleccionado.' : data.responded ? 'Comentario simulado en la sala local.' : 'Comentario procesado; revisa por qué Rulo dejó pasar el mensaje.');
+      } catch (error) { $('message-input').value = content; status(error.message || 'No se pudo procesar el comentario.', true); }
+      finally { sending = false; $('send').disabled = false; $('clear-chat').disabled = false; $('message-input').disabled = false; $('live-simulation-enabled').disabled = false; $('message-input').focus(); }
+    }
+    async function simulateOtherParticipants() {
+      if (sending || realChatReplayRunning) return;
+      if (!$('live-program').value) { status('Elige un programa antes de simular participantes.', true); return; }
+      const button = $('real-chat-generate');
+      sending = true; button.disabled = true; button.textContent = 'Generando…';
+      $('send').disabled = true; $('clear-chat').disabled = true; $('message-input').disabled = true;
+      status('Generando comentarios ficticios y anónimos para Rulator…');
+      try {
+        const generated = await postRealChatEvent({ generateParticipants:true, eventId:`generate-${crypto.randomUUID()}` });
+        const comments = Array.isArray(generated.generatedComments) ? generated.generatedComments.slice(0, 3) : [];
+        if (!comments.length) throw new Error('La IA no generó comentarios para esta sala.');
+        for (let index = 0; index < comments.length; index += 1) {
+          await postRealChatEvent({
+            comment:String(comments[index]).slice(0, 220), syntheticParticipant:true, syntheticOrdinal:index + 1,
+            eventId:`synthetic-${crypto.randomUUID()}`, spotifyMode:$('real-chat-spotify-mode').value,
+            timeScale:Number($('real-chat-speed').value)
+          });
+        }
+        $('real-chat-status').textContent = `${comments.length} comentarios sintéticos agregados; no se atribuyeron a personas reales ni se guardaron.`;
+        status('Conversación simulada agregada a la sala temporal.');
+      } catch (error) {
+        $('real-chat-status').textContent = error.message || 'No se pudieron simular participantes.';
+        status(error.message || 'No se pudieron simular participantes.', true);
+      } finally {
+        sending = false; button.disabled = false; button.textContent = 'Simular participantes';
+        $('send').disabled = false; $('clear-chat').disabled = false; $('message-input').disabled = false;
+      }
+    }
+    function waitForRealReplay(milliseconds, token) {
+      let remaining = Math.max(0, Number(milliseconds) || 0);
+      let checkpoint = Date.now();
+      return new Promise(resolve => {
+        const step = () => {
+          if (token !== realChatReplayToken) return resolve(false);
+          const current = Date.now();
+          if (realChatReplayPaused) { checkpoint = current; return setTimeout(step, 150); }
+          remaining -= current - checkpoint; checkpoint = current;
+          if (remaining <= 0) return resolve(true);
+          setTimeout(step, Math.min(200, Math.max(20, remaining)));
+        };
+        step();
+      });
+    }
+    async function replayRealChatArchive() {
+      if (!$('live-program').value || !liveArchiveItems.length) { status('Elige un programa que tenga comentarios archivados.', true); return; }
+      if (realChatApiAvailable === false) { status('Reinicia Cortex desde el aviso de módulos para cargar este perfil.', true); return; }
+      if (realChatApiAvailable === null) await refreshRealChatReadiness();
+      if (realChatApiAvailable === false) { status('Reinicia Cortex desde el aviso de módulos para cargar este perfil.', true); return; }
+      resetRealChatSession(false);
+      realChatReplayRunning = true; realChatReplayPaused = false;
+      const token = realChatReplayToken;
+      const button = $('real-chat-replay'); button.disabled = true; button.textContent = 'Reproduciendo…';
+      $('real-chat-pause').disabled = false; $('real-chat-status').textContent = `Preparando ${liveArchiveItems.length} comentarios archivados…`;
+      $('live-program').disabled = true; $('live-participant').disabled = true; $('live-simulation-profile').disabled = true; $('send').disabled = true; $('message-input').disabled = true;
+      const rows = liveArchiveItems.filter(item => String(item.comment || '').trim());
+      const timestamps = rows.map(item => Number(item.timestamp) || new Date(item.timestamp).getTime()).filter(Number.isFinite);
+      const firstTimestamp = timestamps.length ? Math.min(...timestamps) : Date.now();
+      const speed = Number($('real-chat-speed').value) === 10 ? 10 : 1;
+      let previousTimestamp = firstTimestamp;
+      let processed = 0;
+      try {
+        for (const item of rows) {
+          const timestamp = Number(item.timestamp) || new Date(item.timestamp).getTime() || previousTimestamp;
+          const delay = Math.max(0, timestamp - previousTimestamp) / speed;
+          if (!(await waitForRealReplay(delay, token))) break;
+          const offset = Math.min(86400000, Math.max(0, timestamp - firstTimestamp));
+          await postRealChatEvent({ archiveCommentId:String(item.id), eventId:`archive-${String(item.id)}`, timeOffsetMs:offset, spotifyMode:$('real-chat-spotify-mode').value, timeScale:speed });
+          previousTimestamp = timestamp; processed += 1;
+          $('real-chat-status').textContent = `Reproduciendo ${processed}/${rows.length} comentarios · ${speed}× · cooldowns y cola virtuales.`;
+        }
+        if (token === realChatReplayToken && processed === rows.length) $('real-chat-status').textContent = `Repetición terminada · ${processed} comentarios · nada se publicó ni se guardó.`;
+      } catch (error) {
+        if (token === realChatReplayToken) { $('real-chat-status').textContent = error.message; status(error.message, true); }
+      } finally {
+        if (token === realChatReplayToken) {
+          realChatReplayRunning = false; realChatReplayPaused = false; button.disabled = false; button.textContent = 'Reproducir comentarios';
+          $('real-chat-pause').disabled = true; $('real-chat-pause').textContent = 'Pausar';
+          $('live-program').disabled = liveProgramItems.length === 0; $('live-participant').disabled = liveParticipants.length === 0;
+          $('live-simulation-profile').disabled = false; $('send').disabled = false; $('message-input').disabled = false;
+        }
+      }
     }
     function addTyping() {
       const row = document.createElement('article'); row.className = 'message'; row.id = 'typing-indicator';
@@ -447,11 +865,24 @@
       } catch (error) { $('context-status').textContent = 'No se pudo actualizar'; status(error.message, true); }
       finally { button.disabled = false; }
     }
+    function stableArchiveIdentity(item) {
+      const usable = value => {
+        const token = String(value || '').trim();
+        return token && token.length <= 180 && !/\s/.test(token)
+          && !/^(?:unknown|null|undefined|anonymous|guest|\[object object\])$/i.test(token)
+          ? token.toLowerCase() : '';
+      };
+      const requesterKey = String(item.requesterKey || '').trim().toLowerCase();
+      const keyId = requesterKey.split(':').at(-1) || '';
+      if (/^(?:facebook|idv2):\S+$/.test(requesterKey) && usable(keyId)) return `key:${requesterKey}`;
+      const facebookUserId = usable(item.facebookUserId);
+      if (facebookUserId) return `facebook:${facebookUserId}`;
+      const userId = usable(item.userId);
+      if (userId) return `user:${String(item.platform || 'unknown').toLowerCase()}:${userId}`;
+      return '';
+    }
     function archiveIdentityKey(item) {
-      if (item.requesterKey) return `key:${String(item.requesterKey).toLowerCase()}`;
-      if (item.facebookUserId) return `facebook:${String(item.facebookUserId).toLowerCase()}`;
-      if (item.userId) return `user:${String(item.userId).toLowerCase()}`;
-      return `name:${String(item.requester || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase()}`;
+      return stableArchiveIdentity(item) || `comment:${String(item.id || `${item.timestamp || ''}-${Math.random()}`)}`;
     }
     function formatProgramDate(value) {
       if (!value) return '';
@@ -480,6 +911,7 @@
     }
     async function loadLiveProgramComments() {
       const program = $('live-program').value;
+      resetRealChatSession();
       const participantSelect = $('live-participant');
       liveArchiveItems = []; liveParticipants = [];
       participantSelect.replaceChildren(new Option('Espectador anónimo del programa', ''));
@@ -503,13 +935,13 @@
           const name = String(item.requester || '').trim();
           if (!name || !String(item.comment || '').trim() || item.isAlert) continue;
           const key = archiveIdentityKey(item);
-          if (!groups.has(key)) groups.set(key, { key, name, commentId:String(item.id), comments:0 });
+          if (!groups.has(key)) groups.set(key, { key, name, commentId:String(item.id), comments:0, stable:Boolean(stableArchiveIdentity(item)) });
           groups.get(key).comments += 1;
         }
         liveParticipants = [...groups.values()].sort((a, b) => b.comments - a.comments || a.name.localeCompare(b.name, 'es'));
         participantSelect.replaceChildren(new Option('Espectador anónimo del programa', ''));
         for (const participant of liveParticipants) {
-          participantSelect.add(new Option(`${participant.name} · ${participant.comments} comentario${participant.comments === 1 ? '' : 's'}`, participant.commentId));
+          participantSelect.add(new Option(`${participant.name} · ${participant.comments} comentario${participant.comments === 1 ? '' : 's'}${participant.stable ? '' : ' · sin ID estable'}`, participant.commentId));
         }
         participantSelect.disabled = liveParticipants.length === 0;
         const dateValue = liveArchiveItems.find(item => item.programDate)?.programDate || '';
@@ -520,6 +952,7 @@
       }
       setProfileCaption();
       await Promise.all([loadLotterySnapshotState(), loadEvaluationCases()]);
+      if (isRealChatProfile()) void refreshRealChatReadiness();
     }
     async function loadLotterySnapshotState() {
       const program = $('live-program').value;
@@ -566,6 +999,133 @@
         await loadLotterySnapshotState();
       } catch (error) { status(error.message, true); }
       finally { button.disabled = !program; button.textContent = lotterySnapshotItem ? 'Actualizar captura de la grilla actual' : 'Guardar captura de la grilla actual'; }
+    }
+    function renderRuloBehaviorRules() {
+      const panel = $('rulo-behavior-rule-list');
+      if (!panel) return;
+      panel.replaceChildren();
+      if (!ruloBehaviorRuleItems.length) {
+        const empty = document.createElement('div'); empty.className = 'live-state'; empty.textContent = 'No hay reglas conversacionales aprobadas todavía.'; panel.append(empty); return;
+      }
+      for (const item of ruloBehaviorRuleItems) {
+        const row = document.createElement('div'); row.className = 'rulo-rule-item';
+        const text = document.createElement('div');
+        const title = document.createElement('strong'); title.textContent = item.title;
+        const instruction = document.createElement('small'); instruction.textContent = item.instruction;
+        text.append(title, instruction);
+        if (item.sourceNote) { const source = document.createElement('small'); source.textContent = `Fuente verificada: ${item.sourceNote}`; text.append(source); }
+        const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'live-action-button'; remove.textContent = 'Borrar';
+        remove.addEventListener('click', () => { void deleteRuloBehaviorRule(item); });
+        row.append(text, remove); panel.append(row);
+      }
+    }
+    async function loadRuloBehaviorRules() {
+      const panel = $('rulo-behavior-rule-list');
+      if (!panel) return;
+      try {
+        const response = await fetch('/api/rulo-behavior-rules', { cache:'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'No se pudieron cargar las reglas de Rulo.');
+        ruloBehaviorRuleItems = Array.isArray(data.items) ? data.items : [];
+        renderRuloBehaviorRules();
+      } catch (error) { panel.textContent = error.message; }
+    }
+    async function analyzeLatestRuloInteraction() {
+      const button = $('analyze-rulo-interaction');
+      const resultPanel = $('rulo-improvement-result');
+      const editor = $('rulo-improvement-editor');
+      const statusPanel = $('rulo-improvement-status');
+      const interaction = latestRuloInteraction();
+      if (!interaction) { statusPanel.textContent = 'Primero escribe un comentario o reproduce una interacción archivada.'; return; }
+      const privateSources = new Set(['lottery-personal-read', 'lottery-personal-identity-required', 'attendance-read', 'attendance-identity-required']);
+      const foldedComment = interaction.comment.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const privateQuestion = /\b(?:mi|mis|mio|mios|mia|mias)\b.{0,60}\b(?:numero|nro|boleto|ticket|loteria|rifa|sorteo|asistencia|participaciones|veces|anotad[oa])\b|\b(?:que|cuales|cuantos)\b.{0,45}\b(?:numeros?|tickets?|boletos?)\b.{0,35}\b(?:tengo|me|estoy anotad[oa])\b|\b(?:cuantas veces|asistencia|participaciones)\b.{0,50}\b(?:vine|fui|asisti|tengo|mi|mis|persona|participante)\b/i.test(foldedComment);
+      if (privateSources.has(interaction.source) || ['personal-data-not-read', 'attendance-read'].includes(interaction.silenceReason) || privateQuestion) {
+        statusPanel.textContent = 'Por privacidad, las consultas personales de lotería o asistencia no se envían al analizador.';
+        resultPanel.hidden = true; editor.hidden = true; return;
+      }
+      button.disabled = true; button.textContent = 'Analizando…'; statusPanel.textContent = 'La IA está identificando el tipo de interacción y el lugar adecuado para corregirla.';
+      resultPanel.hidden = true; editor.hidden = true; currentRuloImprovementDestination = 'none';
+      try {
+        const response = await fetch('/api/rulo-improvement/analyze', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ comment:interaction.comment, answer:interaction.answer, silenceReason:interaction.silenceReason, source:interaction.source }), cache:'no-store'
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok !== true) throw new Error(data.error || 'No se pudo analizar la interacción.');
+        const analysis = data.analysis || {};
+        const destinationLabels = {
+          'general-chat-rule':'Regla conversacional general',
+          'spotify-training':'Entrenamiento de música',
+          'lottery-rule-review':'Revisión de reglas de lotería',
+          'verified-fact-needed':'Hace falta verificar un dato',
+          none:'No recomienda un cambio'
+        };
+        currentRuloImprovementDestination = analysis.destination || 'none';
+        resultPanel.textContent = `Categoría detectada: ${analysis.category || 'sin clasificar'}\nDestino sugerido: ${destinationLabels[currentRuloImprovementDestination] || 'revisión manual'}\n\n${analysis.diagnosis || 'La IA no agregó un diagnóstico.'}${analysis.needsFactCheck ? '\n\nLa sugerencia depende de un dato verificable; confirma la fuente antes de crear una regla.' : ''}`;
+        resultPanel.hidden = false;
+        const generalRule = currentRuloImprovementDestination === 'general-chat-rule' && !analysis.needsFactCheck;
+        const verifiedFactRule = currentRuloImprovementDestination === 'verified-fact-needed';
+        if ((generalRule || verifiedFactRule) && (analysis.draftRule || verifiedFactRule)) {
+          $('rulo-improvement-title').value = analysis.draftTitle || '';
+          $('rulo-improvement-rule').value = analysis.draftRule || '';
+          $('rulo-improvement-rule').placeholder = verifiedFactRule
+            ? 'Cuando pregunten [pregunta], responde [dato comprobado]. Si el dato no está en la fuente, dilo sin adivinar.'
+            : 'Instrucción general que Rulo debería aplicar';
+          $('rulo-improvement-category').value = ['conversation', 'tone', 'general'].includes(analysis.category) ? analysis.category : 'general';
+          $('rulo-improvement-fact-proof').hidden = !verifiedFactRule;
+          $('rulo-improvement-source').value = '';
+          $('rulo-improvement-fact-verified').checked = false;
+          $('save-rulo-improvement-rule').textContent = verifiedFactRule ? 'Revisé la fuente y guardar regla' : 'Revisé y guardar regla activa';
+          editor.hidden = false;
+          statusPanel.textContent = verifiedFactRule
+            ? 'La IA no inventó el dato. Escribe la respuesta correcta, cita una fuente verificada y confirma antes de activarla.'
+            : 'Borrador listo. Revísalo y edítalo antes de activarlo.';
+        } else {
+          $('rulo-improvement-fact-proof').hidden = true;
+          statusPanel.textContent = 'La sugerencia no se puede activar como regla general desde aquí; revisa el módulo indicado.';
+        }
+      } catch (error) { statusPanel.textContent = error.message || 'No se pudo analizar la interacción.'; }
+      finally { button.disabled = false; button.textContent = 'Analizar última interacción'; }
+    }
+    async function saveRuloBehaviorRule() {
+      const factVerified = currentRuloImprovementDestination === 'verified-fact-needed';
+      if (!['general-chat-rule', 'verified-fact-needed'].includes(currentRuloImprovementDestination)) { status('La IA no recomendó una regla conversacional general para esta interacción.', true); return; }
+      const title = String($('rulo-improvement-title').value || '').trim();
+      const instruction = String($('rulo-improvement-rule').value || '').trim();
+      const category = $('rulo-improvement-category').value;
+      if (!title || instruction.length < 8) { status('Revisa el título y escribe una regla de al menos 8 caracteres.', true); return; }
+      const sourceNote = String($('rulo-improvement-source').value || '').trim();
+      if (factVerified && (!$('rulo-improvement-fact-verified').checked || sourceNote.length < 8)) {
+        status('Para guardar esta respuesta, confirma que verificaste la fuente y descríbela.', true); return;
+      }
+      if (!confirm(factVerified
+        ? '¿Confirmas que verificaste el dato y quieres que Rulo use esta regla en futuras conversaciones?'
+        : '¿Aprobaste esta regla y quieres que Rulo la use en futuras conversaciones generales?')) return;
+      const button = $('save-rulo-improvement-rule'); button.disabled = true;
+      try {
+        const response = await fetch('/api/rulo-behavior-rules', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ title, instruction, category, factVerified, sourceNote }), cache:'no-store'
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok !== true) throw new Error(data.error || 'No se pudo activar la regla.');
+        $('rulo-improvement-editor').hidden = true;
+        $('rulo-improvement-status').textContent = factVerified
+          ? 'Respuesta con fuente verificada guardada y activa para futuras conversaciones generales.'
+          : 'Regla aprobada y activa para futuras conversaciones generales de Rulo.';
+        await loadRuloBehaviorRules();
+      } catch (error) { status(error.message || 'No se pudo activar la regla.', true); }
+      finally { button.disabled = false; }
+    }
+    async function deleteRuloBehaviorRule(item) {
+      if (!confirm(`¿Borrar la regla activa «${item.title}»?`)) return;
+      try {
+        const response = await fetch(`/api/rulo-behavior-rules/${encodeURIComponent(item.id)}`, { method:'DELETE', cache:'no-store' });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data.ok !== true) throw new Error(data.error || 'No se pudo borrar la regla.');
+        await loadRuloBehaviorRules();
+      } catch (error) { status(error.message || 'No se pudo borrar la regla.', true); }
     }
     async function loadEvaluationCases(selectedId = '') {
       const select = $('evaluation-case');
@@ -711,14 +1271,15 @@
               : chatBot.moduleEnabled !== true || chatBot.captureFacebook !== true ? 'Modo aislado activo; activa Chat Bot Spotify y la captura de Facebook'
                 : 'Faltan módulos para simular el vivo';
         state.className = `live-state ${liveSimulationReady ? 'ready' : 'off'}`;
-        prompt.hidden = isolatedModeEnabled || !$('live-simulation-enabled').checked;
+        prompt.hidden = isRealChatProfile() || isolatedModeEnabled || !$('live-simulation-enabled').checked;
       } catch (error) {
-        isolatedModeEnabled = false; liveSimulationReady = false; state.textContent = error.message; state.className = 'live-state off'; prompt.hidden = !$('live-simulation-enabled').checked;
+        isolatedModeEnabled = false; liveSimulationReady = false; state.textContent = error.message; state.className = 'live-state off'; prompt.hidden = isRealChatProfile() || !$('live-simulation-enabled').checked;
       }
     }
-    async function activateIsolatedMode() {
+    async function activateIsolatedMode(button = $('live-enable-test-mode')) {
       if (!confirm('El Modo de pruebas aislado se aplica globalmente: pausa los pedidos automáticos de Facebook en Spotify y aísla Comentarios/Ruleta para que las pruebas no se guarden. ¿Quieres activarlo ahora?')) return;
-      const button = $('live-enable-test-mode'); button.disabled = true; button.textContent = 'Activando…';
+      const defaultLabel = button.dataset.defaultLabel || button.textContent;
+      button.disabled = true; button.textContent = 'Activando…';
       try {
         const response = await fetch('/api/test-mode', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ enabled:true }), cache:'no-store' });
         const data = await response.json().catch(() => ({}));
@@ -731,38 +1292,72 @@
         if (!ready) throw new Error('El modo se solicitó, pero Spotify o Comentarios/Ruleta aún no confirmaron el aislamiento. Inicia o actualiza esos módulos y vuelve a comprobarlo.');
         isolatedModeEnabled = true; status('Aislamiento confirmado. La simulación puede empezar.', false);
         await refreshIsolatedMode();
+        await refreshRealChatReadiness();
       } catch (error) {
         $('live-mode-state').textContent = error.message; $('live-mode-state').className = 'live-state off'; status(error.message, true);
-      } finally { button.disabled = false; button.textContent = 'Activar aquí'; }
+      } finally { button.disabled = false; button.textContent = defaultLabel; }
+    }
+    function syncLiveSimulationProfile() {
+      const realProfile = isRealChatProfile();
+      document.body.classList.toggle('real-chat-profile', realProfile);
+      $('live-real-chat-controls').hidden = !realProfile;
+      $('live-legacy-controls').hidden = realProfile;
+      $('live-isolation-prompt').hidden = realProfile || !$('live-simulation-enabled').checked || isolatedModeEnabled;
+      $('publish-badge').textContent = realProfile ? 'Sala local · sin publicación' : $('live-simulation-enabled').checked ? 'Prueba aislada en OBS' : 'No se publica al stream';
+      $('live-mode-badge').textContent = realProfile ? 'Rulator · sala local' : 'Prueba aislada';
+      if (realProfile) $('live-mode-state').textContent = 'Sin publicación en OBS; Spotify real requiere Modo aislado';
+      $('message-input').maxLength = realProfile ? 500 : 2000;
+      $('message-input').placeholder = realProfile ? 'Escribe un comentario en Rulator…' : 'Escribile a Rulo…';
+      $('message-input').setAttribute('aria-label', realProfile ? 'Comentario para la sala virtual Rulator' : 'Mensaje para Rulo');
+      $('chat-status').textContent = realProfile ? 'Comentario temporal en Rulator; no se publica.' : 'La conversación existe solo mientras esta página está abierta.';
+      setProfileCaption(); renderConversation();
+    }
+    function prepareLegacySimulationControls() {
+      if (legacySimulationControlsPrepared) return;
+      const lotteryDisabledControl = document.querySelector('[data-disabled-module][value="lottery"]');
+      liveLotteryDisabledBefore = lotteryDisabledControl.checked;
+      lotteryDisabledControl.checked = false; lotteryDisabledControl.disabled = true;
+      $('disabled-lottery-help').textContent = 'En Streaming en VIVO queda activa solo para consultas; cualquier escritura se rechaza.';
+      legacySimulationControlsPrepared = true;
+    }
+    function releaseLegacySimulationControls() {
+      if (!legacySimulationControlsPrepared) return;
+      const lotteryDisabledControl = document.querySelector('[data-disabled-module][value="lottery"]');
+      lotteryDisabledControl.disabled = false; lotteryDisabledControl.checked = liveLotteryDisabledBefore;
+      $('disabled-lottery-help').textContent = 'Reservas y preguntas de números.';
+      legacySimulationControlsPrepared = false;
     }
     async function setLiveSimulationEnabled(enabled) {
       $('live-simulation-options').hidden = !enabled;
-      $('live-isolation-prompt').hidden = !enabled || isolatedModeEnabled;
-      $('publish-badge').textContent = enabled ? 'Prueba aislada en OBS' : 'No se publica al stream';
+      $('live-isolation-prompt').hidden = !enabled || isRealChatProfile() || isolatedModeEnabled;
+      $('publish-badge').textContent = isRealChatProfile() ? 'Sala local · sin publicación' : enabled ? 'Prueba aislada en OBS' : 'No se publica al stream';
       $('profile').disabled = enabled || sending;
       $('participant-name').disabled = enabled || sending;
-      const lotteryDisabledControl = document.querySelector('[data-disabled-module][value="lottery"]');
       if (enabled) {
-        liveLotteryDisabledBefore = lotteryDisabledControl.checked;
-        lotteryDisabledControl.checked = false;
-        lotteryDisabledControl.disabled = true;
-        $('disabled-lottery-help').textContent = 'En Streaming en VIVO queda activa solo para consultas; cualquier escritura se rechaza.';
         $('profile').value = 'anonymous'; $('participant-name').value = '';
         conversations.anonymous.length = 0;
-        setProfileCaption(); renderConversation();
+        if (isRealChatProfile()) {
+          releaseLegacySimulationControls(); syncLiveSimulationProfile();
+          await Promise.all([loadLivePrograms(), refreshRealChatReadiness()]);
+          $('real-chat-status').textContent = liveProgramItems.length ? 'Elige un programa y escribe en Rulator o reproduce sus comentarios.' : 'No hay programas archivados disponibles.';
+          return;
+        }
+        prepareLegacySimulationControls(); syncLiveSimulationProfile();
         await Promise.all([loadLivePrograms(), refreshIsolatedMode(), loadEvaluationCases()]);
       } else {
-        lotteryDisabledControl.disabled = false;
-        lotteryDisabledControl.checked = liveLotteryDisabledBefore;
-        $('disabled-lottery-help').textContent = 'Reservas y preguntas de números.';
+        releaseLegacySimulationControls();
         conversations.anonymous.length = 0;
-        setProfileCaption(); renderConversation();
+        syncLiveSimulationProfile();
       }
     }
     async function sendMessage(value) {
       const content = String(value || '').trim(); if (!content || sending) return;
       if (content.length > 2000) { status('El mensaje supera los 2000 caracteres.', true); return; }
       const liveSimulation = $('live-simulation-enabled').checked;
+      if (isRealChatProfile()) {
+        if (content.length > 500) { status('En la sala real, cada comentario puede tener hasta 500 caracteres.', true); return; }
+        return sendRealChatMessage(content);
+      }
       if (liveSimulation && content.length > 500) { status('En la simulación del vivo, cada comentario puede tener hasta 500 caracteres.', true); return; }
       if (liveSimulation && !$('live-program').value) { status('Elige primero el número del programa que quieres simular.', true); return; }
       if (liveSimulation && !isolatedModeEnabled) { $('message-input').value = content; $('live-isolation-prompt').hidden = false; status('Activa el Modo de pruebas aislado aquí abajo para continuar con esta pregunta.', true); $('live-isolation-prompt').scrollIntoView({ behavior:'smooth', block:'nearest' }); return; }
@@ -803,16 +1398,46 @@
       $(id).addEventListener('change', renderCuadernoVivoPreview);
     });
     renderCuadernoVivoPreview();
-    $('clear-chat').addEventListener('click', () => { conversation().length = 0; renderConversation(); status('Conversación de esta identidad limpiada.'); });
+    $('clear-chat').addEventListener('click', () => {
+      if (isRealChatProfile()) { resetRealChatSession(); status('Sala simulada limpiada y sesión reiniciada.'); return; }
+      conversation().length = 0; renderConversation(); status('Conversación de esta identidad limpiada.');
+    });
     $('profile').addEventListener('change', () => { setProfileCaption(); renderConversation(); status('Identidad de simulación cambiada.'); });
     $('participant-name').addEventListener('input', () => { participantNames[$('profile').value] = currentSimulatedName(); });
     $('live-simulation-enabled').addEventListener('change', event => { void setLiveSimulationEnabled(event.target.checked); });
+    $('live-simulation-profile').addEventListener('change', () => {
+      resetRealChatSession(false); syncLiveSimulationProfile();
+      if (isRealChatProfile()) {
+        $('real-chat-status').textContent = $('live-program').value ? 'Rulator está listo. Puedes escribir como la persona seleccionada o reproducir el archivo.' : 'Elige un programa archivado para empezar.';
+        void refreshRealChatReadiness();
+      }
+      else if ($('live-simulation-enabled').checked) void refreshIsolatedMode();
+    });
     $('live-program').addEventListener('change', () => { activeEvaluationCaseId = ''; void loadLiveProgramComments(); });
     $('live-participant').addEventListener('change', () => {
       activeEvaluationCaseId = '';
-      conversations.anonymous.length = 0; setProfileCaption(); renderConversation();
+      if (!isRealChatProfile()) conversations.anonymous.length = 0;
+      setProfileCaption(); renderConversation();
       status(selectedLiveParticipant() ? `Simulando a ${selectedLiveParticipant().name} en el programa ${$('live-program').value}.` : `Simulando a un espectador anónimo del programa ${$('live-program').value}.`);
     });
+    $('real-chat-replay').addEventListener('click', () => { void replayRealChatArchive(); });
+    $('real-chat-generate').addEventListener('click', () => { void simulateOtherParticipants(); });
+    $('analyze-rulo-interaction').addEventListener('click', () => { void analyzeLatestRuloInteraction(); });
+    $('save-rulo-improvement-rule').addEventListener('click', () => { void saveRuloBehaviorRule(); });
+    $('real-chat-refresh-modules').addEventListener('click', () => { void refreshRealChatReadiness(); });
+    $('real-chat-enable-isolated-mode').addEventListener('click', event => { void activateIsolatedMode(event.currentTarget); });
+    $('real-chat-spotify-mode').addEventListener('change', () => {
+      $('real-chat-isolation-action').hidden = $('real-chat-spotify-mode').value !== 'play' || isolatedModeEnabled;
+      if (isRealChatProfile()) void refreshRealChatReadiness();
+    });
+    $('real-chat-restart-cortex').addEventListener('click', () => { void restartCortexForRealChat(); });
+    $('real-chat-pause').addEventListener('click', () => {
+      if (!realChatReplayRunning) return;
+      realChatReplayPaused = !realChatReplayPaused;
+      $('real-chat-pause').textContent = realChatReplayPaused ? 'Continuar' : 'Pausar';
+      $('real-chat-status').textContent = realChatReplayPaused ? 'Repetición pausada; el reloj virtual también quedó en pausa.' : 'Repetición en curso.';
+    });
+    $('real-chat-reset').addEventListener('click', () => { resetRealChatSession(); status('Rulator reiniciado.'); });
     $('live-enable-test-mode').addEventListener('click', activateIsolatedMode);
     $('live-spotify-mode').addEventListener('change', () => {
       $('live-spotify-warning').textContent = $('live-spotify-mode').value === 'preview'
@@ -852,7 +1477,7 @@
     $('review-evaluation-fail').addEventListener('click', () => { void reviewEvaluationRun('fail').catch(error => status(error.message, true)); });
     $('refresh-context').addEventListener('click', refreshContext);
     document.querySelectorAll('[data-prompt]').forEach(button => button.addEventListener('click', () => { $('message-input').value = button.dataset.prompt; $('message-input').focus(); }));
-    loadProvider(); setProfileCaption();
+    loadProvider(); void loadRuloBehaviorRules(); void setLiveSimulationEnabled(true);
   })();
   </script>
 </body>

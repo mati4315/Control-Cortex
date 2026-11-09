@@ -41,6 +41,8 @@ Antes de tocar la simulación **Streaming en VIVO** en `/rulo-hablar.html`, lee 
 
 La simulación puede usar Spotify solo por la ruta explícita de reproducción aislada. Sus comentarios y respuestas son temporales; no los escribas en el historial de audiencia, SQLite, Ruleta ni registro normal. La lotería queda estrictamente en solo lectura: rechaza reservas, selección de números y cualquier escritura. Las correcciones guardadas en Entrenamiento e IA son manuales; la simulación no entrena por sí sola.
 
+**Rulator** es la caja virtual y el mecanismo principal de simulación de `/rulo-hablar.html`; **Rulo** es el bot/personaje de IA que conversa dentro de esa sala. Los pedidos musicales reproducen en Spotify por defecto mediante `POST /api/spotify-simulate-comment` y el flujo de cola serializada; requieren Modo de pruebas aislado global confirmado y preservan el nombre/ID archivado solo dentro del servidor. No escriben historial, registros ni aprenden aliases/selección. **Vista previa** usa `POST /api/spotify/intent-preview`, busca sin reproducir ni consumir cooldowns. Mantén OAuth y bearer token dentro del servidor y nunca anuncies reproducción sin confirmar tema, dispositivo e `is_playing`.
+
 ## Premios de la Ruleta
 
 La entrega de tickets extra es responsabilidad de `comentarios` y del proxy/callable de Cortex/Cdelu, no del parser o la cola de Chat Bot Spotify. Un giro no debe iniciar una entrega de premio. El operador selecciona y confirma el premio desde **Asignar premio** en el overlay de la Ruleta; las vistas previas y el Modo de pruebas aislado no pueden otorgar tickets.

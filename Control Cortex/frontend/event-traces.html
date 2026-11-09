@@ -4,6 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Trazas de eventos · Cortex</title>
+  <script id="cortex-module-nav-loader">
+  (() => {
+    if (document.getElementById('cortex-module-nav-css')) return;
+    const host = location.hostname || '127.0.0.1';
+    const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+    const base = protocol + '//' + host + ':4000';
+    document.documentElement.dataset.cortexBase = base;
+    const css = document.createElement('link');
+    css.id = 'cortex-module-nav-css'; css.rel = 'stylesheet'; css.href = base + '/cortex-module-nav.css'; document.head.append(css);
+    const script = document.createElement('script');
+    script.id = 'cortex-module-nav-script'; script.src = base + '/cortex-module-nav.js'; script.defer = true; document.head.append(script);
+  })();
+  </script>
   <style>
     :root{color-scheme:dark;--bg:#0b1119;--card:#121c29;--line:#26374b;--text:#edf4fc;--muted:#91a2b7;--green:#9cdb6d;--amber:#f2c66d;--red:#ff8e8e;--blue:#a9caff}
     *{box-sizing:border-box}body{margin:0;background:radial-gradient(900px 450px at 10% -10%,#213d2a 0,transparent 62%),var(--bg);color:var(--text);font:14px/1.5 system-ui,Segoe UI,sans-serif}

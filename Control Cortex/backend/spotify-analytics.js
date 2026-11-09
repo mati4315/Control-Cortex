@@ -141,6 +141,16 @@ CREATE TABLE IF NOT EXISTS rulo_simulation_cases (
   updated_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_rulo_simulation_cases_updated ON rulo_simulation_cases(updated_at DESC);
+CREATE TABLE IF NOT EXISTS rulo_behavior_rules (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  category TEXT NOT NULL DEFAULT 'general',
+  instruction TEXT NOT NULL,
+  source_note TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_rulo_behavior_rules_updated ON rulo_behavior_rules(updated_at DESC);
 CREATE TABLE IF NOT EXISTS rulo_simulation_runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   case_id TEXT NOT NULL REFERENCES rulo_simulation_cases(id) ON DELETE CASCADE,
@@ -300,6 +310,9 @@ function createAnalytics(options) {
       audienceMemoryHistory: () => [],
       audienceMemorySubjectKey: () => '',
       simulationCases: () => [],
+      ruloBehaviorRules: () => [],
+      saveRuloBehaviorRule: () => ({ ok: false, error: 'SQLite no disponible.' }),
+      deleteRuloBehaviorRule: () => ({ ok: false, error: 'SQLite no disponible.' }),
       saveSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
       deleteSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
       simulationCaseRuns: () => [],
@@ -314,6 +327,7 @@ function createAnalytics(options) {
       audienceComments: () => [],
       audienceTopCommenters: () => [],
       audienceDaysForPerson: () => [],
+      audienceAttendanceForRequesterKey: () => [],
       audienceSummary: () => null,
       audienceIdentityStats: () => null,
       audienceMostRegular: () => [],
@@ -349,6 +363,8 @@ function createAnalytics(options) {
     db.exec('PRAGMA foreign_keys = ON;');
     db.exec('PRAGMA secure_delete = ON;');
     db.exec(SCHEMA);
+    const behaviorRuleColumns = db.prepare('PRAGMA table_info(rulo_behavior_rules)').all().map(column => column.name);
+    if (!behaviorRuleColumns.includes('source_note')) db.exec("ALTER TABLE rulo_behavior_rules ADD COLUMN source_note TEXT NOT NULL DEFAULT ''");
     const simulationRunColumns = db.prepare('PRAGMA table_info(rulo_simulation_runs)').all().map(column => column.name);
     if (!simulationRunColumns.includes('time_scale')) db.exec('ALTER TABLE rulo_simulation_runs ADD COLUMN time_scale INTEGER NOT NULL DEFAULT 1');
     // Migra una vez las claves antiguas para separar plataformas y priorizar
@@ -417,6 +433,9 @@ function createAnalytics(options) {
       audienceMemoryHistory: () => [],
       audienceMemorySubjectKey: () => '',
       simulationCases: () => [],
+      ruloBehaviorRules: () => [],
+      saveRuloBehaviorRule: () => ({ ok: false, error: 'SQLite no disponible.' }),
+      deleteRuloBehaviorRule: () => ({ ok: false, error: 'SQLite no disponible.' }),
       saveSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
       deleteSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
       simulationCaseRuns: () => [],
@@ -431,6 +450,7 @@ function createAnalytics(options) {
       audienceComments: () => [],
       audienceTopCommenters: () => [],
       audienceDaysForPerson: () => [],
+      audienceAttendanceForRequesterKey: () => [],
       audienceSummary: () => null,
       audienceIdentityStats: () => null,
       audienceMostRegular: () => [],
@@ -736,6 +756,58 @@ function createAnalytics(options) {
     } catch (error) {
       log('No se pudieron consultar los programas guardados: ' + error.message);
       return [];
+    }
+  }
+
+  function ruloBehaviorRules(limit = 20) {
+    try {
+      return db.prepare('SELECT * FROM rulo_behavior_rules ORDER BY updated_at DESC, id DESC LIMIT ?')
+        .all(Math.max(1, Math.min(40, Number(limit) || 20))).map(row => ({
+          id: row.id, title: row.title, category: row.category,
+          instruction: row.instruction, sourceNote: row.source_note || '', createdAt: row.created_at, updatedAt: row.updated_at
+        }));
+    } catch (error) {
+      log('No se pudieron consultar las reglas aprobadas de Rulo: ' + error.message);
+      return [];
+    }
+  }
+
+  function saveRuloBehaviorRule(input = {}) {
+    const id = texto(input.id, 80) || crypto.randomUUID();
+    const title = texto(input.title, 100);
+    const category = ['conversation', 'tone', 'general'].includes(input.category) ? input.category : 'general';
+    const instruction = String(input.instruction || '').trim().slice(0, 700);
+    const sourceNote = String(input.sourceNote || '').trim().slice(0, 300);
+    const factVerified = input.factVerified === true;
+    if (!title || instruction.length < 8) return { ok: false, error: 'Indica un título y una regla de al menos 8 caracteres.' };
+    if (factVerified && sourceNote.length < 8) return { ok: false, error: 'Anota la fuente verificada del dato antes de activarlo.' };
+    if (/(?:https?:\/\/|www\.|\b[\w.+-]+@[\w.-]+\.[a-z]{2,}\b|facebook:|idv2:|\b(?:token|password|contraseñ\w*|clave privada)\s*[:=]|\b\+?\d[\d ().-]{7,}\d)/i.test(`${title}\n${instruction}`)) {
+      return { ok: false, error: 'Quita enlaces, datos de contacto, identificadores o secretos antes de activar una regla.' };
+    }
+    const now = Date.now();
+    try {
+      const existing = db.prepare('SELECT id FROM rulo_behavior_rules WHERE id = ?').get(id);
+      if (!existing && Number(db.prepare('SELECT COUNT(*) AS count FROM rulo_behavior_rules').get()?.count || 0) >= 40) {
+        return { ok: false, error: 'Llegaste al límite de 40 reglas activas. Borra una antes de guardar otra.' };
+      }
+      db.prepare(`INSERT INTO rulo_behavior_rules (id, title, category, instruction, source_note, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET title = excluded.title, category = excluded.category,
+          instruction = excluded.instruction, source_note = excluded.source_note, updated_at = excluded.updated_at`).run(id, title, category, instruction, factVerified ? sourceNote : '', now, now);
+      return { ok: true, item: ruloBehaviorRules(40).find(item => item.id === id) || null };
+    } catch (error) {
+      log('No se pudo guardar una regla aprobada de Rulo: ' + error.message);
+      return { ok: false, error: 'No se pudo guardar la regla de Rulo.' };
+    }
+  }
+
+  function deleteRuloBehaviorRule(id) {
+    try {
+      const result = db.prepare('DELETE FROM rulo_behavior_rules WHERE id = ?').run(texto(id, 80));
+      return { ok: Number(result.changes || 0) > 0 };
+    } catch (error) {
+      log('No se pudo borrar una regla de Rulo: ' + error.message);
+      return { ok: false, error: 'No se pudo borrar la regla de Rulo.' };
     }
   }
 
@@ -1149,6 +1221,25 @@ function createAnalytics(options) {
       `).all(identity, name, texto(options2?.userId || person, 120), texto(options2?.userId || person, 120));
     } catch (error) {
       log('No se pudo consultar la actividad de la persona: ' + error.message);
+      return [];
+    }
+  }
+
+  function audienceAttendanceForRequesterKey(requesterKey) {
+    const key = texto(requesterKey, 240).trim().toLocaleLowerCase();
+    const lastPart = key.split(':').at(-1) || '';
+    if (!/^(?:facebook|idv2):\S+$/i.test(key) || !lastPart || /^(?:unknown|null|undefined|anonymous|guest|\[object object\])$/i.test(lastPart)) return [];
+    try {
+      return db.prepare(`SELECT program_number AS programNumber, program_date AS programDate,
+        COUNT(*) AS comments, MIN(ts) AS firstCommentAt, MAX(ts) AS lastCommentAt
+        FROM audience_comments_unique
+        WHERE LOWER(requester_key) = ? AND is_alert = 0
+          AND LOWER(platform) NOT IN ('dashboard', 'simulado')
+          AND LOWER(source) <> 'dashboard'
+        GROUP BY program_number, program_date
+        ORDER BY program_date DESC, CAST(program_number AS INTEGER) DESC`).all(key);
+    } catch (error) {
+      log('No se pudo consultar la asistencia histórica por identidad estable: ' + error.message);
       return [];
     }
   }
@@ -1825,6 +1916,9 @@ function createAnalytics(options) {
     audienceMemorySubjects,
     audienceMemoryHistory,
     audienceMemorySubjectKey,
+    ruloBehaviorRules,
+    saveRuloBehaviorRule,
+    deleteRuloBehaviorRule,
     simulationCases,
     saveSimulationCase,
     deleteSimulationCase,
@@ -1844,6 +1938,7 @@ function createAnalytics(options) {
     audienceIdentityQuery,
     audienceTopCommenters,
     audienceDaysForPerson,
+    audienceAttendanceForRequesterKey,
     audienceSummary,
     audienceIdentityStats,
     audienceMostRegular,

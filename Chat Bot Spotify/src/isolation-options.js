@@ -39,8 +39,8 @@ function isolatedCommentOptions({
     simulationCommentId,
     simulationKey,
     timeScale,
-    allowAliasLearning: !(live && parsing),
-    updateSelectionState: !(live && parsing),
+    allowAliasLearning: !live,
+    updateSelectionState: !live,
     suppressReplyHistory: true,
     suppressLog: true,
     silent: true

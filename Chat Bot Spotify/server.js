@@ -919,6 +919,53 @@ saveConfig();
     }
   }
 
+  if (req.method === 'POST' && pathname === '/api/spotify/intent-preview') {
+    if (!requireToken(req, res)) return;
+    const body = await readJson(req);
+    const comment = String(body.comment || '').trim().slice(0, 500);
+    const requester = String(body.requester || 'Chat').trim().slice(0, 80) || 'Chat';
+    if (comment.length < 2) return sendJson(res, 400, { ok: false, error: 'Escribe un comentario para analizar.' });
+    try {
+      const musicIntent = await spotifyBot.isMusicIntentCandidate(comment);
+      if (!musicIntent) return sendJson(res, 200, { ok: true, handled: false, action: 'not-music' });
+      if (config.enabled !== true || config.captureFacebook !== true || config.spotifyEnabled !== true) {
+        return sendJson(res, 200, { ok: true, handled: true, action: 'spotify-disabled', response: 'Los pedidos de música por chat están apagados.' });
+      }
+      if (await spotifyBot.getRuloEnabled() !== true) {
+        return sendJson(res, 200, { ok: true, handled: true, action: 'rulo-disabled', response: 'Rulo está apagado.' });
+      }
+      if ((await spotifyBot.getSettings()).enabled === false) {
+        return sendJson(res, 200, { ok: true, handled: true, action: 'spotify-disabled', response: 'Spotify está apagado en los ajustes de Rulo.' });
+      }
+      if (!spotifyBot.isConnected()) {
+        return sendJson(res, 200, { ok: true, handled: true, action: 'spotify-unavailable', response: 'Spotify no está conectado; no se puede comprobar qué tema encontraría.' });
+      }
+      const result = await spotifyBot.previewComment(comment, requester, { virtualCooldown: body.virtualCooldown });
+      if (result?.transportPreview === true) {
+        return sendJson(res, 200, { ok: true, handled: true, action: 'transport-preview', response: String(result.response || 'Comando detectado; no se ejecutó.'), interpretationSource: 'rules' });
+      }
+      if (result?.ignored === true) {
+        return sendJson(res, 200, { ok: true, handled: true, action: 'not-understood', response: '', interpretationSource: String(result.interpretationSource || 'none') });
+      }
+      if (!result?.ok) {
+        return sendJson(res, 200, {
+          ok: true, handled: true,
+          action: ['global-cooldown', 'user-cooldown'].includes(result?.cooldownType) ? result.cooldownType : result?.notFound ? 'not-found' : 'spotify-error',
+          response: String(result?.response || result?.error || 'Spotify no pudo analizar el pedido.').slice(0, 240),
+          interpretationSource: ['ai', 'rules', 'rules-fallback', 'manual', 'none'].includes(result?.interpretationSource) ? result.interpretationSource : 'none'
+        });
+      }
+      return sendJson(res, 200, {
+        ok: true, handled: true, action: 'preview',
+        response: String(result.response || '').slice(0, 240),
+        track: result.track ? { name: String(result.track.name || '').slice(0, 160), artists: (result.track.artists || []).map(artist => String(artist.name || '').slice(0, 100)).slice(0, 5), uri: String(result.track.uri || '').slice(0, 160), durationMs: Math.max(0, Number(result.track.duration_ms || result.track.durationMs) || 0) } : null,
+        interpretationSource: ['ai', 'rules', 'rules-fallback', 'manual', 'none'].includes(result?.interpretationSource) ? result.interpretationSource : 'none'
+      });
+    } catch (error) {
+      return sendJson(res, 502, { ok: false, error: String(error?.message || 'No se pudo analizar el pedido musical.').slice(0, 240) });
+    }
+  }
+
   if (req.method === 'POST' && pathname === '/api/spotify/test-comment') {
     if (!requireToken(req, res)) return;
     const body = await readJson(req);

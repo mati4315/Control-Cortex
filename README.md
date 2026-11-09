@@ -67,6 +67,8 @@ En `dashboard.html`, el historial de premios también permite corregir una entre
 
 No expongas `facebook_user_id` ni las asociaciones privadas al overlay, dashboard o IA. La consulta de lotería de la simulación de vivos es distinta: debe permanecer solo lectura y no puede reservar, escoger ni asignar números. Para la simulación y sus rutas aisladas, consulta [`Rulo/README-SIMULACION-VIVOS.md`](Rulo/README-SIMULACION-VIVOS.md).
 
+`/rulo-hablar.html` abre por defecto en **Rulator**, la caja virtual para hablar con **Rulo** dentro de un chat grupal. Rulo es el personaje/bot de IA que puede responder o guardar silencio; Rulator es la sala y el mecanismo de simulación, no otro bot. Permite escribir como espectador o participante, reproducir comentarios archivados y generar comentarios ficticios anónimos que quedan marcados y temporales. Los pedidos musicales reproducen en Spotify por defecto, siempre que el Modo de pruebas aislado esté confirmado; este modo pausa los pedidos automáticos reales de Facebook. El operador puede consultar números personales de la grilla actual y asistencia histórica si la persona coincide por ID estable; esas respuestas no se envían a la IA. El acceso privado hereda el control de origen actual del panel Cortex, que no tiene login individual. La lotería sigue de solo lectura y requiere captura verificada para preguntas públicas históricas. Rulator no publica en OBS ni guarda intercambios de simulación en el historial de audiencia, Ruleta o evaluación. **Mejorar a Rulo con IA** analiza manualmente la última interacción; el borrador no se guarda ni se aplica hasta que el operador lo revisa y confirma. Solo las reglas generales aprobadas, o respuestas factuales con una fuente verificada, se añaden al prompt de Rulo; música y lotería se derivan a sus módulos especializados. **Conversación de prueba con Rulo** queda como modo secundario que responde cada mensaje.
+
 ## Paneles locales
 
 | Panel | URL local |
@@ -91,7 +93,7 @@ Desde la raíz, ejecuta `npm run test:regression` para validar trazas, evaluaci�
 - [`CONTEXTO DE TODO PRINCIPAL.md`](CONTEXTO%20DE%20TODO%20PRINCIPAL.md): mapa extenso, rutas de trabajo e historia del handoff.
 - [`CAMBIOS-PROYECTO.md`](CAMBIOS-PROYECTO.md): registro breve de cambios y reinicios requeridos.
 - [`Rulo/README.md`](Rulo/README.md): páginas, API, historial, identidades y avatares.
-- [`Rulo/README-SIMULACION-VIVOS.md`](Rulo/README-SIMULACION-VIVOS.md): simulación de preguntas, aislamiento, Spotify y lotería de solo lectura.
+- [`Rulo/README-SIMULACION-VIVOS.md`](Rulo/README-SIMULACION-VIVOS.md): Rulator, chat grupal, reproducción real aislada y vista previa de Spotify, participantes sintéticos anónimos y consultas privadas de solo lectura por identidad estable.
 - [`Rulo - Cuaderno Vivo/README.md`](Rulo%20-%20Cuaderno%20Vivo/README.md): perfil y migración gradual de personalidad y memoria de Rulo.
 - [`Chat Bot Spotify/README.md`](Chat%20Bot%20Spotify/README.md): instalación del capturador y APIs del módulo propio.
 - [`Chat Bot Spotify/AGENTS.md`](Chat%20Bot%20Spotify/AGENTS.md): reglas de trabajo específicas de Spotify y la captura Facebook.

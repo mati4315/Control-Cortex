@@ -15,12 +15,25 @@
     @media(max-width:760px){.top{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr 1fr}.status-grid .stat:last-child{grid-column:1/-1}.levels{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:760px){.memory-columns{grid-template-columns:1fr}.memory-toolbar{align-items:stretch}.memory-form{grid-template-columns:1fr}.memory-form .wide{grid-column:auto}.memory-heading{align-items:flex-start;flex-direction:column}}
   </style>
+<script id="cortex-module-nav-loader">
+(() => {
+  if (document.getElementById('cortex-module-nav-css')) return;
+  const host = location.hostname || '127.0.0.1';
+  const protocol = location.protocol === 'https:' ? 'https:' : 'http:';
+  const base = protocol + '//' + host + ':4000';
+  document.documentElement.dataset.cortexBase = base;
+  const css = document.createElement('link');
+  css.id = 'cortex-module-nav-css'; css.rel = 'stylesheet'; css.href = base + '/cortex-module-nav.css'; document.head.append(css);
+  const script = document.createElement('script');
+  script.id = 'cortex-module-nav-script'; script.src = base + '/cortex-module-nav.js'; script.defer = true; document.head.append(script);
+})();
+</script>
 <script src="/pwa-quick-actions.js" defer></script></head>
 <body>
   <main class="page">
     <header class="top">
       <div class="brand"><div class="logo" aria-hidden="true">R</div><div><div class="eyebrow">Personalidad · control de tono</div><h1>Rulo · <span>Cuaderno Vivo</span></h1></div></div>
-      <nav class="top-links" aria-label="Navegación"><a href="/rulo-hablar.html">Abrir simulador</a><a href="/index.html">Volver a Cortex</a></nav>
+      <nav class="top-links cortex-legacy-module-nav" aria-label="Navegación"><a href="/rulo-hablar.html">Abrir simulador</a><a href="/index.html">Volver a Cortex</a></nav>
     </header>
 
     <div class="banner"><strong>Etapa de migración en vista previa.</strong> Estos controles se usan para probar Cuaderno Vivo en el simulador. Las respuestas del chat público todavía usan el generador actual.</div>

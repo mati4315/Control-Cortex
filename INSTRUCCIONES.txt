@@ -1,0 +1,10 @@
+PAQUETE DE SINCRONIZACIÓN DE CORTEX
+
+En la otra PC:
+1. Localiza la carpeta raíz del proyecto Control Cortex (debe contener .git).
+2. Extrae aquí Sincronizar Cortex.bat y Sincronizar Cortex.ps1, reemplazando versiones anteriores.
+3. Abre Sincronizar Cortex.bat.
+
+En copias antiguas sin .gitmodules, el BAT actualiza primero el repo principal. Antes aparta los archivos locales no rastreados que coincidan con archivos de GitHub, y guarda los cambios rastreados en un stash temporal. Tras actualizar, restaura los archivos locales como cambios de trabajo. Conserva cualquier stash si Git informa conflictos.
+
+Requisitos: Git for Windows y acceso al repo GitHub Control-Cortex. Este paquete solo contiene el lanzador, su script y estas instrucciones.

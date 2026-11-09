@@ -815,7 +815,7 @@ class SpotifyBot {
     return [];
   }
 
-  async requestAiInterpretation(comment, requester, vocabulary) {
+  async requestAiInterpretation(comment, requester, vocabulary, { isolatedSimulation = false } = {}) {
     const ai = vocabulary.ai || {};
     if (ai.enabled !== true) return { parsed: null, attempted: false, reason: 'IA desactivada.' };
     if (ai.requireSignal !== false && !hasPossibleMusicIntent(comment, vocabulary)) return { parsed: null, attempted: false, reason: 'Sin señal de pedido musical.' };
@@ -826,7 +826,7 @@ class SpotifyBot {
       const response = await fetch(`${base}/api/spotify-ai-interpret`, {
         method: 'POST', signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ comment: String(comment).slice(0, 400), requester: String(requester || '').slice(0, 80) })
+        body: JSON.stringify({ comment: String(comment).slice(0, 400), requester: String(requester || '').slice(0, 80), isolatedSimulation })
       });
       const data = await response.json().catch(() => ({}));
       const result = data.interpretation;
@@ -874,6 +874,8 @@ class SpotifyBot {
 
   chooseTrack(tracks, parsed, settings, options = {}) {
     const updateSelectionState = options.updateSelectionState !== false;
+    const recentTrackUris = Array.isArray(options.recentTrackUris) ? options.recentTrackUris : this.recentTrackUris;
+    const artistBags = options.artistBags instanceof Map ? options.artistBags : this.artistBags;
     if (!tracks.length) return null;
     const query = parsed.query;
     const kind = parsed.kind;
@@ -891,20 +893,21 @@ class SpotifyBot {
       return { track, score };
     }).sort((a, b) => b.score - a.score);
     if ((kind === 'genre' || (kind === 'artist' && parsed.resolvedArtist)) && settings?.artistVariety !== false) {
-      const fresh = scored.filter(item => !this.recentTrackUris.includes(item.track.uri));
+      const fresh = scored.filter(item => !recentTrackUris.includes(item.track.uri));
       const candidates = fresh.length ? fresh : scored;
       const key = `${kind}:${fold(parsed.resolvedArtist || query)}`;
-      let bag = this.artistBags.get(key) || [];
+      let bag = artistBags.get(key) || [];
       const available = candidates.filter(item => !bag.includes(item.track.uri));
-      if (!available.length) { bag = []; if (updateSelectionState) this.artistBags.set(key, bag); }
+      if (!available.length) { bag = []; if (updateSelectionState) artistBags.set(key, bag); }
       const pool = available.length ? available : candidates;
       const selected = pool[Math.floor(Math.random() * pool.length)];
       if (selected?.track?.uri) {
         if (updateSelectionState) {
           bag.push(selected.track.uri);
-          this.artistBags.set(key, bag.slice(-pool.length));
-          this.recentTrackUris.push(selected.track.uri);
-          this.recentTrackUris = this.recentTrackUris.slice(-30);
+          artistBags.set(key, bag.slice(-pool.length));
+          recentTrackUris.push(selected.track.uri);
+          if (recentTrackUris === this.recentTrackUris) this.recentTrackUris = recentTrackUris.slice(-30);
+          else recentTrackUris.splice(0, Math.max(0, recentTrackUris.length - 30));
         }
         return selected.track;
       }
@@ -1103,6 +1106,89 @@ class SpotifyBot {
     return { ok: true, track, device: device.name, state: currentState };
   }
 
+  async previewComment(text, requester = 'Chat', options = {}) {
+    const comment = String(text || '').trim();
+    const folded = fold(comment);
+    if (!comment) return { ok: false, ignored: true, interpretationSource: 'none' };
+
+    // Commands that can change Spotify state are visible in the replay, but
+    // must never reach the transport handlers during a search-only preview.
+    if (/^!(?:spotifydevices|spotifyoffset|skip|siguiente|pause|pausa|resume|reanudar|next|previous|anterior)\b/.test(folded)) {
+      return { ok: true, transportPreview: true, response: 'La vista previa detectó un comando de control; no lo ejecutó.', interpretationSource: 'rules' };
+    }
+
+    const vocabulary = await this.getVocabulary();
+    if (!await this.isMusicIntentCandidate(comment)) return { ok: false, ignored: true, interpretationSource: 'none' };
+    const settings = await this.getSettings();
+    const aiFirst = vocabulary.ai?.enabled === true && vocabulary.ai?.onlyWhenNotUnderstood === false;
+    let parsed;
+    let interpretationSource = 'none';
+    let aiAttempted = false;
+    let aiFallbackReason = '';
+
+    if (aiFirst) {
+      const ruleParsed = this.parseRequest(comment, vocabulary, settings);
+      const aiResult = await this.requestAiInterpretation(comment, requester, vocabulary, { isolatedSimulation: true });
+      aiAttempted = aiResult.attempted;
+      if (aiResult.parsed && this.aiMatchesLocalInterpretation(aiResult.parsed, ruleParsed, comment, vocabulary)) {
+        parsed = aiResult.parsed;
+        interpretationSource = 'ai';
+      } else {
+        parsed = ruleParsed;
+        if (parsed) interpretationSource = aiAttempted ? 'rules-fallback' : 'rules';
+        if (aiAttempted) aiFallbackReason = aiResult.parsed
+          ? 'La respuesta de IA no coincide con el artista, tema o género escrito; usé la interpretación local.'
+          : aiResult.reason;
+      }
+    } else {
+      parsed = this.parseRequest(comment, vocabulary, settings);
+      if (parsed) interpretationSource = 'rules';
+      else {
+        const aiResult = await this.requestAiInterpretation(comment, requester, vocabulary, { isolatedSimulation: true });
+        aiAttempted = aiResult.attempted;
+        parsed = aiResult.parsed;
+        if (parsed) interpretationSource = 'ai';
+        else if (aiAttempted) aiFallbackReason = aiResult.reason;
+      }
+    }
+
+    const interpretationDetails = {
+      interpretationSource, aiInterpreted: parsed?.ai === true, aiAttempted,
+      aiModel: aiAttempted || parsed?.ai === true ? String(vocabulary.ai?.model || '').slice(0, 120) : '',
+      aiFallbackReason
+    };
+    if (!parsed) return { ok: false, ignored: true, ...interpretationDetails };
+
+    const globalWaitMs = Math.min(3600000, Math.max(0, Number(options.virtualCooldown?.globalWaitMs) || 0));
+    const userWaitMs = Math.min(3600000, Math.max(0, Number(options.virtualCooldown?.userWaitMs) || 0));
+    if (globalWaitMs > 0) {
+      const seconds = Math.ceil(globalWaitMs / 1000);
+      return { ok: false, cooldown: true, cooldownType: 'global-cooldown', response: `Espera ${seconds}s para pedir otro tema.`, ...interpretationDetails };
+    }
+    if (userWaitMs > 0) {
+      const seconds = Math.ceil(userWaitMs / 1000);
+      return { ok: false, cooldown: true, cooldownType: 'user-cooldown', response: `${String(requester || 'Espectador').split(/\s+/)[0]}, ya pediste un tema hace poco. Espera ${seconds}s.`, ...interpretationDetails };
+    }
+
+    // This path deliberately does not call handleMessage(): that method owns
+    // live queue, cooldown, inFlight, playback, and reply state.
+    const tracks = await this.searchWithVariants(parsed, await this.getAliases(), vocabulary, settings, { allowAliasLearning: false });
+    const track = this.chooseTrack(tracks, parsed, settings, { updateSelectionState: false, recentTrackUris: [], artistBags: new Map() });
+    if (!track) {
+      return {
+        ok: false, notFound: true,
+        response: `No encontré "${parsed.query}" en Spotify.`,
+        query: parsed.query, ...interpretationDetails
+      };
+    }
+    const artists = (track.artists || []).map(artist => artist.name).join(', ');
+    return {
+      ok: true, analysis: true, track,
+      response: `Encontré: ${track.name} - ${artists} (no reproduje)`,
+      ...interpretationDetails
+    };
+  }
+
   async handleMessage(message, options = {}) {
     const isolatedPlayback = options.explicitTestPlayback === true || options.isolatedLiveSimulation === true;
     const traceId = String(message?.meta?.traceId || message?.traceId || '').slice(0, 80);
@@ -1124,6 +1210,9 @@ class SpotifyBot {
     // available even while real chat requests are disabled.
     if (settings.enabled === false && !options.explicitTestPlayback && !options.analysis && !options.manualTransport) return { ok: false, ignored: true, reason: 'Pedidos Spotify apagados en los ajustes.' };
     const folded = fold(text);
+    if (options.analysis === true && /^!(?:spotifydevices|spotifyoffset|skip|siguiente|pause|pausa|resume|reanudar|next|previous|anterior)\b/.test(folded)) {
+      return { ok: true, analysis: true, transportPreview: true, response: 'La vista previa detectó un comando de control; no lo ejecutó.' };
+    }
     if (/^!spotifydevices\b/.test(folded)) {
       if (!this.isConnected()) {
         const response = await respond('noToken', {}, 'Spotify no está conectado.', message.chatname, 'error');

@@ -114,6 +114,8 @@ El historial de Rulo ahora destaca directamente mediante `POST /api/featured` y 
 - `POST /api/featured/clear`: limpia el destacado.
 - `GET/POST /api/config`: preferencias; requiere bearer token.
 - `POST /api/spotify/test`: búsqueda de diagnóstico; no reproduce audio.
+- `POST /api/spotify/intent-preview`: vista previa de pedidos en **Rulator**. Usa el detector y parser compartidos; no reproduce, encola, consume cooldowns, aprende aliases ni escribe historial.
+- `POST /api/spotify/test-comment`: Rulator lo usa a través del proxy de Cortex para reproducir pedidos reales dentro del Modo de pruebas aislado. Conserva nombre e ID archivados solo en el servidor, usa la cola/cooldowns por programa y suprime historial, registros, aprendizaje de aliases y selección. El bearer token local no llega al navegador.
 - `POST /api/spotify/test-playback`: reproduce una pista bajo demanda; requiere bearer token, OAuth activo y Modo de pruebas aislado. No genera ni archiva un comentario y no modifica la Ruleta.
 - `POST /api/spotify/test-comment`: analiza un comentario sin reproducir si `parseOnly: true`; de lo contrario requiere Modo de pruebas aislado y reproduce el pedido detectado sin archivarlo. Para la simulación de un vivo histórico (`liveSimulation: true`), además exige los interruptores de Rulo/captura/pedidos del chat, conserva la identidad archivada y aplica la cola serializada y cooldowns de un pedido real en memoria separada por programa.
 - `GET /api/spotify/devices`: devuelve la lista de dispositivos Spotify del OAuth propio; requiere bearer token.

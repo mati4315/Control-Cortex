@@ -48,7 +48,8 @@
     { id:'triggers', name:'TriggerStudio', category:'OBS y overlays', url:'http://localhost:2188/' },
     { id:'spotify-capture', name:'Chat Bot Spotify', category:'Música', url:'http://localhost:9765/' },
     { id:'services', name:'Control de servicios', category:'Sistema', url:'/index.html' },
-    { id:'animation-guide', name:'Guía de animaciones', category:'Rulo y chat', url:'/rulo-animaciones-guia.html' }
+    { id:'animation-guide', name:'Guía de animaciones', category:'Rulo y chat', url:'/rulo-animaciones-guia.html' },
+    { id:'event-traces', name:'Trazas de eventos', category:'Sistema', url:'/event-traces.html' }
   ];
   const contextGroups = {
     lottery: ['Lotería y sorteos', 'Participación en vivo', 'Rulo y chat', 'Música', 'OBS y overlays', 'Sistema', 'Otros'],
@@ -76,7 +77,7 @@
     if (/bienven|banner|social.?loop|lower.third/.test(value)) return 'welcome';
     if (/trigger|obs-websocket/.test(value)) return 'triggers';
     if (/rulo|mascota|animacion/.test(value)) return 'rulo';
-    if (/control-cortex|services|index\.html/.test(value)) return 'system';
+    if (/control-cortex|services|index\.html|home\.html|event-traces|trazas de eventos/.test(value)) return 'system';
     return 'default';
   }
   function groupFor(item) {
