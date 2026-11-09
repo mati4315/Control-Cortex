@@ -5,7 +5,6 @@ $Modules = @()
 $script:GitExe = $null
 $LocalOnly = @{
   '.' = @('Control Cortex/backend/spotify-device-target.json')
-  'SocialStream Ninja' = @('local-overrides/cortex-base-url.js')
 }
 
 function Invoke-Git {
@@ -15,8 +14,14 @@ function Invoke-Git {
     [switch]$Silent,
     [switch]$AllowFailure
   )
-  $Output = @(& $script:GitExe -C $Repo @GitArgs 2>&1 | ForEach-Object { [string]$_ })
-  $Code = $LASTEXITCODE
+  $PreviousErrorActionPreference = $ErrorActionPreference
+  try {
+    $ErrorActionPreference = 'Continue'
+    $Output = @(& $script:GitExe -C $Repo @GitArgs 2>&1 | ForEach-Object { [string]$_ })
+    $Code = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $PreviousErrorActionPreference
+  }
   $script:LastGitExitCode = $Code
   if (-not $Silent -and $Output.Count -gt 0) { $Output | ForEach-Object { Write-Host $_ } }
   if ($Code -ne 0 -and -not $AllowFailure) {
@@ -71,16 +76,17 @@ function Get-ExcludedPaths {
 function Get-SharedDirtyPaths {
   param([string]$Repo, [string]$RepoKey)
   $Excluded = Get-ExcludedPaths $RepoKey
-  return ,@(Get-DirtyPaths $Repo | Where-Object {
-    $Candidate = $_
-    -not ($Excluded | Where-Object { $Candidate -eq $_ })
-  })
+  $Shared = @()
+  foreach ($Path in Get-DirtyPaths $Repo) {
+    if ($Excluded -notcontains $Path) { $Shared += $Path }
+  }
+  return ,$Shared
 }
 
 function Show-RepoStatus {
   param([string]$Repo, [string]$Label)
   Write-Host "`n--- $Label ---" -ForegroundColor Cyan
-  Invoke-Git -Repo $Repo -GitArgs @('status', '--short', '--branch')
+  Invoke-Git -Repo $Repo -GitArgs @('status', '--short', '--branch') | Out-Null
 }
 
 function Get-BranchName {
@@ -132,7 +138,7 @@ function Restore-LocalStash {
   param([string]$Repo, [string]$StashRef)
   if (-not $StashRef) { return }
   Write-Host 'Restaurando los ajustes locales de esta PC...'
-  Invoke-Git -Repo $Repo -GitArgs @('stash', 'pop', '--index', $StashRef)
+  Invoke-Git -Repo $Repo -GitArgs @('stash', 'pop', $StashRef)
 }
 
 function Stage-RepoChanges {
@@ -243,7 +249,7 @@ function Publish-All {
   if ($Missing.Count -gt 0) { throw 'Primero usa «Descargar cambios» para inicializar los módulos que faltan.' }
   $AllChildrenPublished = $true
   foreach ($Module in $Modules) {
-    if (-not (Publish-Repo $Module.FullPath $Module.Path $Module.Path)) { $AllChildrenPublished = $false }
+    if (-not (Publish-Repo -Repo $Module.FullPath -RepoKey $Module.Path -Label $Module.Path)) { $AllChildrenPublished = $false }
   }
 
   $LocalStashes = @()
@@ -254,7 +260,7 @@ function Publish-All {
     }
   }
   try {
-    $RootPublished = Publish-Repo $Root '.' 'Cortex'
+    $RootPublished = Publish-Repo -Repo $Root -RepoKey '.' -Label 'Cortex'
   } finally {
     foreach ($Saved in $LocalStashes) { Restore-LocalStash $Saved.Repo $Saved.Ref }
   }

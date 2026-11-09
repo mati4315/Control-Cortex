@@ -14,7 +14,7 @@ El PWA muestra abajo los accesos para copiar la dirección y volver atrás. Los 
 
 Inicio reúne los dashboards de Rulo y los servicios registrados en Cortex. Busca por función, filtra por categoría y marca estrellas para encontrar tus favoritos primero. «Añadir acceso» incorpora otros dashboards mediante su URL. Cada perfil conserva sus favoritos y enlaces. Para añadir un proceso que Cortex pueda arrancar o detener, usa **Control de servicios**, disponible en `/index.html`.
 
-Los enlaces a localhost de los servicios se adaptan al equipo que sirve Cortex. La navegación entre dashboards ya no agrega el parámetro legado `?session=...`; el Session ID se mantiene solo en las URLs de overlays que lo necesitan para identificar la sala de SocialStream Ninja. No se mueven las carpetas ni se cambian las URLs de OBS.
+Los enlaces a localhost de los servicios se adaptan al equipo que sirve Cortex. La navegación entre dashboards no agrega el parámetro legado `?session=...`. SocialStream Ninja quedó fuera de la copia sincronizada y su parcheo y servidor de archivos están apagados por defecto. La compatibilidad heredada solo puede reactivarse con `CORTEX_ENABLE_SSN_LEGACY=1` y una instalación local de SSN. Las URLs OBS se mantienen intactas.
 
 ## Perfiles
 

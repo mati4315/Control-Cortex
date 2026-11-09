@@ -24,6 +24,7 @@ Thumbs.db
 *.before-*
 *.backup-*
 media carpeta de multimedia.lnk
+/SocialStream Ninja/
 Control Cortex/backend/cortex-home.json*
 Control Cortex/backend/cortex-project-context.json*
 Control Cortex/backend/cortex-assistant-history.json*

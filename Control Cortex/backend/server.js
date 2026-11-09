@@ -4352,12 +4352,17 @@ app.post('/api/spotify-simulate-comment', async (req, res) => {
 
 // Serve SocialStream Ninja overlays (spotify-lyrics-overlay.html etc.)
 const SSN_PATH = path.resolve(__dirname, '../../SocialStream Ninja');
+const SSN_LEGACY_ENABLED = process.env.CORTEX_ENABLE_SSN_LEGACY === '1';
 
 // --- SSN AUTO-PATCHER ---
 // Todo el parcheo vive en ssn-patcher.js y se aplica en cada arranque, con
 // verificacion. El resultado queda en ssnInstallStatus y se ve en
 // GET /api/cortex-install-status.
-const ssnInstallStatus = process.env.CORTEX_SKIP_SSN_PATCHER === '1'
+const ssnInstallStatus = !SSN_LEGACY_ENABLED
+    ? { ok: true, skipped: true, steps: [], warnings: [], detail: 'Integración heredada desactivada. Define CORTEX_ENABLE_SSN_LEGACY=1 para reactivarla.' }
+    : !fs.existsSync(SSN_PATH)
+    ? { ok: true, skipped: true, steps: [], warnings: [], detail: 'SocialStream Ninja no está instalado en esta copia.' }
+    : process.env.CORTEX_SKIP_SSN_PATCHER === '1'
     ? { ok: false, steps: [], warnings: ['Omitido para la vista previa local.'] }
     : (() => {
     const { applySsnPatches } = require('./ssn-patcher');
@@ -4390,7 +4395,7 @@ const ssnInstallStatus = process.env.CORTEX_SKIP_SSN_PATCHER === '1'
 })();
 // ------------------------
 
-if (fs.existsSync(SSN_PATH)) {
+if (SSN_LEGACY_ENABLED && fs.existsSync(SSN_PATH)) {
   app.use('/ssn', express.static(SSN_PATH));
   console.log('[Cortex] Sirviendo overlays SSN en /ssn');
 }

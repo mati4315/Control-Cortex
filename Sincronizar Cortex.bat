@@ -1,5 +1,6 @@
 @echo off
 setlocal
+chcp 65001 >nul
 cd /d "%~dp0"
 set "SYNC_SCRIPT=%~dp0Sincronizar Cortex.ps1"
 if not exist "%SYNC_SCRIPT%" (

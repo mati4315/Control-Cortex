@@ -6,7 +6,7 @@ Guía rápida del workspace de Windows. El proyecto está repartido en servicios
 
 1. Lee [`AGENTS.md`](AGENTS.md) y esta guía.
 2. Lee el README del módulo afectado y, si corresponde, la entrada en [`CAMBIOS-PROYECTO.md`](CAMBIOS-PROYECTO.md).
-3. Comprueba quién es dueño del comportamiento. SocialStream Ninja es de terceros: la lógica propia debe ir en `local-overrides`, `Control Cortex`, `Rulo`, `Chat Bot Spotify` o el módulo propio correspondiente.
+3. Comprueba quién es dueño del comportamiento. SocialStream Ninja es una integración heredada de terceros, está retirada del conjunto sincronizado y Cortex la deja apagada por defecto. La lógica vigente va en `Control Cortex`, `Rulo`, `Chat Bot Spotify` o el módulo propio correspondiente.
 4. No supongas que un servicio está iniciado porque aparezca en `services.json`; comprueba los procesos y el endpoint antes de operar.
 5. Mantén secretos, OAuth, tokens, cookies y bases de datos locales fuera de Git, del navegador y de los prompts de IA.
 

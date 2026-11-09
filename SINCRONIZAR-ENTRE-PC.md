@@ -1,6 +1,6 @@
 # Sincronizar Cortex entre dos PC
 
-El proyecto conserva el repositorio principal y los repositorios enlazados de SocialStream Ninja, Trigger Studio y comentarios. El archivo `Sincronizar Cortex.bat` coordina ese conjunto.
+El proyecto conserva el repositorio principal y los repositorios enlazados de Trigger Studio y comentarios. SocialStream Ninja quedó retirado del conjunto sincronizado y su integración heredada está desactivada por defecto. El archivo `Sincronizar Cortex.bat` coordina los repositorios activos.
 
 ## En cada PC
 
