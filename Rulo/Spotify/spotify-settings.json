@@ -7,15 +7,15 @@
   "requireCommand": false,
   "personalize": true,
   "announce": true,
-  "autoContinue": true,
+  "autoContinue": false,
   "skipEnabled": false,
   "skipSeconds": 10,
   "pollSeconds": 7,
   "artistVariety": true,
-  "artistVarietyPool": 12,
+  "artistVarietyPool": 10,
   "musicLibraryPath": "D:\\RADIO\\TEMAS Spotify",
   "autoBiblioteca": true,
   "autoEsperaSegundos": 240,
-  "spotifyLocalLyrics": false,
-  "deviceTargetName": "Web Player (Chrome)"
+  "spotifyLocalLyrics": true,
+  "deviceTargetName": "PC-ESCRITORIO"
 }

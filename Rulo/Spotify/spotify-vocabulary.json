@@ -327,16 +327,18 @@
   },
   "ai": {
     "enabled": true,
-    "endpoint": "http://127.0.0.1:4201/v1/chat/completions",
-    "model": "deepseek v4 flash",
-    "instructions": "Entre riano Argentino, contesta muy informal, y corto, es un viejo al mal educado de aveces, sobre todo cuando lo hacen enojar",
-    "onlyWhenNotUnderstood": true,
+    "endpoint": "https://api.deepseek.com/chat/completions",
+    "model": "deepseek-flash",
+    "instructions": "EntreRiano Argentino, contesta muy informal, y corto, es un viejo al mal educado de aveces, sobre todo cuando lo hacen enojar",
+    "onlyWhenNotUnderstood": false,
     "requireSignal": true,
     "timeoutMs": 8000
   },
   "responses": {
     "random": true,
     "avoidRepeat": true,
+    "aiRepliesEnabled": true,
+    "casualChatEnabled": true,
     "recent": 6,
     "contexts": {
       "ok": {
@@ -453,18 +455,32 @@
           "Spotify me esta frenando {nombre}: proba de nuevo en {segundos}s.",
           "Uy {nombre}, Spotify no me deja buscar ahora. Esperá {segundos}s y pedímelo otra vez.",
           "Me cortaron el chorro {nombre}: en {segundos}s te lo busco de nuevo.",
-          "Spotify me pidió que baje un cambio: en {segundos}s volvé a pedir {pedido}."
+          "Spotify me pidió que baje un cambio: en {segundos}s volvé a pedir {pedido}.",
+          "Che {nombre}, Spotify me tiene podrido con el límite. Esperá {segundos}s y te busco {pedido}.",
+          "Pará la mano {nombre}, me saltó el límite de Spotify. En {segundos}s te fijo {pedido}.",
+          "De nuevo el límite, la concha de la lora. {nombre}, dame {segundos}s y te saco {pedido}."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che {nombre}, Spotify me tiene podrido con el límite. Esperá {segundos}s y te busco {pedido}.",
+          "Pará la mano {nombre}, me saltó el límite de Spotify. En {segundos}s te fijo {pedido}.",
+          "De nuevo el límite, la concha de la lora. {nombre}, dame {segundos}s y te saco {pedido}."
+        ]
       },
       "sinRespuesta": {
         "label": "Spotify no respondio (app colgada)",
         "variants": [
           "Spotify no me respondió {nombre}: parece que la app se colgó. Probá de nuevo en unos segundos.",
           "Uy {nombre}, Spotify no contesta. Fijate si la app sigue viva y pedímelo otra vez.",
-          "La app de Spotify no me dio bola {nombre}: probá en un rato."
+          "La app de Spotify no me dio bola {nombre}: probá en un rato.",
+          "Che {nombre}, Spotify se colgó mal. Movela un toque y pedímelo de nuevo.",
+          "{nombre}, la app de Spotify está muerta, ni pelota da. Esperá unos segundos y volvé.",
+          "No me contesta Spotify, {nombre}. Se ve que se trabó. Probá de nuevo en un rato, dale."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che {nombre}, Spotify se colgó mal. Movela un toque y pedímelo de nuevo.",
+          "{nombre}, la app de Spotify está muerta, ni pelota da. Esperá unos segundos y volvé.",
+          "No me contesta Spotify, {nombre}. Se ve que se trabó. Probá de nuevo en un rato, dale."
+        ]
       },
       "noToken": {
         "label": "Spotify sin conectar",
@@ -474,126 +490,236 @@
           "Spotify no me responde: ahora no puedo poner musica.",
           "Che, Spotify sigue desconectado, conectalo de una.",
           "No hay Spotify, flaco, asi no te pongo nada.",
-          "Spotify esta sin linkear, arreglalo o chau musica."
+          "Spotify esta sin linkear, arreglalo o chau musica.",
+          "Spotify sigue sin enganchar, ponelo o no hay tema.",
+          "Otra vez sin Spotify, la concha, conectalo ya.",
+          "No tengo Spotify linkeado, hacelo y listo."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Spotify sigue sin enganchar, ponelo o no hay tema.",
+          "Otra vez sin Spotify, la concha, conectalo ya.",
+          "No tengo Spotify linkeado, hacelo y listo."
+        ]
       },
       "noDevice": {
         "label": "No hay ningun dispositivo Spotify disponible",
         "variants": [
           "No encontre un dispositivo Spotify disponible. Abri Spotify en la PC del OBS y reproduce/pausa algo una vez.",
           "Necesito que Spotify este abierto en la PC del OBS para poder sonar.",
-          "No veo ningun dispositivo de Spotify: abri Spotify y dale play una vez."
+          "No veo ningun dispositivo de Spotify: abri Spotify y dale play una vez.",
+          "Che, no hay ningun dispositivo de Spotify conectado, abri Spotify en la PC del OBS y dale play una vez.",
+          "Nada disponible en Spotify, nene. Abri el Spotify de la PC y toca play o pausa una vez.",
+          "No me aparece ningun dispositivo, ponete las pilas y abri Spotify en la PC del OBS."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che, no hay ningun dispositivo de Spotify conectado, abri Spotify en la PC del OBS y dale play una vez.",
+          "Nada disponible en Spotify, nene. Abri el Spotify de la PC y toca play o pausa una vez.",
+          "No me aparece ningun dispositivo, ponete las pilas y abri Spotify en la PC del OBS."
+        ]
       },
       "noDeviceConfigured": {
         "label": "No encuentra el dispositivo configurado",
         "variants": [
           "No encuentro el dispositivo configurado \"{dispositivo}\". Envia !spotifydevices para ver los nombres disponibles.",
           "El dispositivo \"{dispositivo}\" no aparece: manda !spotifydevices para ver cual usar.",
-          "No veo \"{dispositivo}\" entre los dispositivos: revisalo con !spotifydevices."
+          "No veo \"{dispositivo}\" entre los dispositivos: revisalo con !spotifydevices.",
+          "Che, {dispositivo} no figura en ningún lado; comprobá con !spotifydevices cómo se llama el tuyo.",
+          "¿Dónde carajo está {dispositivo}? Mirá la lista con !spotifydevices y poné el nombre que va.",
+          "No tengo ese {dispositivo} cargado, así que mandá !spotifydevices y elegí bien."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che, {dispositivo} no figura en ningún lado; comprobá con !spotifydevices cómo se llama el tuyo.",
+          "¿Dónde carajo está {dispositivo}? Mirá la lista con !spotifydevices y poné el nombre que va.",
+          "No tengo ese {dispositivo} cargado, así que mandá !spotifydevices y elegí bien."
+        ]
       },
       "noActiveDevice": {
         "label": "No hay dispositivo activo",
         "variants": [
           "No hay dispositivo activo. Abri Spotify y reproduce algo manualmente primero.",
           "No tengo donde ponerlo: dale play una vez en Spotify y volve a pedir.",
-          "Ningun dispositivo activo: abri Spotify en la PC del OBS y dale play."
+          "Ningun dispositivo activo: abri Spotify en la PC del OBS y dale play.",
+          "No hay ni un dispositivo activo, che. Abri Spotify y dale play una vez, dale.",
+          "Nada activo tengo, pibe. Prende Spotify y pone play, no me hagas repetir.",
+          "Ni un dispositivo hay. Abri Spotify vos y dale play, yo no hago magia."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "No hay ni un dispositivo activo, che. Abri Spotify y dale play una vez, dale.",
+          "Nada activo tengo, pibe. Prende Spotify y pone play, no me hagas repetir.",
+          "Ni un dispositivo hay. Abri Spotify vos y dale play, yo no hago magia."
+        ]
       },
       "deviceActivateFail": {
         "label": "No pudo activar la PC del OBS",
         "variants": [
           "Spotify no pudo activar la PC del OBS.",
           "No pude despertar a Spotify en la PC del OBS, proba de nuevo.",
-          "Spotify no me dejo activar el dispositivo de la PC."
+          "Spotify no me dejo activar el dispositivo de la PC.",
+          "No pude prender la compu del OBS, fijate qué quilombo.",
+          "La máquina del OBS no responde, no sé qué carajo pasa.",
+          "Che, no me sale activar la PC del OBS, arreglalo vos."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "No pude prender la compu del OBS, fijate qué quilombo.",
+          "La máquina del OBS no responde, no sé qué carajo pasa.",
+          "Che, no me sale activar la PC del OBS, arreglalo vos."
+        ]
       },
       "playbackError": {
         "label": "No pudo cambiar el tema",
         "variants": [
           "No pude cambiar el tema",
           "No me dejo cambiar el tema, proba de nuevo en un rato.",
-          "Uy, no pude poner ese tema."
+          "Uy, no pude poner ese tema.",
+          "No hay caso, no me sale cambiar el tema.",
+          "Nada, me rebotó el cambio de tema.",
+          "Dejá, no me dejó poner otro tema."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "No hay caso, no me sale cambiar el tema.",
+          "Nada, me rebotó el cambio de tema.",
+          "Dejá, no me dejó poner otro tema."
+        ]
       },
       "error": {
         "label": "Error procesando el pedido",
         "variants": [
           "Error procesando el pedido musical.",
           "Algo se me trabo con ese pedido, proba de nuevo.",
-          "No pude procesar el pedido, manda el tema otra vez."
+          "No pude procesar el pedido, manda el tema otra vez.",
+          "Uy, se me rompio todo, mandalo de nuevo y no me hagas repetir.",
+          "Que quilombo, no me salio nada, pasame el tema otra vez.",
+          "Se me cruzo el sistema, repeti el pedido y listo."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Uy, se me rompio todo, mandalo de nuevo y no me hagas repetir.",
+          "Que quilombo, no me salio nada, pasame el tema otra vez.",
+          "Se me cruzo el sistema, repeti el pedido y listo."
+        ]
       },
       "analysis": {
         "label": "Busqueda de prueba (no reproduce)",
         "variants": [
           "Encontre: {tema} - {artista} (no reproduje)",
           "Si, lo tengo: {tema} - {artista}",
-          "Este es: {tema} - {artista}"
+          "Este es: {tema} - {artista}",
+          "Ahi esta {tema} de {artista}, pero no lo pongo.",
+          "Lo ubique: {tema} - {artista}, y no suena nada.",
+          "Tengo {tema} de {artista}; solo busque, no reproduje.",
+          "Uh, lo tengo: {tema} - {artista}. No lo pongo",
+          "Ya lo ubique: {tema} - {artista}, pero no lo reproduzco",
+          "Ahi esta: {tema} - {artista}. No suena nada"
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Ahi esta {tema} de {artista}, pero no lo pongo.",
+          "Lo ubique: {tema} - {artista}, y no suena nada.",
+          "Tengo {tema} de {artista}; solo busque, no reproduje.",
+          "Uh, lo tengo: {tema} - {artista}. No lo pongo",
+          "Ya lo ubique: {tema} - {artista}, pero no lo reproduzco",
+          "Ahi esta: {tema} - {artista}. No suena nada"
+        ]
       },
       "analysisFail": {
         "label": "Busqueda de prueba sin resultado",
         "variants": [
           "No encontre nada para \"{busqueda}\".",
           "Nada para \"{busqueda}\": fijate como lo escribiste.",
-          "Busque \"{busqueda}\" y no aparece nada."
+          "Busque \"{busqueda}\" y no aparece nada.",
+          "No hay nada de \"{busqueda}\", listo.",
+          "Dejate de joder con \"{busqueda}\", no existe.",
+          "Busque \"{busqueda}\" y salio vacio, que se yo."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "No hay nada de \"{busqueda}\", listo.",
+          "Dejate de joder con \"{busqueda}\", no existe.",
+          "Busque \"{busqueda}\" y salio vacio, que se yo."
+        ]
       },
       "parseDebug": {
         "label": "Analisis de un comentario (solo entrenamiento)",
         "variants": [
           "Entendi: {entendido}",
           "Lei esto: {entendido}",
-          "Segun mis reglas es: {entendido}"
+          "Segun mis reglas es: {entendido}",
+          "Che, del comentario saque esto: {entendido}",
+          "A ver, para mi quiere decir: {entendido}",
+          "Y bueno, esto es lo que interprete: {entendido}"
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che, del comentario saque esto: {entendido}",
+          "A ver, para mi quiere decir: {entendido}",
+          "Y bueno, esto es lo que interprete: {entendido}"
+        ]
       },
       "transportOk": {
         "label": "Comando de transporte enviado",
         "variants": [
           "Comando \"{accion}\" enviado a Spotify.",
           "Listo, {accion}.",
-          "Dale, {accion}."
+          "Dale, {accion}.",
+          "Ya lo mandé, {accion}.",
+          "Ahí va {accion}, no rompas.",
+          "Tomá, {accion}, hecho."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Ya lo mandé, {accion}.",
+          "Ahí va {accion}, no rompas.",
+          "Tomá, {accion}, hecho."
+        ]
       },
       "transportFail": {
         "label": "Comando de transporte fallo",
         "variants": [
           "No se pudo ejecutar \"{accion}\".",
           "No me dejo hacer {accion}.",
-          "Fallo {accion}, proba otra vez."
+          "Fallo {accion}, proba otra vez.",
+          "Uf, {accion} no funca, hacete cargo.",
+          "{accion} se me cayo, arreglalo vos.",
+          "Nada con {accion}, dejame tranquilo che."
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Uf, {accion} no funca, hacete cargo.",
+          "{accion} se me cayo, arreglalo vos.",
+          "Nada con {accion}, dejame tranquilo che."
+        ]
       },
       "devices": {
         "label": "Lista de dispositivos a pedido (!spotifydevices)",
         "variants": [
           "Dispositivos Spotify: {dispositivos}",
           "Estos dispositivos veo: {dispositivos}",
-          "Dispositivos disponibles: {dispositivos}"
+          "Dispositivos disponibles: {dispositivos}",
+          "Che, estos son los aparatos que veo: {dispositivos}",
+          "Mirá, tengo estos dispositivos: {dispositivos}",
+          "No jodas, los dispositivos son estos: {dispositivos}"
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che, estos son los aparatos que veo: {dispositivos}",
+          "Mirá, tengo estos dispositivos: {dispositivos}",
+          "No jodas, los dispositivos son estos: {dispositivos}"
+        ]
       },
       "usage": {
         "label": "Uso incorrecto de un comando",
         "variants": [
           "Uso: {comando} <tema o artista>",
           "Decime el tema asi: {comando} nombre del tema",
-          "Me falta el dato: {comando} + el tema o artista"
+          "Me falta el dato: {comando} + el tema o artista",
+          "Che, asi no va: {comando} <tema o artista>",
+          "Dale, escribi {comando} y el nombre del tema, no cuesta nada",
+          "Para que funcione pone {comando} tema o artista, listo",
+          "Flaco, el comando va asi: {comando} tema o artista",
+          "No seas duro, pone {comando} y el nombre del tema",
+          "Asi no macho, escribi {comando} + tema o artista y listo"
         ],
-        "aiVariants": []
+        "aiVariants": [
+          "Che, asi no va: {comando} <tema o artista>",
+          "Dale, escribi {comando} y el nombre del tema, no cuesta nada",
+          "Para que funcione pone {comando} tema o artista, listo",
+          "Flaco, el comando va asi: {comando} tema o artista",
+          "No seas duro, pone {comando} y el nombre del tema",
+          "Asi no macho, escribi {comando} + tema o artista y listo"
+        ]
       }
     }
   }

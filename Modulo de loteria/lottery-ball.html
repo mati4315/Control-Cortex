@@ -615,6 +615,8 @@
     const ballQueue = [];
     let currentBall = null;
     let currentQueueId = '';
+    const PENDING_FINISH_STORAGE_KEY = 'lottery_ball_pending_finished_queue_ids';
+    const pendingFinishedQueueIds = new Set();
     let queuePaused = false;
     let pendingQueueCount = 0;
     const offlineQueue = [];
@@ -702,6 +704,27 @@
       queueStatus.setAttribute('aria-hidden', queuedCount > 0 ? 'false' : 'true');
     }
 
+    function restorePendingFinishedQueueIds() {
+      try {
+        const saved = JSON.parse(sessionStorage.getItem(PENDING_FINISH_STORAGE_KEY) || '[]');
+        if (Array.isArray(saved)) {
+          saved.filter(id => typeof id === 'string' && id.length <= 100).forEach(id => pendingFinishedQueueIds.add(id));
+        }
+      } catch (error) {
+        console.warn('No se pudieron recuperar confirmaciones de bolillas:', error?.message || error);
+      }
+    }
+
+    function persistPendingFinishedQueueIds() {
+      try {
+        const ids = Array.from(pendingFinishedQueueIds).slice(-100);
+        if (ids.length) sessionStorage.setItem(PENDING_FINISH_STORAGE_KEY, JSON.stringify(ids));
+        else sessionStorage.removeItem(PENDING_FINISH_STORAGE_KEY);
+      } catch (error) {
+        console.warn('No se pudieron guardar confirmaciones de bolillas:', error?.message || error);
+      }
+    }
+
     function sendOverlayQueueMessage(message) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return false;
       try {
@@ -736,6 +759,15 @@
 
     function applyServerQueueState(data) {
       const pending = Array.isArray(data.pending) ? data.pending.map(cleanQueueItem).filter(Boolean) : [];
+      const serverQueueIds = new Set([data.current, ...pending].map(item => String(item?.queueId || '')).filter(Boolean));
+      for (const queueId of pendingFinishedQueueIds) {
+        if (!serverQueueIds.has(queueId)) {
+          pendingFinishedQueueIds.delete(queueId);
+          if (currentQueueId === queueId && phase === 'pausing') currentQueueId = '';
+        }
+      }
+      persistPendingFinishedQueueIds();
+
       const seen = new Set(pending.flatMap(item => [item.queueId, item.eventId].filter(Boolean)));
       const merged = [...pending];
       for (const item of offlineQueue) {
@@ -748,6 +780,9 @@
       overlayQueueReady = true;
       renderBallQueue();
       shortenCurrentStopForQueue();
+      if (data.current?.queueId && pendingFinishedQueueIds.has(String(data.current.queueId))) {
+        sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: String(data.current.queueId) });
+      }
       if ((!ws || ws.readyState !== WebSocket.OPEN) && phase === 'pausing' && !currentQueueId && !queuePaused && ballQueue.length && !queueAdvanceTimer) {
         scheduleNextBall();
       }
@@ -803,6 +838,20 @@
       }
       renderTicker();
       syncTickerVisibility();
+    }
+
+    function normalizeOverlayWebSocketUrl() {
+      const pageHost = String(window.location.hostname || '').toLowerCase();
+      if (!pageHost || ['localhost', '127.0.0.1', '::1', '[::1]'].includes(pageHost)) return;
+      try {
+        const endpoint = new URL(CONFIG.WEBSOCKET_URL);
+        if (['localhost', '127.0.0.1', '::1', '[::1]'].includes(endpoint.hostname.toLowerCase())) {
+          endpoint.hostname = pageHost;
+          CONFIG.WEBSOCKET_URL = endpoint.toString().replace(/\/$/, '');
+        }
+      } catch (error) {
+        console.warn('No se pudo normalizar el servidor WebSocket del overlay:', error?.message || error);
+      }
     }
 
     function applyDimensions() {
@@ -1211,13 +1260,15 @@
       if (queueAdvanceTimer) clearTimeout(queueAdvanceTimer);
       const finishedQueueId = currentQueueId;
       currentBall = null;
-      currentQueueId = '';
+      if (finishedQueueId) {
+        pendingFinishedQueueIds.add(finishedQueueId);
+        persistPendingFinishedQueueIds();
+      }
       queueAdvanceTimer = setTimeout(() => {
         queueAdvanceTimer = null;
         if (finishedQueueId) {
-          if (!sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: finishedQueueId })) {
-            scheduleNextBall();
-          }
+          sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: finishedQueueId });
+          sendOverlayQueueMessage({ type: 'REQUEST_BALL_QUEUE_STATE' });
           return;
         }
         if (sendOverlayQueueMessage({ type: 'OVERLAY_IDLE', isTest: CONFIG.MODE === 'test' })) return;
@@ -1254,7 +1305,14 @@
     function startQueuedBall(data) {
       const item = cleanQueueItem(data);
       if (!item) return;
-      if (currentQueueId && currentQueueId === item.queueId && phase !== 'pausing') return;
+      if (pendingFinishedQueueIds.has(item.queueId)) {
+        sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: item.queueId });
+        return;
+      }
+      if (currentQueueId && currentQueueId === item.queueId) {
+        if (phase === 'pausing') sendOverlayQueueMessage({ type: 'BALL_FINISHED', queueId: item.queueId });
+        return;
+      }
       const localIndex = ballQueue.findIndex(pending => pending.queueId === item.queueId);
       if (phase !== 'pausing' && currentQueueId !== item.queueId) {
         if (localIndex < 0) ballQueue.push(item);
@@ -1297,7 +1355,12 @@
        WEBSOCKET & API INTEGRATIONS (DYNAMIC MODE)
        ══════════════════════════════════════════════════════════ */
     let ws = null;
+    let wsReconnectTimer = null;
     function connectWebSocket() {
+      if (wsReconnectTimer) {
+        clearTimeout(wsReconnectTimer);
+        wsReconnectTimer = null;
+      }
       if (ws) {
         try { ws.onclose = null; ws.close(); } catch(e){}
         ws = null;
@@ -1305,24 +1368,30 @@
       if (!CONFIG.WEBSOCKET_URL) return;
       try {
         ws = new WebSocket(CONFIG.WEBSOCKET_URL);
-        ws.onopen = () => {
+        const activeSocket = ws;
+        activeSocket.onopen = () => {
+          if (ws !== activeSocket) return;
           console.log("Widget WebSocket conectado a", CONFIG.WEBSOCKET_URL);
           try {
             const pendingToRelay = offlineQueue.slice();
-            ws.send(JSON.stringify({
+            activeSocket.send(JSON.stringify({
               type: 'WIDGET_HELLO',
               source: 'widget',
               requestConfig: true,
-              busy: CONFIG.MODE === 'test' || phase !== 'pausing' || Boolean(queueAdvanceTimer),
+              busy: CONFIG.MODE === 'test' || phase !== 'pausing' || Boolean(queueAdvanceTimer) || pendingFinishedQueueIds.size > 0,
               ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {})
             }));
-            for (const item of pendingToRelay) {
-              ws.send(JSON.stringify({ type: 'TRIGGER_BALL', ...item, source: 'overlay', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+            for (const queueId of pendingFinishedQueueIds) {
+              activeSocket.send(JSON.stringify({ type: 'BALL_FINISHED', queueId, ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
             }
-            ws.send(JSON.stringify({ type: 'REQUEST_BALL_QUEUE_STATE', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+            for (const item of pendingToRelay) {
+              activeSocket.send(JSON.stringify({ type: 'TRIGGER_BALL', ...item, source: 'overlay', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+            }
+            activeSocket.send(JSON.stringify({ type: 'REQUEST_BALL_QUEUE_STATE', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
           } catch (e) {}
         };
-        ws.onmessage = (event) => {
+        activeSocket.onmessage = (event) => {
+          if (ws !== activeSocket) return;
           try {
             const data = JSON.parse(event.data);
             if (data?.type === 'TRIGGER_QUEUED') {
@@ -1373,12 +1442,19 @@
             if (data?.type === 'TRIGGER_BALL' && data.number && data.name) submitBallToServer(data);
           } catch(e){}
         };
-        ws.onclose = () => {
+        activeSocket.onclose = (event) => {
+          if (ws !== activeSocket) return;
+          ws = null;
           overlayQueueReady = false;
-          console.log("Widget WebSocket desconectado. Reconectando...");
-          setTimeout(connectWebSocket, 5000);
+          console.warn(`Widget WebSocket desconectado (código ${event.code}${event.reason ? `: ${event.reason}` : ''}). Reconectando…`);
+          if (!wsReconnectTimer) {
+            wsReconnectTimer = setTimeout(() => {
+              wsReconnectTimer = null;
+              if (!ws) connectWebSocket();
+            }, 5000);
+          }
         };
-        ws.onerror = (e) => {
+        activeSocket.onerror = (e) => {
           console.error("Widget WebSocket error:", e);
         };
       } catch(e){
@@ -1444,15 +1520,35 @@
           resetBall();
         }
         if (CONFIG.MODE !== oldMode) {
-          connectWebSocket();
           startPolling();
         }
       } else if (msg.type === 'UPDATE_CONFIG') {
+        const incoming = { ...msg.config };
+        // Apply the same endpoint protection to WS, BroadcastChannel and storage.
+        // A dashboard's localhost is not the OBS computer's localhost.
+        if (Object.prototype.hasOwnProperty.call(incoming, 'WEBSOCKET_URL')) {
+          const pageHost = String(window.location.hostname || '').toLowerCase();
+          const loopbackHosts = ['localhost', '127.0.0.1', '::1', '[::1]'];
+          try {
+            const endpoint = new URL(incoming.WEBSOCKET_URL);
+            if (!['ws:', 'wss:'].includes(endpoint.protocol) ||
+                (!loopbackHosts.includes(pageHost) && loopbackHosts.includes(endpoint.hostname.toLowerCase()))) {
+              delete incoming.WEBSOCKET_URL;
+            }
+          } catch (error) {
+            delete incoming.WEBSOCKET_URL;
+          }
+        }
+        const changed = Object.keys(incoming).some(key => JSON.stringify(CONFIG[key]) !== JSON.stringify(incoming[key]));
+        if (!changed) {
+          resolveInitialSync();
+          return;
+        }
         const oldWs = CONFIG.WEBSOCKET_URL;
         const oldApi = CONFIG.API_URL;
         const oldMode = CONFIG.MODE;
         
-        Object.assign(CONFIG, msg.config);
+        Object.assign(CONFIG, incoming);
         applyDimensions();
         applyNumberStyles();
         renderTicker();
@@ -1463,7 +1559,7 @@
         if (CONFIG.MODE === 'test' && phase === 'pausing') {
           resetBall();
         }
-        if (CONFIG.WEBSOCKET_URL !== oldWs || CONFIG.MODE !== oldMode) {
+        if (CONFIG.WEBSOCKET_URL !== oldWs) {
           connectWebSocket();
         }
         if (CONFIG.API_URL !== oldApi || CONFIG.MODE !== oldMode) {
@@ -1477,6 +1573,8 @@
        ══════════════════════════════════════════════════════════ */
     (function init() {
       loadSavedConfig();
+      restorePendingFinishedQueueIds();
+      normalizeOverlayWebSocketUrl();
       applyDimensions();
       applyNumberStyles();
       renderTicker();

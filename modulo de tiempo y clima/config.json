@@ -6,11 +6,11 @@
       "timezone": "Australia/Brisbane",
       "city": "Gold Coast",
       "visible": true,
-      "temp": "19°C",
+      "temp": "18°C",
       "flag": "au",
       "showClock": true,
       "showWeather": true,
-      "weatherCode": 51,
+      "weatherCode": 1,
       "isDay": 0
     },
     {
@@ -19,11 +19,11 @@
       "timezone": "America/Argentina/Buenos_Aires",
       "city": "Concepcion del Uruguay",
       "visible": true,
-      "temp": "8°C",
+      "temp": "14°C",
       "flag": "ar",
       "showClock": true,
       "showWeather": true,
-      "weatherCode": 3,
+      "weatherCode": 0,
       "isDay": 1
     },
     {
@@ -32,11 +32,11 @@
       "timezone": "America/Argentina/Buenos_Aires",
       "city": "San Justo, Entre Rios",
       "visible": true,
-      "temp": "10°C",
+      "temp": "14°C",
       "flag": "ar",
       "showClock": true,
       "showWeather": true,
-      "weatherCode": 2,
+      "weatherCode": 0,
       "isDay": 1
     }
   ],
@@ -46,7 +46,7 @@
   "themePreset": "classic",
   "fontFamily": "Roboto",
   "transitionType": "flip",
-  "cyclePaused": false,
+  "cyclePaused": true,
   "activeViewIndex": 1,
   "showLiveBar": true,
   "liveBarText": "EN VIVO",

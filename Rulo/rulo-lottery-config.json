@@ -1,0 +1,59 @@
+{
+  "requestVerbs": [
+    "quiero",
+    "quisiera",
+    "dame",
+    "reserv",
+    "anot",
+    "guard",
+    "asign",
+    "particip",
+    "pon"
+  ],
+  "assignmentVerbs": [
+    "reserv",
+    "anot",
+    "guard",
+    "asign",
+    "particip",
+    "dame",
+    "pon"
+  ],
+  "numberWords": [
+    "numero",
+    "nro",
+    "num",
+    "boleto",
+    "ticket"
+  ],
+  "lotteryKeywords": [
+    "loteria",
+    "sorteo",
+    "rifa",
+    "boleto",
+    "ticket",
+    "premio",
+    "numero"
+  ],
+  "questionWords": [
+    "que",
+    "cual",
+    "cuanto",
+    "cuando",
+    "como",
+    "donde",
+    "hay",
+    "esta",
+    "estan",
+    "tengo",
+    "puedo",
+    "se",
+    "participo",
+    "gane",
+    "gano",
+    "salio"
+  ],
+  "aiRepliesEnabled": true,
+  "aiInstructions": "Hablá breve, solo un poco amable y en español rioplatense. Si preguntan por sus números, respondé solo con los que figuren como propios en los datos consultados. Nunca reserves ni confirmes números para otra persona: cada participante debe pedir el suyo desde su propio perfil de chat para evitar confusiones y trampas.",
+  "updatedAt": "2026-11-04T03:25:47.072Z"
+}

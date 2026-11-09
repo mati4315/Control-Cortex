@@ -11,6 +11,8 @@ const WS_TOKEN = process.env.WS_TOKEN || "";
 const wss = new WebSocket.Server({ port: PORT });
 
 let lastConfigSnapshot = null;
+let lastConfigRequestAt = -Infinity;
+const CONFIG_REQUEST_COOLDOWN_MS = 2000;
 let firestoreDb = null;
 const recentEventIds = new Set();
 const DEDUP_TTL_MS = 30_000;
@@ -396,9 +398,13 @@ wss.on("connection", (ws, request) => {
           reason: "widget_request_cache",
           config: lastConfigSnapshot
         });
+      } else if (Date.now() - lastConfigRequestAt >= CONFIG_REQUEST_COOLDOWN_MS) {
+        // Bootstrap only: relaying every hello makes open dashboards compete
+        // with stale settings and can cause an endless reconnect/config loop.
+        lastConfigRequestAt = Date.now();
+        const { token, ...publicHello } = data;
+        broadcast(publicHello, ws);
       }
-      const { token, ...publicHello } = data;
-      broadcast(publicHello, ws);
       if (ws.isLotteryOverlay) dispatchNextBall();
       return;
     }

@@ -28,6 +28,7 @@ const secUnits = document.getElementById('sec-units');
 const bgImage = document.getElementById('bg-image');
 const bgVideo = document.getElementById('bg-video');
 const bgAudio = document.getElementById('bg-audio');
+const nebulaCloudLayer = document.getElementById('nebula-cloud-layer');
 
 // --- Dynamic Font Loader ---
 function applyFont(fontName) {
@@ -205,6 +206,7 @@ function animateParticles() {
 function updateTheme(newSettings) {
   const prevSettings = { ...settings };
   settings = { ...newSettings };
+  nebulaCloudLayer?.classList.toggle('active', settings.backgroundType === 'particles');
   const socialsChanged = JSON.stringify(prevSettings.socials || []) !== JSON.stringify(settings.socials || []);
   const mediaBackgroundChanged =
     prevSettings.backgroundType !== settings.backgroundType ||
@@ -360,9 +362,10 @@ function renderSocials() {
     const duration = randomBetween(18, 36);
     const delay = randomBetween(-duration, 0);
     const scale = randomBetween(0.78, 0.98);
-    const opacity = randomBetween(0.12, 0.28);
+    const opacity = randomBetween(0.3, 0.46);
 
     pill.style.left = left + '%';
+    pill.classList.toggle('float-up', i % 2 === 1);
     pill.style.setProperty('--float-duration', duration + 's');
     pill.style.setProperty('--float-delay', delay + 's');
     pill.style.setProperty('--float-scale', scale);

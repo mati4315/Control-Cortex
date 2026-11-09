@@ -2,6 +2,25 @@
 
 Registro por módulo. Cada entrada indica qué se modificó y qué debe recargarse para que la versión nueva entre en uso.
 
+## 2026-11-08 — Cuaderno Vivo: memoria revisable por participante
+
+- Añadida memoria SQLite local asociada por HMAC a identidades estables ya vinculadas en el archivo de audiencia; la base nueva no guarda IDs de participantes.
+- El dashboard permite buscar, agregar, corregir y borrar recuerdos. También puede solicitar propuestas a partir de hasta 120 comentarios y respuestas públicas archivadas; cada propuesta requiere revisión y guardado manual.
+- La memoria se incluye como contexto únicamente en respuestas de Cuaderno Vivo dentro de Simular Streaming en VIVO y solo con identidad estable. Los recuerdos marcados «Solo administración» quedan fuera del prompt.
+- Los mensajes privados del simulador no se persisten ni se usan para propuestas. El historial público permanece en SQLite de audiencia y no se copia al módulo nuevo.
+- Los respaldos de Cortex ahora incluyen la base de memoria y su clave HMAC juntas. Se documentó el procedimiento de restauración en pareja.
+- El aprendizaje automático de administradores reales sigue pendiente hasta disponer de una fuente verificable de rol e identidad; el perfil administrativo del simulador no se considera autenticación.
+- Reinicia Control Cortex y recarga `/rulo-cuaderno-vivo.html` y `/rulo-hablar.html` para cargar las rutas nuevas.
+
+## 2026-11-08 — Rulo · Cuaderno Vivo (primera etapa)
+
+- Creado el módulo lógico `Rulo - Cuaderno Vivo` con perfil entrerriano/argentino, cuatro tonos, puntaje acotado y modos Automático/Manual; la elección Manual persiste hasta volver explícitamente a Automático.
+- Añadido el dashboard `/rulo-cuaderno-vivo.html` y sus rutas locales de estado, control y vista previa en Control Cortex.
+- El simulador `/rulo-hablar.html` puede usar Cuaderno Vivo de forma opcional y aislada. El chat público conserva el generador actual y las acciones Spotify continúan en sus rutas existentes.
+- Guardados snapshots de la instrucción de estilo anterior, los 22 contextos de respuesta y la política de contexto reciente. No se copiaron mensajes de audiencia ni datos de identidad; los archivos de origen siguen siendo los activos.
+- Las señales reales de carga, editor de catálogo y migración del generador público quedan para etapas posteriores; la memoria por participante se añadió en la etapa siguiente.
+- Reinicia Control Cortex y recarga el simulador para habilitar las rutas y el dashboard nuevos.
+
 ## 2026-11-06 — Trazabilidad, evaluación, arranque y estado de Cortex
 
 - Se agregó trazabilidad técnica temporal por evento entre Chat Bot Spotify y Cortex, con un `traceId` aleatorio y sin comentario, nombre ni ID de usuario. Cortex ofrece `/event-traces.html` para consultar las últimas etapas.

@@ -69,16 +69,59 @@ body { position: relative; }
 }
 
 .bg-layer::after {
-  z-index: 4;
+  z-index: 5;
   background:
     radial-gradient(ellipse at center, transparent 27%, rgba(2, 3, 12, .24) 72%, rgba(2, 3, 12, .66) 100%),
     linear-gradient(180deg, rgba(3, 4, 14, .1), transparent 26%, rgba(3, 4, 14, .3));
 }
 
+#nebula-cloud-layer {
+  position: absolute;
+  inset: -3%;
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 1.4s ease;
+}
+#nebula-cloud-layer::before,
+#nebula-cloud-layer::after {
+  content: '';
+  position: absolute;
+  inset: -3%;
+  background: url('/images/nebula-volumetric-clouds-v2.png') center / 100% 100% no-repeat;
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+#nebula-cloud-layer::before {
+  -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 32%, rgba(0,0,0,.88) 44%, transparent 64%);
+  mask-image: linear-gradient(90deg, #000 0%, #000 32%, rgba(0,0,0,.88) 44%, transparent 64%);
+}
+#nebula-cloud-layer::after {
+  -webkit-mask-image: linear-gradient(270deg, #000 0%, #000 32%, rgba(0,0,0,.88) 44%, transparent 64%);
+  mask-image: linear-gradient(270deg, #000 0%, #000 32%, rgba(0,0,0,.88) 44%, transparent 64%);
+}
+#nebula-cloud-layer.active { opacity: 1; }
+#nebula-cloud-layer.active::before {
+  animation: nebula-cyan-drift 86s ease-in-out infinite alternate,
+    nebula-cyan-breathe 19s ease-in-out infinite alternate;
+  animation-delay: -17s, -6s;
+}
+#nebula-cloud-layer.active::after {
+  animation: nebula-violet-drift 112s ease-in-out infinite alternate,
+    nebula-violet-breathe 25s ease-in-out infinite alternate;
+  animation-delay: -43s, -14s;
+}
+@media (orientation: portrait) {
+  #nebula-cloud-layer::before,
+  #nebula-cloud-layer::after {
+    background-image: url('/images/nebula-volumetric-clouds-portrait.png?v=20261108-alpha');
+  }
+}
+
 #particles-canvas {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 3;
   width: 100%;
   height: 100%;
   pointer-events: none;
@@ -87,7 +130,7 @@ body { position: relative; }
 .bg-element {
   position: absolute;
   inset: 0;
-  z-index: 3;
+  z-index: 4;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -232,7 +275,7 @@ body { position: relative; }
   background: linear-gradient(180deg, rgba(255,255,255,.095), rgba(255,255,255,.015) 38%), rgba(9, 11, 28, .78);
   box-shadow: 0 20px 42px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12), inset 0 -20px 28px rgba(0,0,0,.16);
   color: #fff;
-  font-size: clamp(42px, 8.2vw, 64px);
+  font-size: clamp(44px, 8.8vw, 68px);
   font-variant-numeric: tabular-nums;
   font-weight: 900;
   line-height: 1;
@@ -327,18 +370,20 @@ body { position: relative; }
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 14px;
-  border: 1px solid rgba(211, 218, 255, .07);
+  padding: 9px 17px;
+  border: 1px solid rgba(211, 218, 255, .15);
   border-radius: 999px;
-  background: rgba(15, 17, 37, .26);
-  color: rgba(225, 229, 255, .5);
-  font-size: 12px;
+  background: rgba(15, 17, 37, .42);
+  color: rgba(238, 242, 255, .72);
+  font-size: clamp(14px, 1.55vw, 17px);
   white-space: nowrap;
-  backdrop-filter: blur(5px);
+  backdrop-filter: blur(7px);
+  text-shadow: 0 0 8px rgba(154, 190, 255, .18);
   will-change: transform;
   animation: floatDown var(--float-duration, 22s) linear var(--float-delay, 0s) infinite;
 }
-.social-pill .social-icon { width: auto; color: var(--primary-color); font-size: 13px; opacity: .54; }
+.social-pill.float-up { animation-name: floatUp; }
+.social-pill .social-icon { width: auto; color: var(--primary-color); font-size: 16px; opacity: .8; }
 .social-pill .social-handle { font-weight: 600; letter-spacing: .2px; }
 
 @keyframes floatDown {
@@ -346,6 +391,28 @@ body { position: relative; }
   5% { opacity: var(--float-opacity, .23); }
   95% { opacity: var(--float-opacity, .23); }
   100% { transform: translateY(calc(100vh + 110%)) scale(var(--float-scale, .9)); opacity: 0; }
+}
+@keyframes floatUp {
+  0% { transform: translateY(calc(100vh + 110%)) scale(var(--float-scale, .9)); opacity: 0; }
+  5% { opacity: var(--float-opacity, .23); }
+  95% { opacity: var(--float-opacity, .23); }
+  100% { transform: translateY(-110%) scale(var(--float-scale, .9)); opacity: 0; }
+}
+@keyframes nebula-cyan-drift {
+  from { transform: scale(1.04) translate3d(-.35%, .2%, 0); }
+  to { transform: scale(1.08) translate3d(.3%, -.2%, 0); }
+}
+@keyframes nebula-violet-drift {
+  from { transform: scale(1.06) translate3d(.28%, -.15%, 0); }
+  to { transform: scale(1.1) translate3d(-.32%, .22%, 0); }
+}
+@keyframes nebula-cyan-breathe {
+  from { opacity: .22; }
+  to { opacity: .36; }
+}
+@keyframes nebula-violet-breathe {
+  from { opacity: .18; }
+  to { opacity: .32; }
 }
 @keyframes logo-aura { to { transform: rotate(360deg); } }
 @keyframes star-drift { to { transform: translate3d(1.4%, -1%, 0) scale(1.035); opacity: .9; } }
@@ -371,4 +438,8 @@ body { position: relative; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+  /* OBS may request reduced motion; keep the subtle social backdrop moving so labels never stick to the top. */
+  .social-pill { animation-duration: var(--float-duration, 22s) !important; animation-iteration-count: infinite !important; }
+  #nebula-cloud-layer.active::before { animation-duration: 86s, 19s !important; animation-iteration-count: infinite, infinite !important; }
+  #nebula-cloud-layer.active::after { animation-duration: 112s, 25s !important; animation-iteration-count: infinite, infinite !important; }
 }

@@ -296,6 +296,9 @@ function createAnalytics(options) {
       importLegacyAudienceComments: () => 0,
       audiencePrograms: () => [],
       audienceCommentsForProgram: () => [],
+      audienceMemorySubjects: () => [],
+      audienceMemoryHistory: () => [],
+      audienceMemorySubjectKey: () => '',
       simulationCases: () => [],
       saveSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
       deleteSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
@@ -410,6 +413,9 @@ function createAnalytics(options) {
       importLegacyAudienceComments: () => 0,
       audiencePrograms: () => [],
       audienceCommentsForProgram: () => [],
+      audienceMemorySubjects: () => [],
+      audienceMemoryHistory: () => [],
+      audienceMemorySubjectKey: () => '',
       simulationCases: () => [],
       saveSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
       deleteSimulationCase: () => ({ ok: false, error: 'SQLite no disponible.' }),
@@ -887,6 +893,72 @@ function createAnalytics(options) {
         WHERE program_number = ? ORDER BY ts ASC, id ASC`).all(String(program));
     } catch (error) {
       log('No se pudieron consultar los comentarios del programa: ' + error.message);
+      return [];
+    }
+  }
+
+  // These lookups are internal to Cortex. Audience row IDs and source identity keys never reach a browser route.
+  function audienceMemorySubjects(searchTerm = '', limit = 50) {
+    const term = texto(searchTerm, 120).trim().toLocaleLowerCase();
+    const max = Math.max(1, Math.min(100, Number(limit) || 50));
+    const conditions = [
+      'audience_user_id IS NOT NULL',
+      'is_alert = 0',
+      "LOWER(platform) NOT IN ('dashboard', 'simulado')",
+      "LOWER(source) <> 'dashboard'"
+    ];
+    const params = [];
+    if (term) {
+      conditions.push('(LOWER(requester) LIKE ? OR LOWER(requester_norm) LIKE ?)');
+      params.push(`%${term}%`, `%${term}%`);
+    }
+    try {
+      return db.prepare(`SELECT 'audience:' || CAST(audience_user_id AS TEXT) AS subjectKey,
+        (SELECT c2.requester FROM audience_comments_unique c2 WHERE c2.audience_user_id = c.audience_user_id
+          AND c2.is_alert = 0 AND LOWER(c2.platform) NOT IN ('dashboard', 'simulado')
+          ORDER BY c2.ts DESC, c2.id DESC LIMIT 1) AS displayName,
+        (SELECT c2.platform FROM audience_comments_unique c2 WHERE c2.audience_user_id = c.audience_user_id
+          AND c2.is_alert = 0 AND LOWER(c2.platform) NOT IN ('dashboard', 'simulado')
+          ORDER BY c2.ts DESC, c2.id DESC LIMIT 1) AS platform,
+        COUNT(*) AS commentCount, COUNT(DISTINCT program_date) AS programCount,
+        MIN(program_date) AS firstProgram, MAX(program_date) AS lastProgram, MAX(ts) AS lastSeen
+        FROM audience_comments_unique c WHERE ${conditions.join(' AND ')}
+        GROUP BY audience_user_id ORDER BY lastSeen DESC LIMIT ?`).all(...params, max);
+    } catch (error) {
+      log('No se pudieron listar participantes estables para Cuaderno Vivo: ' + error.message);
+      return [];
+    }
+  }
+
+  function audienceMemorySubjectKey(requesterKey) {
+    const key = texto(requesterKey, 240).toLocaleLowerCase();
+    if (!/^(?:facebook|idv2):\S+$/i.test(key) || key.startsWith('namev2:')) return '';
+    try {
+      const row = db.prepare(`SELECT audience_user_id FROM audience_comments_unique
+        WHERE requester_key = ? AND audience_user_id IS NOT NULL
+          AND is_alert = 0 AND LOWER(platform) NOT IN ('dashboard', 'simulado')
+        ORDER BY ts DESC, id DESC LIMIT 1`).get(key);
+      return row?.audience_user_id ? `audience:${Number(row.audience_user_id)}` : '';
+    } catch (error) {
+      log('No se pudo resolver la identidad estable para Cuaderno Vivo: ' + error.message);
+      return '';
+    }
+  }
+
+  // Returns only public archived conversation text; no names, IDs, avatars, alerts, or simulation messages.
+  function audienceMemoryHistory(subjectKey, limit = 120) {
+    const key = String(subjectKey || '').trim().toLocaleLowerCase();
+    const audienceUserId = /^audience:(\d{1,20})$/.exec(key)?.[1];
+    if (!audienceUserId) return [];
+    const max = Math.max(1, Math.min(240, Number(limit) || 120));
+    try {
+      return db.prepare(`SELECT program_date AS programDate, comment, response
+        FROM audience_comments_unique
+        WHERE audience_user_id = ? AND is_alert = 0
+          AND LOWER(platform) NOT IN ('dashboard', 'simulado') AND LOWER(source) <> 'dashboard'
+        ORDER BY ts DESC, id DESC LIMIT ?`).all(Number(audienceUserId), max).reverse();
+    } catch (error) {
+      log('No se pudo consultar el contexto archivado para Cuaderno Vivo: ' + error.message);
       return [];
     }
   }
@@ -1750,6 +1822,9 @@ function createAnalytics(options) {
     importLegacyAudienceComments,
     audiencePrograms,
     audienceCommentsForProgram,
+    audienceMemorySubjects,
+    audienceMemoryHistory,
+    audienceMemorySubjectKey,
     simulationCases,
     saveSimulationCase,
     deleteSimulationCase,
