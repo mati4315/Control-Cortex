@@ -5,14 +5,13 @@ El proyecto conserva el repositorio principal y los repositorios enlazados de Tr
 ## En cada PC
 
 1. Instala Git for Windows e inicia sesión en GitHub si Git lo solicita.
-2. Descarga o clona el repo principal. En una copia existente, abre `Sincronizar Cortex.bat` y elige **Descargar cambios**.
-3. Al terminar una sesión de trabajo, abre el mismo BAT y elige **Revisar, confirmar y subir cambios**. Revisa cada lista y confirma solo los cambios que quieras compartir.
-4. Para hacer ambas acciones en una sola ejecución, elige **Publicar y luego sincronizar**.
+2. Descarga o clona el repo principal. En una copia existente, abre `Sincronizar Cortex.bat`.
+3. El BAT analiza los repositorios automáticamente. Si encuentra cambios compartibles, muestra el estado de todos y pregunta una sola vez si quieres publicarlos; crea los commits con mensajes automáticos y luego descarga lo que haya en GitHub.
+4. Si no encuentra cambios compartibles, descarga directamente las actualizaciones. Los ajustes locales de Spotify se conservan en esta PC.
 
-El script conserva los cambios locales si detecta conflictos o errores. No fuerza pushes ni descarta archivos. Antes de crear cada commit muestra el estado y pide confirmación; también pide un mensaje para cada repositorio que vaya a guardar.
+El script conserva los cambios locales ante conflictos o errores. No fuerza pushes ni descarta archivos. Si Git detecta un conflicto, detiene la sincronización para que puedas resolverlo.
 
-`Control Cortex/backend/spotify-device-target.json` y `SocialStream Ninja/local-overrides/cortex-base-url.js` son ajustes propios de cada PC y el script los excluye de commits. Los adjuntos de Codex y los archivos de respaldo locales también están excluidos por `.gitignore`.
-
+`Control Cortex/backend/spotify-device-target.json` y `SocialStream Ninja/local-overrides/cortex-base-url.js` son ajustes propios de cada PC y se excluyen de commits. Los adjuntos de Codex y los archivos de respaldo locales también están excluidos por `.gitignore`.
 ## Reglas de uso
 
 - Antes de empezar a trabajar en la otra PC, descarga los cambios.
@@ -22,4 +21,4 @@ El script conserva los cambios locales si detecta conflictos o errores. No fuerz
 
 ## Si el BAT avisa que hay cambios locales
 
-Usa primero **Revisar, confirmar y subir cambios**. Si no quieres compartir un cambio, no lo confirmes; guarda o resuelve ese archivo manualmente antes de descargar cambios remotos.
+Abre el BAT: revisará todos los repositorios y te pedirá una única confirmación antes de publicar. Si no quieres compartir los cambios detectados, responde N y guárdalos o resuélvelos manualmente antes de sincronizar desde otra PC.

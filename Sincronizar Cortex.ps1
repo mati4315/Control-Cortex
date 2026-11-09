@@ -1,4 +1,6 @@
-﻿$ErrorActionPreference = 'Stop'
+param([switch]$Auto)
+
+$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Modules = @()
@@ -156,22 +158,13 @@ function Publish-Repo {
   param([string]$Repo, [string]$RepoKey, [string]$Label)
   $SharedChanges = @(Get-SharedDirtyPaths $Repo $RepoKey)
   if ($SharedChanges.Count -gt 0) {
-    Show-RepoStatus $Repo $Label
-    $Answer = Read-Host "¿Preparar y publicar los cambios mostrados en ${Label}? (S/N)"
-    if ($Answer -match '^(s|si|sí|y|yes)$') {
-      Stage-RepoChanges $Repo $RepoKey
-      $Staged = Invoke-Git -Repo $Repo -GitArgs @('diff', '--cached', '--name-only') -Silent
-      if ($Staged.Count -gt 0) {
-        $DefaultMessage = "Sincronizar $Label desde $env:COMPUTERNAME"
-        $Message = Read-Host "Mensaje del commit (Enter usa '$DefaultMessage')"
-        if (-not $Message.Trim()) { $Message = $DefaultMessage }
-        Invoke-Git -Repo $Repo -GitArgs @('commit', '-m', $Message)
-      } else {
-        Write-Host "No quedaron cambios compartibles para confirmar en $Label." -ForegroundColor DarkYellow
-      }
+    Stage-RepoChanges $Repo $RepoKey
+    $Staged = Invoke-Git -Repo $Repo -GitArgs @('diff', '--cached', '--name-only') -Silent
+    if ($Staged.Count -gt 0) {
+      $Message = "Sincronizar $Label desde $env:COMPUTERNAME"
+      Invoke-Git -Repo $Repo -GitArgs @('commit', '-m', $Message) | Out-Null
     } else {
-      Write-Host "Se omiten los cambios locales de $Label." -ForegroundColor DarkYellow
-      return $false
+      Write-Host "No quedaron cambios compartibles para confirmar en $Label." -ForegroundColor DarkYellow
     }
   }
 
@@ -246,12 +239,30 @@ function Sync-Down {
 
 function Publish-All {
   $Missing = @($Modules | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.FullPath '.git')) })
-  if ($Missing.Count -gt 0) { throw 'Primero usa «Descargar cambios» para inicializar los módulos que faltan.' }
-  $AllChildrenPublished = $true
+  if ($Missing.Count -gt 0) { throw 'Faltan módulos inicializados; primero sincroniza esta PC desde el repo.' }
+  $ChangedRepos = @()
   foreach ($Module in $Modules) {
-    if (-not (Publish-Repo -Repo $Module.FullPath -RepoKey $Module.Path -Label $Module.Path)) { $AllChildrenPublished = $false }
+    if (@(Get-SharedDirtyPaths $Module.FullPath $Module.Path).Count -gt 0) {
+      $ChangedRepos += [pscustomobject]@{ Repo = $Module.FullPath; Key = $Module.Path; Label = $Module.Path }
+    }
   }
-
+  if (@(Get-SharedDirtyPaths $Root '.').Count -gt 0) {
+    $ChangedRepos += [pscustomobject]@{ Repo = $Root; Key = '.'; Label = 'Cortex' }
+  }
+  if ($ChangedRepos.Count -gt 0) {
+    Write-Host "`nCambios compartibles detectados en $($ChangedRepos.Count) repositorio(s):" -ForegroundColor Cyan
+    foreach ($Item in $ChangedRepos) { Show-RepoStatus $Item.Repo $Item.Label }
+    $Answer = Read-Host '¿Publicar todos esos cambios y sincronizar? (S/N)'
+    if ($Answer -notmatch '^(s|si|sí|y|yes)$') {
+      Write-Host 'No se publicaron cambios.' -ForegroundColor Yellow
+      return $false
+    }
+  } else {
+    Write-Host 'No hay cambios compartibles para publicar; sincronizaré desde GitHub.' -ForegroundColor Cyan
+  }
+  foreach ($Module in $Modules) {
+    [void](Publish-Repo -Repo $Module.FullPath -RepoKey $Module.Path -Label $Module.Path)
+  }
   $LocalStashes = @()
   foreach ($Module in $Modules) {
     if (@(Get-DirtyPaths $Module.FullPath | Where-Object { (Get-ExcludedPaths $Module.Path) -contains $_ }).Count -gt 0) {
@@ -260,18 +271,13 @@ function Publish-All {
     }
   }
   try {
-    $RootPublished = Publish-Repo -Repo $Root -RepoKey '.' -Label 'Cortex'
+    [void](Publish-Repo -Repo $Root -RepoKey '.' -Label 'Cortex')
   } finally {
     foreach ($Saved in $LocalStashes) { Restore-LocalStash $Saved.Repo $Saved.Ref }
   }
-  if (-not $AllChildrenPublished -or -not $RootPublished) {
-    Write-Host "`nHay cambios omitidos. No hagas pull en otra PC hasta decidir si quieres publicarlos." -ForegroundColor Yellow
-    return $false
-  }
-  Write-Host "`nCambios compartidos publicados. Si había actualizaciones remotas, también se integraron." -ForegroundColor Green
+  Write-Host "`nCambios publicados. Ahora descargaré las referencias y módulos remotos." -ForegroundColor Green
   return $true
 }
-
 try {
   $script:GitExe = Find-Git
   if (-not $script:GitExe) {
@@ -307,6 +313,10 @@ try {
     }
   }
 
+  if ($Auto) {
+    if (Publish-All) { Sync-Down }
+    exit 0
+  }
   Write-Host 'Sincronización de Cortex con GitHub' -ForegroundColor Cyan
   Write-Host '1) Descargar cambios para esta PC'
   Write-Host '2) Revisar, confirmar y subir cambios de esta PC'
