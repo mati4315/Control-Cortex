@@ -238,9 +238,113 @@ function Sync-Down {
   Write-Host "`nCortex y sus módulos quedaron sincronizados con las referencias del repo principal." -ForegroundColor Green
 }
 
+function Get-RepoDivergence {
+  param([string]$Repo)
+  $Upstream = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}') -Silent -AllowFailure
+  if ($script:LastGitExitCode -ne 0 -or $Upstream.Count -eq 0) { return $null }
+  $Counts = Invoke-Git -Repo $Repo -GitArgs @('rev-list', '--left-right', '--count', "HEAD...$($Upstream[0].Trim())") -Silent
+  if ($Counts.Count -eq 0) { return $null }
+  $Parts = $Counts[0].Trim() -split '\s+'
+  if ($Parts.Count -lt 2) { return $null }
+  return [pscustomobject]@{ Ahead = [int]$Parts[0]; Behind = [int]$Parts[1] }
+}
+
+function Save-RepoWorktreeToStash {
+  param([string]$Repo, [string]$Label)
+  $Status = Invoke-Git -Repo $Repo -GitArgs @('status', '--porcelain=v1', '--untracked-files=all') -Silent
+  if (@($Status | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -eq 0) { return $null }
+  $Before = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
+  if ($script:LastGitExitCode -ne 0) { $Before = @('') }
+  Invoke-Git -Repo $Repo -GitArgs @('stash', 'push', '--include-untracked', '-m', "Cortex Sync: cambios locales de $Label") | Out-Null
+  $After = Invoke-Git -Repo $Repo -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
+  if ($script:LastGitExitCode -ne 0 -or $After.Count -eq 0) { throw "No pude guardar los cambios locales de $Label en un stash." }
+  if ($Before.Count -gt 0 -and $Before[0].Trim() -eq $After[0].Trim()) { throw "Git no creó el respaldo temporal para $Label; no continuaré con la actualización." }
+  return [pscustomobject]@{ Repo = $Repo; Label = $Label; Hash = $After[0].Trim() }
+}
+
+function Safe-RefreshBehindRepos {
+  param([string]$RootBranch, [object[]]$BehindRepos)
+  Write-Host "`nDetecté ramas atrasadas respecto a GitHub:" -ForegroundColor Yellow
+  foreach ($Item in $BehindRepos) { Write-Host " - $($Item.Label): $($Item.Behind) commit(s) detrás" -ForegroundColor Yellow }
+  Write-Host 'No ofreceré publicar estos archivos antiguos. Guardaré los cambios locales en stashes y actualizaré desde GitHub.' -ForegroundColor Yellow
+
+  $RecoveryRoot = Join-Path $env:TEMP ('CortexSyncLocal-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
+  $Stashes = @()
+  $LocalConfig = Join-Path $Root 'Control Cortex/backend/spotify-device-target.json'
+  $LocalConfigBackup = Join-Path $RecoveryRoot 'spotify-device-target.json'
+  $HasLocalConfig = Test-Path -LiteralPath $LocalConfig -PathType Leaf
+  if ($HasLocalConfig) {
+    New-Item -ItemType Directory -Path $RecoveryRoot -Force | Out-Null
+    Copy-Item -LiteralPath $LocalConfig -Destination $LocalConfigBackup
+  }
+
+  $Updated = $false
+  try {
+    foreach ($Module in $Modules) {
+      if (Test-Path -LiteralPath (Join-Path $Module.FullPath '.git')) {
+        $Saved = Save-RepoWorktreeToStash -Repo $Module.FullPath -Label $Module.Path
+        if ($Saved) { $Stashes += $Saved }
+      }
+    }
+    $RootSaved = Save-RepoWorktreeToStash -Repo $Root -Label 'Cortex'
+    if ($RootSaved) { $Stashes += $RootSaved }
+
+    Invoke-Git -Repo $Root -GitArgs @('pull', '--ff-only', 'origin', $RootBranch)
+    Invoke-Git -Repo $Root -GitArgs @('submodule', 'sync', '--recursive')
+    Invoke-Git -Repo $Root -GitArgs @('submodule', 'update', '--init', '--recursive')
+    $Updated = $true
+  } finally {
+    if ($HasLocalConfig -and (Test-Path -LiteralPath $LocalConfigBackup -PathType Leaf)) {
+      New-Item -ItemType Directory -Path (Split-Path -Parent $LocalConfig) -Force | Out-Null
+      Copy-Item -LiteralPath $LocalConfigBackup -Destination $LocalConfig -Force
+      $OriginalHash = (Get-FileHash -LiteralPath $LocalConfigBackup -Algorithm SHA256).Hash
+      $RestoredHash = (Get-FileHash -LiteralPath $LocalConfig -Algorithm SHA256).Hash
+      if ($OriginalHash -ne $RestoredHash) { throw "No pude verificar la restauración del ajuste local. Su copia sigue en '$RecoveryRoot'." }
+    }
+  }
+  if ($Updated -and $Stashes.Count -gt 0) {
+    Write-Host "`nLa copia quedó actualizada. Conservé los cambios previos en estos stashes de Git (no se publicaron):" -ForegroundColor Cyan
+    foreach ($Saved in $Stashes) { Write-Host " - $($Saved.Label): $($Saved.Hash.Substring(0, [Math]::Min(12, $Saved.Hash.Length)))" }
+    Write-Host 'Puedes revisar esos cambios más adelante; no los apliqué sobre las versiones nuevas para evitar conflictos o reversiones.' -ForegroundColor Cyan
+  } elseif ($Updated) {
+    Write-Host "`nLa copia quedó actualizada y no había cambios locales que guardar." -ForegroundColor Green
+  }
+  if (Test-Path -LiteralPath $RecoveryRoot) { Remove-Item -LiteralPath $RecoveryRoot -Recurse -Force }
+  return $false
+}
+
 function Publish-All {
+  $RootBranch = Get-BranchName $Root
+  Invoke-Git -Repo $Root -GitArgs @('fetch', '--prune', 'origin') | Out-Null
+  $BehindRepos = @()
+  $DivergedRepos = @()
+  $RootDivergence = Get-RepoDivergence $Root
+  if ($RootDivergence) {
+    if ($RootDivergence.Behind -gt 0) { $BehindRepos += [pscustomobject]@{ Repo = $Root; Label = 'Cortex'; Behind = $RootDivergence.Behind; Ahead = $RootDivergence.Ahead } }
+    if ($RootDivergence.Behind -gt 0 -and $RootDivergence.Ahead -gt 0) { $DivergedRepos += 'Cortex' }
+  }
+  foreach ($Module in $Modules) {
+    if (-not (Test-Path -LiteralPath (Join-Path $Module.FullPath '.git'))) { continue }
+    Invoke-Git -Repo $Module.FullPath -GitArgs @('fetch', '--prune', 'origin') | Out-Null
+    $Divergence = Get-RepoDivergence $Module.FullPath
+    if ($Divergence) {
+      if ($Divergence.Behind -gt 0) { $BehindRepos += [pscustomobject]@{ Repo = $Module.FullPath; Label = $Module.Path; Behind = $Divergence.Behind; Ahead = $Divergence.Ahead } }
+      if ($Divergence.Behind -gt 0 -and $Divergence.Ahead -gt 0) { $DivergedRepos += $Module.Path }
+    }
+  }
+  if ($DivergedRepos.Count -gt 0) {
+    throw "Hay ramas con commits locales y remotos distintos ($($DivergedRepos -join ', ')). No publicaré automáticamente; primero hay que resolver esa divergencia."
+  }
+  if ($BehindRepos.Count -gt 0) {
+    return (Safe-RefreshBehindRepos -RootBranch $RootBranch -BehindRepos $BehindRepos)
+  }
+
   $Missing = @($Modules | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.FullPath '.git')) })
-  if ($Missing.Count -gt 0) { throw 'Faltan módulos inicializados; primero sincroniza esta PC desde el repo.' }
+  if ($Missing.Count -gt 0) {
+    Write-Host 'Faltan módulos inicializados; los descargaré desde el repo principal.' -ForegroundColor Yellow
+    Sync-Down
+    return $false
+  }
   $ChangedRepos = @()
   foreach ($Module in $Modules) {
     if (@(Get-SharedDirtyPaths $Module.FullPath $Module.Path).Count -gt 0) {
@@ -302,61 +406,7 @@ try {
   if ($script:LastGitExitCode -ne 0) { throw 'Esta carpeta no es un repositorio Git.' }
   $GitmodulesPath = Join-Path $Root '.gitmodules'
   if (-not (Test-Path -LiteralPath $GitmodulesPath)) {
-    Write-Host 'Esta copia aún no tiene .gitmodules; conservaré los cambios locales y actualizaré primero el repo principal.' -ForegroundColor Yellow
-    $BootstrapStash = $null
-    $TrackedStatus = Invoke-Git -Repo $Root -GitArgs @('status', '--porcelain=v1', '--untracked-files=no') -Silent
-    if (@($TrackedStatus | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
-      $Before = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
-      if ($script:LastGitExitCode -ne 0) { $Before = @('') }
-      Invoke-Git -Repo $Root -GitArgs @('stash', 'push', '-m', 'Cortex Sync: preparar actualización de estructura') | Out-Null
-      $After = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '-q', '--verify', 'refs/stash') -Silent -AllowFailure
-      if ($script:LastGitExitCode -eq 0 -and ($Before.Count -eq 0 -or $Before[0].Trim() -ne $After[0].Trim())) { $BootstrapStash = 'stash@{0}' }
-    }
-    $RecoveryRoot = Join-Path $env:TEMP ('CortexSyncRecovery-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff'))
-    $RecoveryFiles = @()
-    try {
-      Invoke-Git -Repo $Root -GitArgs @('fetch', '--prune', 'origin')
-      $BootstrapBranch = Get-BranchName $Root
-      $RemoteFiles = Invoke-Git -Repo $Root -GitArgs @('ls-tree', '-r', '--name-only', "origin/$BootstrapBranch") -Silent
-      $UntrackedLines = Invoke-Git -Repo $Root -GitArgs @('status', '--porcelain=v1', '--untracked-files=all') -Silent
-      foreach ($Line in $UntrackedLines) {
-        if (-not $Line.StartsWith('?? ')) { continue }
-        $Relative = $Line.Substring(3)
-        if ($Relative.StartsWith('"')) { try { $Relative = ConvertFrom-Json -InputObject $Relative } catch { } }
-        if ($RemoteFiles -notcontains $Relative) { continue }
-        $Source = Join-Path $Root $Relative
-        if (-not (Test-Path -LiteralPath $Source -PathType Leaf)) { continue }
-        $SavedPath = Join-Path $RecoveryRoot $Relative
-        New-Item -ItemType Directory -Path (Split-Path -Parent $SavedPath) -Force | Out-Null
-        Move-Item -LiteralPath $Source -Destination $SavedPath
-        $RecoveryFiles += [pscustomobject]@{ Relative = $Relative; Saved = $SavedPath }
-      }
-      if ($RecoveryFiles.Count -gt 0) {
-        Write-Host "Aparté temporalmente $($RecoveryFiles.Count) archivo(s) locales que chocaban con archivos de GitHub." -ForegroundColor Yellow
-      }
-      Invoke-Git -Repo $Root -GitArgs @('pull', '--rebase', 'origin', $BootstrapBranch)
-    } finally {
-      try {
-        foreach ($SavedFile in $RecoveryFiles) {
-          $Destination = Join-Path $Root $SavedFile.Relative
-          New-Item -ItemType Directory -Path (Split-Path -Parent $Destination) -Force | Out-Null
-          if (Test-Path -LiteralPath $Destination -PathType Leaf) {
-            Copy-Item -LiteralPath $SavedFile.Saved -Destination $Destination -Force
-            $OriginalHash = (Get-FileHash -LiteralPath $SavedFile.Saved -Algorithm SHA256).Hash
-            $RestoredHash = (Get-FileHash -LiteralPath $Destination -Algorithm SHA256).Hash
-            if ($OriginalHash -ne $RestoredHash) { throw "No pude verificar la restauración de '$($SavedFile.Relative)'. La copia de seguridad sigue en '$RecoveryRoot'." }
-          } else {
-            Move-Item -LiteralPath $SavedFile.Saved -Destination $Destination
-          }
-        }
-      } finally {
-        Restore-LocalStash $Root $BootstrapStash
-      }
-    }
-    if (Test-Path -LiteralPath $RecoveryRoot) { Remove-Item -LiteralPath $RecoveryRoot -Recurse -Force }
-    if ($RecoveryFiles.Count -gt 0) {
-      Write-Host 'Los archivos locales conflictivos fueron restaurados como cambios locales; la copia de GitHub quedó actualizada.' -ForegroundColor Yellow
-    }
+    Write-Host 'El repo principal todavía no tiene .gitmodules; la actualización automática puede inicializarlo.' -ForegroundColor Yellow
   }
   $CurrentModule = $null
   if (Test-Path -LiteralPath $GitmodulesPath) {
@@ -375,7 +425,6 @@ try {
   }
 
   if ($Auto) {
-    if (@($Modules | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.FullPath '.git')) }).Count -gt 0) { Sync-Down; exit 0 }
     if (Publish-All) { Sync-Down }
     exit 0
   }

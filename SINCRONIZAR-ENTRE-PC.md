@@ -6,10 +6,10 @@ El proyecto conserva el repositorio principal y los repositorios enlazados de Tr
 
 1. Instala Git for Windows e inicia sesión en GitHub si Git lo solicita.
 2. Descarga o clona el repo principal. En una copia existente, abre `Sincronizar Cortex.bat`.
-3. El BAT analiza los repositorios automáticamente. Si encuentra cambios compartibles, muestra el estado de todos y pregunta una sola vez si quieres publicarlos; crea los commits con mensajes automáticos y luego descarga lo que haya en GitHub.
+3. El BAT consulta primero GitHub. Si esta PC está atrasada, no ofrece publicar: guarda los cambios locales de forma recuperable en stashes, actualiza Cortex y sus módulos y conserva el ajuste local de Spotify. Si las ramas ya están al día y hay cambios compartibles, muestra el estado y pregunta una sola vez antes de publicarlos.
 4. Si no encuentra cambios compartibles, descarga directamente las actualizaciones. Los ajustes locales de Spotify se conservan en esta PC.
 
-El script conserva los cambios locales ante conflictos o errores. No fuerza pushes ni descarta archivos. Si Git detecta un conflicto, detiene la sincronización para que puedas resolverlo.
+Cuando una PC está atrasada, los cambios previos quedan guardados en los stashes de cada repositorio y no se aplican encima de las versiones nuevas. El BAT muestra sus identificadores para poder revisarlos después. No fuerza pushes ni descarta esos cambios. Si las ramas divergen por commits locales y remotos, se detiene sin ofrecer publicarlos.
 
 `Control Cortex/backend/spotify-device-target.json` y `SocialStream Ninja/local-overrides/cortex-base-url.js` son ajustes propios de cada PC y se excluyen de commits. Los adjuntos de Codex y los archivos de respaldo locales también están excluidos por `.gitignore`.
 ## Reglas de uso
@@ -21,4 +21,4 @@ El script conserva los cambios locales ante conflictos o errores. No fuerza push
 
 ## Si el BAT avisa que hay cambios locales
 
-Abre el BAT: revisará todos los repositorios y te pedirá una única confirmación antes de publicar. Si no quieres compartir los cambios detectados, responde N y guárdalos o resuélvelos manualmente antes de sincronizar desde otra PC.
+El BAT consulta primero si esta PC está atrasada. En ese caso actualiza y guarda los cambios locales en stashes sin pedir permiso para publicarlos. Si las ramas están al día, te pide una sola confirmación antes de publicar.
