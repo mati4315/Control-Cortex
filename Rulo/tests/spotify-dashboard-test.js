@@ -332,7 +332,7 @@ const posts = (calls, fragment) => calls.filter(call => call.url.indexOf(fragmen
     dom.window.close();
   }
 
-  // ---------- E) enlaces con session ----------
+  // ---------- E) navegación sin parámetro session ----------
   {
     const { dom, doc } = makeDashboard({});
     await wait(120);

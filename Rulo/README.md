@@ -6,15 +6,18 @@ Espacio independiente para las funciones y overlays propios del bot. Todo lo nue
 
 | Página | URL | Uso |
 | --- | --- | --- |
-| Overlay de respuestas | `http://192.168.4.100:4000/rulo-bot-overlay.html?session=XJ9hQ2JDHH` | Fuente Navegador de OBS. Solo respuestas del bot. |
-| Dashboard | `http://192.168.4.100:4000/rulo-dashboard.html?session=XJ9hQ2JDHH` | Configuración visual, URLs para OBS y vista previa por estado. |
-| Historial | `http://192.168.4.100:4000/rulo-chat-historial.html?session=XJ9hQ2JDHH` | Comentarios de audiencia + respuestas, con filtros y limpieza. |
+| Overlay de respuestas | `http://192.168.4.100:4000/rulo-bot-overlay.html` | Fuente Navegador de OBS. Solo respuestas del bot. |
+| Dashboard | `http://192.168.4.100:4000/rulo-dashboard.html` | Configuración visual, URLs para OBS y vista previa por estado. |
+| Historial | `http://192.168.4.100:4000/rulo-chat-historial.html` | Comentarios de audiencia + respuestas, con filtros y limpieza. |
 | Animaciones y control de Rulo | `http://192.168.4.100:4000/rulo-mascota.html` | Panel: WebM para OBS o control del ejecutable Rulo 3D en la LAN. Desde otra PC, usa la IP de la PC donde corre Cortex. |
 | Dashboard de Spotify | `http://192.168.4.100:4000/rulo-spotify.html` | Ajustes del cambio automático de música: esperas, modo prueba sin esperas, dispositivo, pruebas y registro. |
+| Cuaderno Vivo | `http://192.168.4.100:4000/rulo-cuaderno-vivo.html` | Control inicial del tono Automático/Manual y personalidad para probar desde la simulación aislada. |
 | Entrenamiento del bot | `http://192.168.4.100:4000/rulo-spotify-training.html` | Vocabulario (palabras clave, verbos, géneros, correcciones) con analizador en vivo y el cerebro (IA) opcional. |
 | Redirección legada | `http://192.168.4.100:4000/rulo-chat-dock.html` | 302 a `rulo-chat-historial.html` para no romper enlaces viejos. |
 
-La conversación de prueba y simulación histórica de participantes está documentada en [README-SIMULACION-VIVOS.md](README-SIMULACION-VIVOS.md). Resume el propósito de evaluación, el contexto SQLite, el aislamiento de mensajes, los pedidos de Spotify con el nombre e ID histórico del participante y credenciales solo en el servidor, la lotería en solo lectura y el flujo de mejoras manuales en Entrenamiento e IA.
+Los enlaces de navegación entre paneles no llevan `?session=...`. El Session ID se conserva en las URLs de overlays que se conectan a una sala SSN, como el overlay de chat y el overlay unificado.
+
+La conversación de prueba y simulación histórica de participantes está documentada en [README-SIMULACION-VIVOS.md](README-SIMULACION-VIVOS.md). Resume el propósito de evaluación, el contexto SQLite, el aislamiento de mensajes, los pedidos de Spotify con el nombre e ID histórico del participante y credenciales solo en el servidor, la lotería en solo lectura y el flujo de mejoras manuales en Entrenamiento e IA. El simulador puede activar como opción la vista previa de Cuaderno Vivo; el generador del chat público sigue sin migrarse.
 
 La URL base ya no está escrita a mano en varios archivos: el backend la detecta (`GET /api/cortex-base-url`) y genera `SocialStream Ninja/local-overrides/cortex-base-url.js` en cada arranque. Si cambia la IP LAN, se actualiza sola (los overrides la consumen con respaldo).
 

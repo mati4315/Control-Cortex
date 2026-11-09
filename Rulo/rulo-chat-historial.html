@@ -194,7 +194,7 @@
       #list { padding:6px; }
     }
   </style>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
   <header>
     <button id="headerToggle" class="icon-btn" type="button" title="Ocultar el encabezado" aria-label="Mostrar u ocultar el encabezado" aria-pressed="false">
@@ -343,9 +343,8 @@
       let clearArmed = false;
       let clearTimer = null;
       let viewingSavedChat = false;
-      const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
-      document.getElementById('dashboardLink').href = location.origin + '/rulo-dashboard.html?session=' + encodeURIComponent(session);
-      document.getElementById('unifiedLink').href = location.origin + '/rulo-unified-dashboard.html?session=' + encodeURIComponent(session);
+      document.getElementById('dashboardLink').href = location.origin + '/rulo-dashboard.html';
+      document.getElementById('unifiedLink').href = location.origin + '/rulo-unified-dashboard.html';
 
       const toast = document.getElementById('p2pToast');
       let toastTimer = null;

@@ -119,7 +119,7 @@ test('UI renders safely, searches, favorites, changes profiles with confirmation
   w.eval(fs.readFileSync(path.join(root, 'Control Cortex/frontend/home.js'), 'utf8'));
   const flush = () => new Promise(r => setTimeout(r, 30)); await flush();
   const d = w.document; assert.equal(d.querySelectorAll('.card').length, 8); assert.equal(d.querySelectorAll('.card img').length, 0); assert.equal(d.querySelector('a[href^="javascript:"]'), null);
-  assert.ok(d.querySelector('a[href*="session=test-session"]'));
+  assert.equal(d.querySelector('a[href*="session="]'), null);
   d.getElementById('search').value = 'entrenamiento'; d.getElementById('search').dispatchEvent(new w.Event('input')); assert.equal(d.querySelectorAll('.card').length, 1);
   d.querySelector('.star').click(); await flush(); assert.ok(calls.includes('/api/cortex-home/preferences'));
   d.querySelector('[data-view="profiles"]').click(); assert.equal(d.getElementById('view-profiles').hidden, false);

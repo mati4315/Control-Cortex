@@ -145,7 +145,7 @@
     const script = document.createElement('script'); script.id = 'cortex-module-nav-script'; script.src = base + '/cortex-module-nav.js'; script.defer = true; document.head.append(script);
   })();
   </script>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
   <main class="page">
     <section class="intro">
@@ -172,6 +172,21 @@
             <div class="live-inline">
               <label class="field" for="live-spotify-mode"><span>Pedidos de Spotify <button class="help-button" type="button" data-help="Reproducción real puede cambiar el tema que suena. Vista previa busca e interpreta sin tocar el reproductor ni consumir cooldowns." aria-label="Ayuda: Pedidos de Spotify" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-spotify-mode"><option value="play" selected>Reproducción real aislada</option><option value="preview">Vista previa · no reproduce</option></select></label>
               <label class="field" for="live-time-scale"><span>Tiempo de cooldowns <button class="help-button" type="button" data-help="Define cuánto avanza el reloj temporal de este programa: 1× usa tiempo real y 10× acelera diez veces las esperas entre pedidos." aria-label="Ayuda: Tiempo de cooldowns" aria-expanded="false" aria-controls="option-help-popover">?</button></span><select id="live-time-scale"><option value="1">1× · tiempo real</option><option value="10">10× · acelerado</option></select></label>
+            </div>
+            <div class="live-subsection">
+              <label class="check-row"><input id="cuaderno-vivo-preview-enabled" type="checkbox"><span><strong>Probar respuestas de Cuaderno Vivo</strong><small>Aplica la personalidad nueva solo a esta respuesta de simulación. El chat público conserva su motor actual.</small></span></label>
+              <div id="cuaderno-vivo-preview-controls" hidden>
+                <label class="check-row"><input id="cuaderno-vivo-use-dashboard-state" type="checkbox" checked><span><strong>Usar el estado del dashboard</strong><small>Respeta Automático/Manual y el nivel configurado en Cuaderno Vivo.</small></span></label>
+                <div id="cuaderno-vivo-preview-override" hidden>
+                  <div class="live-inline">
+                    <label class="field" for="cuaderno-vivo-preview-mode"><span>Estado para esta prueba</span><select id="cuaderno-vivo-preview-mode"><option value="automatic">Automático</option><option value="manual">Manual</option></select></label>
+                    <label class="field" for="cuaderno-vivo-preview-level"><span>Nivel manual</span><select id="cuaderno-vivo-preview-level"><option value="1">1 · Contento</option><option value="2" selected>2 · Normal</option><option value="3">3 · Enojado</option><option value="4">4 · Muy enojado</option></select></label>
+                  </div>
+                  <label class="field" for="cuaderno-vivo-preview-points"><span>Puntos de carga: <strong id="cuaderno-vivo-preview-points-label">10</strong> / 40</span><input id="cuaderno-vivo-preview-points" type="range" min="0" max="40" value="10" style="width:100%;accent-color:var(--accent)"></label>
+                  <div id="cuaderno-vivo-preview-level-label" class="live-state">Automático · Nivel 2: Normal</div>
+                </div>
+                <a href="/rulo-cuaderno-vivo.html" target="_blank" rel="noopener">Abrir dashboard de Cuaderno Vivo</a>
+              </div>
             </div>
             <div id="live-spotify-warning" class="note"><strong>Reproducción real:</strong> un pedido aceptado puede cambiar la canción de Spotify. El Modo de pruebas aislado debe estar confirmado. La vista previa solo busca e interpreta; no reproduce ni consume cooldowns.</div>
             <div class="live-meta"><span id="live-program-info">Elige primero un programa guardado en SQLite.</span><span id="live-mode-state" class="live-state">Comprobando modo aislado…</span></div>
@@ -277,6 +292,25 @@
     let ruloBotName = 'Rulo';
     const providerLabels = { rulo:'IA de Rulo · OBS', rules:'Regla de lotería', lottery:'Datos de lotería' };
     function status(text, error = false) { $('chat-status').textContent = text; $('chat-status').classList.toggle('error', error); }
+    function cuadernoVivoPreviewSettings() {
+      if (!$('cuaderno-vivo-preview-enabled').checked) return null;
+      if ($('cuaderno-vivo-use-dashboard-state').checked) return { enabled:true, useDashboardState:true };
+      return { enabled:true, mode:$('cuaderno-vivo-preview-mode').value, level:Number($('cuaderno-vivo-preview-level').value), points:Number($('cuaderno-vivo-preview-points').value) };
+    }
+    function renderCuadernoVivoPreview() {
+      const enabled = $('cuaderno-vivo-preview-enabled').checked;
+      $('cuaderno-vivo-preview-controls').hidden = !enabled;
+      const useDashboardState = $('cuaderno-vivo-use-dashboard-state').checked;
+      $('cuaderno-vivo-preview-override').hidden = useDashboardState;
+      $('cuaderno-vivo-preview-level').disabled = $('cuaderno-vivo-preview-mode').value !== 'manual';
+      const points = Number($('cuaderno-vivo-preview-points').value);
+      $('cuaderno-vivo-preview-points-label').textContent = String(points);
+      const level = $('cuaderno-vivo-preview-mode').value === 'manual'
+        ? Number($('cuaderno-vivo-preview-level').value)
+        : points >= 30 ? 4 : points >= 20 ? 3 : points >= 10 ? 2 : 1;
+      const labels = {1:'Contento',2:'Normal',3:'Enojado',4:'Muy enojado'};
+      $('cuaderno-vivo-preview-level-label').textContent = `${$('cuaderno-vivo-preview-mode').value === 'manual' ? 'Manual' : 'Automático'} · Nivel ${level}: ${labels[level]}`;
+    }
     function closeOptionHelp() {
       if (openedHelpButton) {
         openedHelpButton.setAttribute('aria-expanded', 'false');
@@ -638,7 +672,8 @@
           program,
           useProjectContext: $('use-project-context').checked,
           simulate: async payload => {
-            const response = await fetch('/api/cortex-home/rulo-live-simulation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload), cache:'no-store' });
+            const cuadernoVivoPreview = cuadernoVivoPreviewSettings();
+            const response = await fetch('/api/cortex-home/rulo-live-simulation', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ ...payload, ...(cuadernoVivoPreview ? { cuadernoVivoPreview } : {}) }), cache:'no-store' });
             const data = await response.json().catch(() => ({}));
             if (!response.ok || data.ok !== true || !data.answer) throw new Error(data.error || `Cortex respondió HTTP ${response.status}.`);
             return data;
@@ -738,8 +773,9 @@
       transcript.push({ role:'user', content }); addMessage('user', content);
       const typing = addTyping();
       try {
+        const cuadernoVivoPreview = liveSimulation ? cuadernoVivoPreviewSettings() : null;
         const requestBody = liveSimulation
-          ? { program:$('live-program').value, participantCommentId:$('live-participant').value, comment:content, messages:transcript.slice(-16), disabledModules:activeDisabledModules(), useProjectContext:$('use-project-context').checked, spotifyMode:$('live-spotify-mode').value, timeScale:Number($('live-time-scale').value), simulationCaseId:activeEvaluationCaseId }
+          ? { program:$('live-program').value, participantCommentId:$('live-participant').value, comment:content, messages:transcript.slice(-16), disabledModules:activeDisabledModules(), useProjectContext:$('use-project-context').checked, spotifyMode:$('live-spotify-mode').value, timeScale:Number($('live-time-scale').value), simulationCaseId:activeEvaluationCaseId, ...(cuadernoVivoPreview ? { cuadernoVivoPreview } : {}) }
           : { messages:transcript.slice(-16), profile:activeProfile, participantName, disabledModules:activeDisabledModules(), useProjectContext:$('use-project-context').checked, includeLiveState:$('include-live-state').checked };
         const response = await fetch(liveSimulation ? '/api/cortex-home/rulo-live-simulation' : '/api/cortex-home/rulo-chat', {
           method:'POST', headers:{'Content-Type':'application/json'},
@@ -750,7 +786,7 @@
         typing?.remove(); transcript.push({ role:'assistant', content:data.answer });
         const provider = providerLabels[data.provider] || data.provider || 'IA';
         const sourceMeta = liveSimulation
-          ? data.action === 'spotify-preview' ? `Spotify · vista previa${data.track?.name ? ` · ${data.track.name}` : ''}` : data.action?.startsWith('spotify') ? `Spotify aislado${data.track?.name ? ` · ${data.track.name}` : ''}${data.device ? ` · ${data.device}` : ''}` : data.action === 'rulo-disabled' ? 'Rulo · escenario apagado' : data.action === 'lottery-read-only-denied' ? 'Lotería · escritura rechazada, solo lectura' : ['lottery-read-only','lottery-info','lottery-ai'].includes(data.source) ? 'Lotería · consulta solo lectura' : `Programa ${$('live-program').value} · modo aislado`
+          ? data.cuadernoVivoPreview ? `Cuaderno Vivo · Nivel ${data.cuadernoVivoPreview.level}: ${data.cuadernoVivoPreview.label} · ${data.cuadernoVivoPreview.points} puntos${data.cuadernoVivoPreview.memoryCount ? ` · ${data.cuadernoVivoPreview.memoryCount} recuerdos` : ''}` : data.action === 'spotify-preview' ? `Spotify · vista previa${data.track?.name ? ` · ${data.track.name}` : ''}` : data.action?.startsWith('spotify') ? `Spotify aislado${data.track?.name ? ` · ${data.track.name}` : ''}${data.device ? ` · ${data.device}` : ''}` : data.action === 'rulo-disabled' ? 'Rulo · escenario apagado' : data.action === 'lottery-read-only-denied' ? 'Lotería · escritura rechazada, solo lectura' : ['lottery-read-only','lottery-info','lottery-ai'].includes(data.source) ? 'Lotería · consulta solo lectura' : `Programa ${$('live-program').value} · modo aislado`
           : data.adminDatabaseAccess ? 'SQLite + Firestore · solo lectura' : data.source === 'lottery-rule' ? 'Regla entrenada · sin acción' : data.source === 'lottery-info' ? 'Grilla pública · solo lectura' : data.source === 'lottery-ai' ? 'IA con datos de lotería verificados' : $('use-project-context').checked ? `Contexto: ${data.contextFiles || 0} documentos · ${data.technicalFiles || 0} mapas` : 'Sin contexto técnico';
         const liveMeta = data.includeLiveState ? ' · estado actual consultado' : '';
         addMessage('assistant', data.answer, `${provider}${data.model ? ' · ' + data.model : ''} · ${sourceMeta}${liveMeta}`);
@@ -762,6 +798,11 @@
     }
     $('composer').addEventListener('submit', event => { event.preventDefault(); const input = $('message-input'); const value = input.value; input.value = ''; sendMessage(value); });
     $('message-input').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); $('composer').requestSubmit(); } });
+    ['cuaderno-vivo-preview-enabled','cuaderno-vivo-use-dashboard-state','cuaderno-vivo-preview-mode','cuaderno-vivo-preview-level','cuaderno-vivo-preview-points'].forEach(id => {
+      $(id).addEventListener('input', renderCuadernoVivoPreview);
+      $(id).addEventListener('change', renderCuadernoVivoPreview);
+    });
+    renderCuadernoVivoPreview();
     $('clear-chat').addEventListener('click', () => { conversation().length = 0; renderConversation(); status('Conversación de esta identidad limpiada.'); });
     $('profile').addEventListener('change', () => { setProfileCaption(); renderConversation(); status('Identidad de simulación cambiada.'); });
     $('participant-name').addEventListener('input', () => { participantNames[$('profile').value] = currentSimulatedName(); });

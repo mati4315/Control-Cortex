@@ -42,7 +42,7 @@
   document.head.append(script);
 })();
 </script>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
   <main>
     <h1><span>Rulo</span> | Animaciones</h1>
@@ -158,11 +158,10 @@
   </main>
   <script>
     (() => {
-      const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
-      const sourceUrl = location.origin + '/rulo-animaciones.html?session=' + encodeURIComponent(session);
-      const presentationUrl = location.origin + '/rulo-presentacion.html?session=' + encodeURIComponent(session);
-      const botOverlayUrl = location.origin + '/rulo-bot-overlay.html?session=' + encodeURIComponent(session);
-      const botDashboardUrl = location.origin + '/rulo-dashboard.html?session=' + encodeURIComponent(session);
+      const sourceUrl = location.origin + '/rulo-animaciones.html';
+      const presentationUrl = location.origin + '/rulo-presentacion.html';
+      const botOverlayUrl = location.origin + '/rulo-bot-overlay.html';
+      const botDashboardUrl = location.origin + '/rulo-dashboard.html';
       document.getElementById('url').textContent = sourceUrl;
       document.getElementById('openUrl').href = sourceUrl;
       document.getElementById('presentationUrl').textContent = presentationUrl;

@@ -16,6 +16,7 @@ const { reverseAnimation } = require('./rulo-reverse-video');
 const { createLibrary: createRuloAnimationLibrary } = require('../../Rulo/animation-library.cjs');
 const { createAnimationEngine } = require('../../Rulo/animation-engine.cjs');
 const { createAnalytics } = require('./spotify-analytics');
+const { backupMemoryStoreData } = require('../../Rulo - Cuaderno Vivo/src/memory-store');
 const { EventTraceStore, TRACE_ID } = require('./event-trace-store');
 const { summarizeLotteryOverlay } = require('./lottery-public-facts');
 const {
@@ -2358,6 +2359,13 @@ app.get('/rulo-hablar.html', (req, res, next) => {
   });
 });
 
+app.get('/rulo-cuaderno-vivo.html', (req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.sendFile(path.join(WORKSPACE_ROOT, 'Rulo - Cuaderno Vivo', 'dashboard', 'index.html'), error => {
+    if (error) next(error);
+  });
+});
+
 app.get('/rulo-lottery-dashboard.html', (req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.set('Pragma', 'no-cache');
@@ -3561,6 +3569,16 @@ function createRuloDataBackup(reason = 'manual') {
       fs.cpSync(RULO_AVATAR_DIR, path.join(stage, 'profile-avatars'), { recursive: true });
       files.push('profile-avatars/');
     }
+    const cuadernoMemoryBackup = backupMemoryStoreData({
+      dbFile: path.join(WORKSPACE_ROOT, 'Rulo - Cuaderno Vivo', 'data', 'memory.sqlite'),
+      keyFile: path.join(WORKSPACE_ROOT, 'Rulo - Cuaderno Vivo', 'data', 'identity-hmac.key'),
+      destination: stage
+    });
+    if (!cuadernoMemoryBackup.ok) {
+      safeRemoveBackupPath(stage);
+      return { ok: false, error: `No se pudo respaldar Cuaderno Vivo: ${cuadernoMemoryBackup.error}` };
+    }
+    if (cuadernoMemoryBackup.included) files.push('cuaderno-vivo-memory.sqlite', 'cuaderno-vivo-identity-hmac.key');
     for (const configFile of RULO_SPOTIFY_CONFIG_BACKUPS) {
       if (!fs.existsSync(configFile.source)) throw new Error(`Falta el archivo de configuración ${configFile.name}.`);
       fs.copyFileSync(configFile.source, path.join(stage, configFile.name));
@@ -5865,6 +5883,76 @@ app.post('/api/services/stop-all', async (req, res) => {
 });
 
 // API: Start service
+let cortexRestartScheduled = false;
+app.get('/api/cortex/restart-capability', (req, res) => {
+  if (!isSameOriginOrLoopback(req)) return res.status(403).json({ ok: false, error: 'Abre el panel de Cortex para consultar esta acción.' });
+  res.json({ ok: true, available: process.platform === 'win32' });
+});
+
+app.post('/api/cortex/restart', (req, res) => {
+  if (!isSameOriginOrLoopback(req)) return res.status(403).json({ ok: false, error: 'Abre el panel de Cortex para reiniciar el servidor.' });
+  if (process.platform !== 'win32') return res.status(501).json({ ok: false, error: 'El reinicio remoto está disponible en Windows.' });
+  if (cortexRestartScheduled) return res.status(409).json({ ok: false, error: 'Cortex ya está preparando un reinicio.' });
+
+  const helperPath = path.join(__dirname, 'restart-cortex-after-exit.js');
+  const readyFile = path.join(os.tmpdir(), `cortex-restart-ready-${process.pid}.txt`);
+  const helperStdoutPath = path.join(os.tmpdir(), `cortex-restart-${process.pid}.stdout.log`);
+  const helperStderrPath = path.join(os.tmpdir(), `cortex-restart-${process.pid}.stderr.log`);
+  try { fs.rmSync(readyFile, { force: true }); } catch { /* El archivo temporal puede no existir. */ }
+  let helper;
+  try {
+    const stdoutFd = fs.openSync(helperStdoutPath, 'a');
+    const stderrFd = fs.openSync(helperStderrPath, 'a');
+    helper = spawn(process.execPath, [
+      helperPath,
+      '--parent-pid', String(process.pid),
+      '--node-path', process.execPath,
+      '--server-path', __filename,
+      '--working-directory', __dirname,
+      '--port', String(PORT),
+      '--ready-file', readyFile
+    ], { detached: true, stdio: ['ignore', stdoutFd, stderrFd], windowsHide: true });
+    fs.closeSync(stdoutFd);
+    fs.closeSync(stderrFd);
+  } catch (error) {
+    return res.status(500).json({ ok: false, error: `No se pudo preparar PowerShell: ${String(error.message || error).slice(0, 180)}` });
+  }
+
+  helper.once('error', error => {
+    cortexRestartScheduled = false;
+    console.error('[Cortex] No se pudo preparar el reinicio:', error.message);
+    if (!res.headersSent) res.status(500).json({ ok: false, error: 'Windows no pudo iniciar el reinicio de Cortex.' });
+  });
+  helper.once('spawn', () => {
+    const readyDeadline = Date.now() + 5000;
+    const waitForHelper = () => {
+      if (fs.existsSync(readyFile)) {
+        try { fs.rmSync(readyFile, { force: true }); } catch { /* No afecta el reinicio. */ }
+        cortexRestartScheduled = true;
+        res.json({ ok: true, restarting: true });
+        setTimeout(() => {
+          for (const socket of wss.clients) {
+            try { socket.close(1012, 'Cortex reiniciando'); } catch { /* El socket puede haberse cerrado. */ }
+          }
+          server.close(() => process.exit(0));
+          const forceExit = setTimeout(() => {
+            if (typeof server.closeAllConnections === 'function') server.closeAllConnections();
+            process.exit(0);
+          }, 1800);
+          forceExit.unref();
+        }, 400);
+        return;
+      }
+      if (Date.now() >= readyDeadline) {
+        cortexRestartScheduled = false;
+        return res.status(500).json({ ok: false, error: 'El auxiliar de Windows no confirmó el reinicio; Cortex sigue activo.' });
+      }
+      setTimeout(waitForHelper, 100);
+    };
+    waitForHelper();
+  });
+});
+
 app.post('/api/services/:id/start', async (req, res) => {
   const { id } = req.params;
   try {

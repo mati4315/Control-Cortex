@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "status": "documented-for-migration",
+  "sources": [
+    {
+      "id": "rulo-historical-simulation",
+      "source": "Rulo/README-SIMULACION-VIVOS.md",
+      "currentContext": "Up to 16 archived comments for the selected program and participant are supplied to the isolated simulation.",
+      "owner": "Rulo SQLite archive and Control Cortex",
+      "cuadernoVivoRetention": "Request context only; the module does not copy or persist these comments."
+    },
+    {
+      "id": "spotify-casual-reply",
+      "source": "Control Cortex/backend/server.js::spotifyAiRecentConversation",
+      "currentContext": "Up to 8 recent non-test, non-alert comments from the previous 8 minutes; excludes the current comment and duplicate text.",
+      "owner": "Control Cortex public reply generator",
+      "cuadernoVivoRetention": "Policy snapshot only. Centralize context selection later without duplicating raw history."
+    }
+  ],
+  "adminSimulation": {
+    "conversationPersisted": false,
+    "memoriesCreated": false,
+    "exception": "A future explicit improvement request may create a reviewable proposal. It must not train the model or update the profile automatically."
+  },
+  "importedAt": "2026-11-08"
+}

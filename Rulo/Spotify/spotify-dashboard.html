@@ -91,7 +91,7 @@
   document.head.append(script);
 })();
 </script>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
   <main>
     <header>
@@ -331,17 +331,14 @@
       const notice = el('notice');
       const logList = el('log');
       const devicesBox = el('devices');
-      const session = new URLSearchParams(location.search).get('session') || '';
       const field = key => document.querySelector('[data-key="' + key + '"]');
       let saveTimer = null;
       let settingsLoaded = false;
       let lastRuloEnabled = null;
       let pendingTestModeActivation = false;
 
-      if (session) {
-        el('histLink').href = '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
-        el('dashLink').href = '/rulo-dashboard.html?session=' + encodeURIComponent(session);
-      }
+      el('histLink').href = '/rulo-chat-historial.html';
+      el('dashLink').href = '/rulo-dashboard.html';
 
       function esc(value) {
         return String(value === undefined || value === null ? '' : value)

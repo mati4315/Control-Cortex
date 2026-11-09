@@ -30,7 +30,7 @@
   document.head.append(script);
 })();
 </script>
-</head><body><main>
+<script src="/pwa-quick-actions.js" defer></script></head><body><main>
 <header><div><h1><span>Rulo</span> | Biblioteca de animaciones</h1><p class="lead">Importa MP4, conviértelos a VP9 y organiza las poses. Cortex decide qué clip sigue; OBS solo reproduce la página.</p></div><nav class="nav"><a class="link" href="/rulo-mascota.html">Controles de Rulo</a><a class="link" href="/rulo-animaciones-guia.html">Guía interactiva</a><a class="link" href="/rulo-animaciones.html" target="_blank">Fuente OBS ↗</a></nav></header>
 <div class="grid">
 <section class="card"><h2>Motor de estados</h2><div class="stats"><div class="stat"><small>Conexión OBS</small><strong id="conn">Buscando reproductor…</strong></div><div class="stat"><small>Estado</small><strong id="state">—</strong></div><div class="stat"><small>Pose actual</small><strong id="pose">—</strong></div><div class="stat"><small>Cola</small><strong id="queue">0</strong></div></div><p id="engineIssue" class="status" role="status"></p><p id="engineDetail" class="hint">Clip activo: —</p><div class="actions"><button type="button" id="engineResync">Resincronizar OBS</button><button type="button" id="engineNormal">Volver a Idle normal</button><button type="button" id="runPreflight">Revisar antes de transmitir</button></div><div id="queueList" class="source-list"></div><p id="preflightResult" class="status" role="status"></p><div id="preflightIssues" class="source-list"></div><p id="missing" class="hint"></p></section>

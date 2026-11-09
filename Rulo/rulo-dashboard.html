@@ -65,7 +65,7 @@
   document.head.append(script);
 })();
 </script>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
   <main>
     <header>
@@ -144,15 +144,15 @@
       const status = form('status');
       const preview = form('preview');
       let config;
-      const session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
-      const overlayUrl = location.origin + '/rulo-bot-overlay.html?session=' + encodeURIComponent(session);
-      const dockUrl = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+      const session = 'XJ9hQ2JDHH';
+      const overlayUrl = location.origin + '/rulo-bot-overlay.html';
+      const dockUrl = location.origin + '/rulo-chat-historial.html';
       const chatUrl = location.origin + '/rulo-chat-overlay.html?session=' + encodeURIComponent(session) + '&showtime=0';
       const unifiedOverlayUrl = location.origin + '/rulo-unified-overlay.html?session=' + encodeURIComponent(session);
-      const unifiedDashUrl = location.origin + '/rulo-unified-dashboard.html?session=' + encodeURIComponent(session);
-      const featuredUrl = location.origin + '/rulo-featured.html?session=' + encodeURIComponent(session) + '&style=art-forest&mascot=mi-canguro.png';
-      form('editResponsesLink').href = location.origin + '/rulo-spotify-bot.html?session=' + encodeURIComponent(session) + '#rulo-responses';
-      form('historyLink').href = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+      const unifiedDashUrl = location.origin + '/rulo-unified-dashboard.html';
+      const featuredUrl = location.origin + '/rulo-featured.html?style=art-forest&mascot=mi-canguro.png';
+      form('editResponsesLink').href = location.origin + '/rulo-spotify-bot.html#rulo-responses';
+      form('historyLink').href = location.origin + '/rulo-chat-historial.html';
       form('chatLink').href = chatUrl;
       form('unifiedLink').href = unifiedDashUrl;
       form('unifiedDashLink').href = unifiedDashUrl;
@@ -173,7 +173,7 @@
       function refreshNgrok() {
         fetch('/api/ngrok-url').then(r => r.json()).then(d => {
           if (d && d.activo && d.publicUrl) {
-            ngrokFull = d.publicUrl + '/rulo-chat-historial.html?session=' + encodeURIComponent(d.sessionId || session);
+            ngrokFull = d.publicUrl + '/rulo-chat-historial.html';
             if (ngrokInput.value !== ngrokFull) { ngrokInput.value = ngrokFull; }
             form('ngrokBox').style.borderColor = 'var(--accent)';
             form('ngrokInfo').textContent = 'Túnel activo. Compartí esta dirección; cambia cada vez que reiniciás el túnel.';
@@ -278,7 +278,7 @@
       function read() { const value = {}; ids.forEach(id => value[id] = form(id).type === 'checkbox' ? form(id).checked : form(id).value); value.visibleMs=Math.round(Number(value.visibleSeconds)*1000); delete value.visibleSeconds; value.longReplyScrollDelayMs=Math.round(Number(value.longReplyScrollDelaySeconds)*1000); delete value.longReplyScrollDelaySeconds; value.replyDelayMs=Math.round(Number(value.replyDelaySeconds)*1000); delete value.replyDelaySeconds; value.maxWidth=Number(value.maxWidth); value.fontSize=Number(value.fontSize); value.panelOpacity=Number(value.panelOpacity); return value; }
       function showNotice(text, error) { notice.textContent=text; notice.style.color=error?'#ff7d7d':'var(--accent)'; setTimeout(() => notice.textContent='',3000); }
       function updatePreview() { preview.src = '/rulo-bot-overlay.html?preview=1&mood=' + encodeURIComponent(form('previewMood').value || 'success') + '&theme=' + encodeURIComponent(form('overlayTheme').value || 'dark') + '&tailPosition=' + encodeURIComponent(form('tailPosition').value || 'right-lower') + '&v=' + Date.now(); }
-      form('mascotLink').href = location.origin + '/rulo-mascota.html?session=' + encodeURIComponent(session);
+      form('mascotLink').href = location.origin + '/rulo-mascota.html';
       function applyBrandName(name) {
         const label = name || 'Rulo';
         document.querySelectorAll('.brandName, #brandName').forEach(node => { node.textContent = label; });

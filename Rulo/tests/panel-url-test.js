@@ -43,7 +43,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
   check('panel: base URL pedida al backend', seen.some(u => u.endsWith('/api/cortex-base-url')), seen.join(' | ').slice(0, 160));
   const urls = (text.match(/http:\/\/[^\s]+/g) || []);
   check('panel: URLs de Rulo usan la base detectada',
-    urls.includes(BASE + '/rulo-dashboard.html') && urls.includes(BASE + '/rulo-bot-overlay.html?session=XJ9hQ2JDHH') && urls.includes(BASE + '/rulo-chat-historial.html'),
+    urls.includes(BASE + '/rulo-dashboard.html') && urls.includes(BASE + '/rulo-bot-overlay.html') && urls.includes(BASE + '/rulo-chat-historial.html'),
     urls.join(','));
   check('panel: sin duplicar la tarjeta tras re-render', document.querySelectorAll('#card-spotify').length === 1, document.querySelectorAll('#card-spotify').length);
 

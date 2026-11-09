@@ -57,7 +57,7 @@ small { color:var(--muted); }
   document.head.append(script);
 })();
 </script>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
 <main>
   <header>
@@ -123,12 +123,12 @@ small { color:var(--muted); }
 <script>
 (function(){
   var form = function(id){ return document.getElementById(id); };
-  var session = new URLSearchParams(location.search).get('session') || 'XJ9hQ2JDHH';
+  var session = 'XJ9hQ2JDHH';
   var overlayUrl = location.origin + '/rulo-unified-overlay.html?session=' + encodeURIComponent(session);
   var ids = ['showComments','maxComments','commentDurationSec','commentPosition','commentWidth','commentTextLines','commentBottom','commentScale','commentScrollPauseSec','showLyrics','showArt','showProgress','showStatus','accent','fontSize','overlayWidth','cardHeight','brand'];
   var bools = ['showComments','showLyrics','showArt','showProgress','showStatus'];
 
-  form('historialLink').href = location.origin + '/rulo-chat-historial.html?session=' + encodeURIComponent(session);
+  form('historialLink').href = location.origin + '/rulo-chat-historial.html';
   form('overlayUrl').value = overlayUrl;
   form('copyUrl').onclick = function(){ navigator.clipboard.writeText(overlayUrl).then(function(){ flash('URL copiada'); }, function(){ flash('No se pudo copiar', true); }); };
   form('openUrl').onclick = function(){ window.open(overlayUrl, '_blank', 'noopener'); };

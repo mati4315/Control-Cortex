@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Cortex · Inicio</title><link rel="stylesheet" href="/home.css"><script src="/home.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#10120d"><meta name="description" content="Panel privado de control para tu estudio Cortex."><link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icons/cortex.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/icons/cortex.svg"><title>Cortex · Inicio</title><link rel="stylesheet" href="/home.css"><script src="/home.js" defer></script><script src="/pwa-register.js" defer></script></head>
 <body>
 <aside class="sidebar">
   <a class="brand" href="/"><span class="logo">C</span><span>CORTEX<small>TU ESPACIO DE CONTROL</small></span></a>
@@ -8,7 +8,7 @@
   <nav aria-label="Secciones"><button class="nav active" data-view="home"><span>▦</span> Inicio</button><button class="nav" data-view="rulo"><span>♫</span> Rulo y Spotify</button><button class="nav" data-view="databases"><span>▤</span> Bases de datos</button><button class="nav" data-view="favorites"><span>☆</span> Favoritos</button><button class="nav" data-view="profiles"><span>◎</span> Perfiles y respaldos</button><button class="nav" data-view="assistant"><span>✧</span> Asistente IA</button></nav>
 </aside>
 <main>
-  <header class="topbar"><span>MI ESTUDIO <span class="slash">/</span> <span id="breadcrumb">Inicio</span></span><div class="topbar-tools"><button id="btn-refresh-obs" class="obs-refresh-button primary" type="button" title="Recargar todas las fuentes de navegador en OBS" aria-label="Recargar Fuentes OBS"><span aria-hidden="true">↻</span><span data-label>Recargar Fuentes OBS</span></button><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro">☾ <span>Modo oscuro</span></button><span class="connection" id="connection">Conectando</span></div></header>
+  <header class="topbar"><span>MI ESTUDIO <span class="slash">/</span> <span id="breadcrumb">Inicio</span></span><div class="topbar-tools"><button id="btn-refresh-obs" class="obs-refresh-button primary" type="button" title="Recargar todas las fuentes de navegador en OBS" aria-label="Recargar Fuentes OBS"><span aria-hidden="true">↻</span><span data-label>Recargar Fuentes OBS</span></button><button id="restart-cortex" class="restart-cortex" type="button" title="Reinicia el panel y el backend de Cortex" aria-label="Reiniciar Cortex" hidden>⟳ <span>Reiniciar Cortex</span></button><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro">☾ <span>Modo oscuro</span></button><span class="connection" id="connection">Conectando</span></div></header>
   <div id="notice" role="status" aria-live="polite" hidden></div>
   <section id="view-home" class="view">
     <div class="hero"><div><span class="eyebrow">MENOS PESTAÑAS. MÁS CONTROL.</span><h1>Tu estudio, en orden<span>.</span></h1><p>Un lugar para tus plugins, tus ajustes y lo que viene.</p></div><div class="hero-mark" aria-hidden="true">✳</div></div>
@@ -18,7 +18,7 @@
     <div class="section-heading"><div><span class="eyebrow">TU CAJA DE HERRAMIENTAS</span><h2 id="catalog-title">Todos tus paneles</h2></div><button id="add-link" class="primary">+ Añadir acceso</button></div>
     <div class="filters"><label class="search"><span aria-hidden="true">⌕</span><input id="search" type="search" placeholder="Buscar un panel, una función…" aria-label="Buscar paneles"></label><select id="category" aria-label="Filtrar por categoría"><option value="">Todas las categorías</option></select></div>
     <div class="chips" id="categories"></div><div class="cards" id="cards"></div><p id="empty" class="empty" hidden>No hay paneles con este filtro. Prueba otra búsqueda o añade un acceso.</p>
-    <div class="footnote"><span>↗</span> Los paneles se abren en otra pestaña. Los servicios registrados en Cortex aparecen aquí automáticamente.</div>
+    <div class="footnote"><span>↗</span> Los paneles integrados se abren aquí; los servicios de otros puertos se abren en una pestaña aparte. Los accesos rápidos siguen disponibles en ambos.</div>
   </section>
   <section id="view-rulo" class="view" hidden>
     <span class="eyebrow">PEDIDOS, MÚSICA Y RESPUESTAS</span><h1>Rulo y Spotify<span>.</span></h1><p class="lead">Prueba cómo entiende los pedidos, revisa fallos y configura cómo responde en el chat.</p>
@@ -67,6 +67,14 @@
   </section>
   <footer>CORTEX <span>Un inicio. Todos tus proyectos.</span><a href="/event-traces.html">Trazas de eventos ↗</a><a href="/index.html">Administrar servicios ↗</a></footer>
 </main>
+<nav class="pwa-quick-actions" aria-label="Acciones rápidas">
+  <button id="pwa-copy-url" type="button" aria-label="Copiar dirección de Cortex" title="Copiar dirección de Cortex">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7.5V5.75A2.75 2.75 0 0 1 10.75 3h7.5A2.75 2.75 0 0 1 21 5.75v7.5A2.75 2.75 0 0 1 18.25 16H16.5"/><rect x="3" y="8" width="13.5" height="13" rx="2.5"/></svg>
+  </button>
+  <button id="pwa-go-back" type="button" aria-label="Volver a la página anterior" title="Volver a la página anterior">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5 3 12l7 7M4 12h10a7 7 0 0 1 7 7"/></svg>
+  </button>
+</nav>
 <dialog id="editor"><form id="editor-form"><div class="section-heading"><h2 id="editor-title">Nuevo acceso</h2><button type="button" id="close-editor" aria-label="Cerrar">×</button></div><label>Nombre<input name="name" maxlength="80" required></label><div id="link-fields"><label>Dirección del dashboard<input name="url" placeholder="http://localhost:3000 o /mi-panel.html"></label><label>Categoría<input name="category" maxlength="80" value="Mis accesos"></label></div><button class="primary" type="submit">Guardar</button></form></dialog>
 <dialog id="confirm"><h2 id="confirm-title">Cambiar perfil</h2><p id="confirm-text"></p><div class="toolbar"><button id="cancel-confirm">Cancelar</button><button id="accept-confirm" class="primary">Continuar</button></div></dialog>
 </body></html>

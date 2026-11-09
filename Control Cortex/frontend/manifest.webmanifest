@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Cortex · Tu espacio de control",
+  "short_name": "Cortex",
+  "description": "Panel privado de control para tu estudio Cortex.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "prefer_related_applications": false,
+  "background_color": "#10120d",
+  "theme_color": "#10120d",
+  "icons": [
+    {
+      "src": "/icons/cortex-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/cortex-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

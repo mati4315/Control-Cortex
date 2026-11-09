@@ -2,20 +2,21 @@
 
 **Proyecto:** plugins para mi OBS  
 **Ruta:** D:\plugins para mi OBS  
-**Ultima actualizacion:** 2026-11-06
+**Ultima actualizacion:** 2026-11-08
 **Objetivo:** transferir a Hermes Agent el contexto tecnico, los limites de propiedad y el mapa operativo del proyecto completo.
 
 ## Lectura obligatoria
 
 1. Leer este documento completo antes de editar.
 2. Leer [Rulo/HERMES-MIGRATION-HANDOFF.md](D:/plugins%20para%20mi%20OBS/Rulo/HERMES-MIGRATION-HANDOFF.md), que contiene el detalle fino de Rulo, su dashboard, overlays e historial.
-3. Antes de cambiar la simulación histórica de Rulo, leer [Rulo/README-SIMULACION-VIVOS.md](D:/plugins%20para%20mi%20OBS/Rulo/README-SIMULACION-VIVOS.md), que documenta el propósito de evaluación y las reglas de aislamiento y solo lectura.
-4. Revisar antes de tocar SocialStream Ninja:
+3. Para personalidad, memoria y respuestas de Rulo, leer [Rulo - Cuaderno Vivo/README.md](D:/plugins%20para%20mi%20OBS/Rulo%20-%20Cuaderno%20Vivo/README.md) y [Rulo - Cuaderno Vivo/ARQUITECTURA-Y-MIGRACION.md](D:/plugins%20para%20mi%20OBS/Rulo%20-%20Cuaderno%20Vivo/ARQUITECTURA-Y-MIGRACION.md).
+4. Antes de cambiar la simulación histórica de Rulo, leer [Rulo/README-SIMULACION-VIVOS.md](D:/plugins%20para%20mi%20OBS/Rulo/README-SIMULACION-VIVOS.md), que documenta el propósito de evaluación y las reglas de aislamiento y solo lectura.
+5. Revisar antes de tocar SocialStream Ninja:
    - [GUIA_SOCIALSTREAM_NINJA.md](D:/plugins%20para%20mi%20OBS/GUIA_SOCIALSTREAM_NINJA.md)
    - [SPOTIFY-SETUP-GUIDE.md](D:/plugins%20para%20mi%20OBS/SPOTIFY-SETUP-GUIDE.md)
    - [README-Spotify-install.md](D:/plugins%20para%20mi%20OBS/README-Spotify-install.md)
    - [guia para crear auto selecion de musica.md](D:/plugins%20para%20mi%20OBS/guia%20para%20crear%20auto%20selecion%20de%20musica.md)
-5. Si se modifica el tercero SocialStream Ninja, leer SocialStream Ninja/docs/skills/control-social-stream/SKILL.md y la documentacion de SocialStream Ninja/docs/agents.
+6. Si se modifica el tercero SocialStream Ninja, leer SocialStream Ninja/docs/skills/control-social-stream/SKILL.md y la documentacion de SocialStream Ninja/docs/agents.
 
 ## Regla principal de propiedad
 
@@ -36,6 +37,7 @@ El backend de Control Cortex vuelve a sincronizar los overrides e inyecta el loa
 | Control Cortex/integrations/spotify-auto-music | Logica de pedidos, busqueda y reproduccion Spotify | Propia |
 | Chat Bot Spotify | Extension DOM propia para Facebook, OAuth Spotify y relay local compatible | Propia |
 | Rulo | Mascota futura, respuestas del bot, dashboard, historial y relay de chat | Propia |
+| Rulo - Cuaderno Vivo | Perfil, cuatro tonos, puntaje de carga y memoria revisable por participante | Módulo lógico servido por Control Cortex; memoria conectada solo a la simulación aislada |
 | SocialStream Ninja | Captura de chats, docks, featured y transporte P2P | Tercero; conservar intacto |
 | Bienvendos y Banner | Banner/overlay de bienvenida | Propia |
 | comentarios | Modulo de comentarios/ruleta | Propia |
@@ -97,6 +99,10 @@ Archivos de entrada principales:
 - Control Cortex/integrations/spotify-auto-music/spotify-auto-music.js: modulo de pedidos Spotify.
 
 Puerto principal: 4000.
+
+El inicio de Cortex tiene manifiesto PWA e iconos para instalarlo desde Chrome. El acceso desde Android por Tailscale requiere HTTPS privado; documentado en Control Cortex/CORTEX-INICIO.md mediante Tailscale Serve apuntando al puerto local 4000. No exponer este panel con Funnel ni abrir el puerto 4000 a Internet.
+
+La barra superior del inicio permite reiniciar el backend Windows de Cortex desde el panel con confirmación. El servidor programa un proceso auxiliar que espera el cierre y vuelve a lanzar `server.js`, y el cliente recarga al recuperar conexión. El endpoint exige origen del propio panel; solo debe habilitarse a dispositivos confiables de la red privada Tailscale.
 
 APIs propias relevantes:
 
@@ -197,9 +203,9 @@ Sesion SSN estable habitual: XJ9hQ2JDHH. Si se crea una sesion nueva, actualizar
 
 - Control Cortex: [http://localhost:4000/](http://localhost:4000/)
 - Lyrics overlay: http://192.168.4.100:4000/spotify-lyrics-overlay.html?session=XJ9hQ2JDHH&ln=es&showqueue&lyrics&cortexrelay&style=comic&accent=%239fd50b
-- Rulo overlay: http://192.168.4.100:4000/rulo-bot-overlay.html?session=XJ9hQ2JDHH
-- Rulo dashboard: http://192.168.4.100:4000/rulo-dashboard.html?session=XJ9hQ2JDHH
-- Rulo historial: http://192.168.4.100:4000/rulo-chat-historial.html?session=XJ9hQ2JDHH
+- Rulo overlay: http://192.168.4.100:4000/rulo-bot-overlay.html
+- Rulo dashboard: http://192.168.4.100:4000/rulo-dashboard.html
+- Rulo historial: http://192.168.4.100:4000/rulo-chat-historial.html
 - Dock SSN: https://socialstream.ninja/dock.html?session=XJ9hQ2JDHH&ln=es&v=3.50.13
 - Featured SSN: https://socialstream.ninja/featured.html?session=XJ9hQ2JDHH&ln=es&v=3.50.13
 
@@ -224,6 +230,8 @@ Problema conocido: el dashboard puede guardar botName: Rulo, pero algunos evento
 El historial visual normal de Rulo persiste en `Rulo/rulo-chat-history.json` con un límite de 200 elementos. El archivo permanente de audiencia se conserva aparte en SQLite y no se borra al limpiar el historial visual. Los eventos de prueba viven solo en memoria y se descartan al reiniciar.
 
 La sección **Simular Streaming en VIVO** de `/rulo-hablar.html` es un banco para evaluar preguntas hipotéticas con el contexto de un programa y, opcionalmente, una persona de sus comentarios archivados en SQLite. Rulo debe responder con naturalidad en el papel seleccionado; la selección no verifica identidad. El modo aislado impide que la conversación simulada se guarde en el historial o la Ruleta. Los pedidos de Spotify pasan por Cortex y Chat Bot Spotify con el nombre e ID de archivo de esa persona; el detector compartido con el parser evita mantener reglas de intención duplicadas. El modo **Vista previa** interpreta y busca sin reproducir ni consumir cooldowns; **Reproducción real aislada** puede cambiar Spotify y requiere Modo de pruebas aislado. OAuth y bearer token permanecen en el servidor, sin exponerse al navegador ni a la IA. Para simular el vivo, Rulo y los interruptores de captura/pedidos deben estar encendidos; se aplican la cola FIFO y los cooldowns global y por persona configurados, en memoria separada por programa y con reloj 1× o 10×. La lotería queda activa solo para consultas de lectura: cualquier escritura o selección de números se rechaza. La grilla actual no se presenta como histórica; se puede guardar por programa una captura documentada y verificada. Preguntas y ejecuciones de evaluación se guardan en tablas SQLite separadas del historial de audiencia. Las respuestas no entrenan el modelo automáticamente; las correcciones aprobadas se guardan manualmente en Entrenamiento e IA. Detalle y rutas en [Rulo/README-SIMULACION-VIVOS.md](D:/plugins%20para%20mi%20OBS/Rulo/README-SIMULACION-VIVOS.md).
+
+Cuaderno Vivo se implementa como módulo lógico dentro de `Rulo - Cuaderno Vivo/`, servido por Control Cortex. Tiene un perfil entrerriano/argentino, cuatro niveles de tono, puntaje de carga y un selector Automático/Manual persistente; `/rulo-cuaderno-vivo.html` administra el estado y los recuerdos. La memoria SQLite local usa un HMAC de identidades estables vinculadas al archivo, nunca une personas solo por nombre y ofrece alta, corrección, borrado y propuestas revisables. Al pedir propuestas, se envían hasta 120 comentarios y respuestas públicas recientes al proveedor de IA configurado; la IA no guarda nada y cada propuesta requiere aprobación manual. `/rulo-hablar.html` puede recuperar recuerdos aprobados solo si se activa Cuaderno Vivo en Simular Streaming en VIVO; no persiste mensajes privados del simulador. El chat público conserva el generador actual. La fuente real de rol administrativo no está verificada en esta ruta, por lo que no se ingestan automáticamente mensajes de administradores reales; el perfil Admin del simulador no verifica permisos. Los respaldos guardan juntos la base de memoria y su clave HMAC. Ver `Rulo - Cuaderno Vivo/README.md`, `Rulo - Cuaderno Vivo/ARQUITECTURA-Y-MIGRACION.md` y `Control Cortex/backend/RESPALDOS-RULO.md`.
 
 La Ruleta de Participantes en `comentarios` importa personas únicas desde el archivo SQLite de Rulo. Los premios se configuran en su dashboard, pero no se aplican automáticamente: después de un ganador real, el operador confirma **Asignar premio**, la lotería y la cantidad desde el overlay. El servidor consulta la identidad estable desde un archivo privado y envía la concesión a Cortex, que usa la función de Firebase/Cdelu con idempotencia por giro y premio. Las vistas previas y el Modo de pruebas aislado no pueden otorgar tickets. Esto no cambia la simulación histórica: su lotería debe seguir en solo lectura, sin reservas ni escrituras.
 

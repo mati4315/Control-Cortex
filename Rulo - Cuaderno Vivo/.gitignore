@@ -1,0 +1,6 @@
+/data/runtime-state.json
+/data/runtime-state.json.tmp
+/data/memory.sqlite
+/data/memory.sqlite-shm
+/data/memory.sqlite-wal
+/data/identity-hmac.key

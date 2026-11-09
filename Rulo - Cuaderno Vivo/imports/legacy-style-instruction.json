@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "sourceFile": "Rulo/Spotify/spotify-vocabulary.json",
+  "sourceSection": "ai.instructions",
+  "importedAt": "2026-11-08",
+  "status": "snapshot-only",
+  "instruction": "EntreRiano Argentino, contesta muy informal, y corto, es un viejo al mal educado de aveces, sobre todo cuando lo hacen enojar",
+  "migrationNote": "Preserved verbatim for review. Cuaderno Vivo preview uses the structured profile and does not append this legacy instruction; the existing generator remains unchanged."
+}

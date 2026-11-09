@@ -1,12 +1,20 @@
 # Cortex Inicio
 
-Abre **http://localhost:4000/** o el acceso `ABRIR CORTEX.url` de la carpeta principal. Si el servidor está apagado, usa `Iniciar Control Cortex.bat`. El lanzador reutiliza Cortex si ya responde; no mata procesos del puerto 4000. Si otro proceso ocupa ese puerto, muestra un error para evitar cerrarlo por accidente. Para reiniciar Cortex, usa **Control de servicios** en el panel. Desde otra computadora, usa la IP del equipo Cortex y el puerto 4000.
+Abre **http://localhost:4000/** o el acceso `ABRIR CORTEX.url` de la carpeta principal. Si el servidor está apagado, usa `Iniciar Control Cortex.bat`. El lanzador reutiliza Cortex si ya responde; no mata procesos del puerto 4000. Si otro proceso ocupa ese puerto, muestra un error para evitar cerrarlo por accidente. Para reiniciarlo desde el panel, pulsa **Reiniciar Cortex** en la barra superior y confirma; el backend vuelve a iniciar y el panel se recarga automáticamente. Esta acción está disponible desde el origen del panel, incluido su enlace HTTPS privado de Tailscale; mantén el acceso a tu tailnet limitado a tus dispositivos. Desde otra computadora, usa la IP del equipo Cortex y el puerto 4000.
+
+## Instalar Cortex en Android con Chrome
+
+Cortex incluye un manifiesto PWA. Para que Chrome permita instalarlo desde fuera de la red local, usa HTTPS privado con Tailscale Serve. En la PC de Cortex, con Tailscale conectado y el backend funcionando, abre PowerShell como Administrador y ejecuta `tailscale serve --bg 4000`. Tailscale mostrará una dirección HTTPS privada con el nombre MagicDNS de esa PC, por ejemplo `https://nombre-equipo.nombre-red.ts.net`. Si solicita habilitar HTTPS para la tailnet, sigue el enlace que entrega el comando y vuelve a ejecutarlo. No uses Tailscale Funnel ni abras el puerto 4000 en el router.
+
+En Android, confirma que Tailscale esté conectado y abre esa dirección HTTPS en Chrome. En el menú ⋮ elige **Instalar app** (o **Añadir a pantalla de inicio** y luego **Instalar**). La PC debe permanecer encendida, Cortex iniciado y Tailscale conectado para usar la aplicación. Para retirar el acceso HTTPS privado, ejecuta `tailscale serve off` en la PC.
+
+El PWA muestra abajo los accesos para copiar la dirección y volver atrás. Los dashboards integrados de Cortex y los paneles de módulos registrados cargan la misma barra rápida. Los módulos en otros puertos siguen necesitando que ese servicio y el puerto 4000 de Cortex sean accesibles desde el dispositivo; los overlays de OBS no incluyen estos controles.
 
 ## Organización
 
 Inicio reúne los dashboards de Rulo y los servicios registrados en Cortex. Busca por función, filtra por categoría y marca estrellas para encontrar tus favoritos primero. «Añadir acceso» incorpora otros dashboards mediante su URL. Cada perfil conserva sus favoritos y enlaces. Para añadir un proceso que Cortex pueda arrancar o detener, usa **Control de servicios**, disponible en `/index.html`.
 
-Los enlaces a localhost de los servicios se adaptan al equipo que sirve Cortex. Los dashboards de Rulo reciben el Session ID existente. No se mueven las carpetas ni se cambian las URLs de OBS.
+Los enlaces a localhost de los servicios se adaptan al equipo que sirve Cortex. La navegación entre dashboards ya no agrega el parámetro legado `?session=...`; el Session ID se mantiene solo en las URLs de overlays que lo necesitan para identificar la sala de SocialStream Ninja. No se mueven las carpetas ni se cambian las URLs de OBS.
 
 ## Perfiles
 

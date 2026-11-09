@@ -17,7 +17,7 @@
     try { localStorage.setItem('cortex-home-theme', theme); } catch { /* La sesión actual mantiene el tema. */ }
   }
   setTheme(theme);
-  let state, base = {}, services = [], view = 'home', busy = false, obsPollBusy = false, editorMode, editingId, noticeTimer, aiModelDirty = false, pendingChanges = [], preflightStartedAt = 0, prepareProgressPollTimer = 0, prepareProgressPollActive = false, prepareProgressLastValue = 0, preflightButtonState = 'initial';
+  let state, services = [], view = 'home', busy = false, obsPollBusy = false, editorMode, editingId, noticeTimer, aiModelDirty = false, pendingChanges = [], preflightStartedAt = 0, prepareProgressPollTimer = 0, prepareProgressPollActive = false, prepareProgressLastValue = 0, preflightButtonState = 'initial';
   const overviewRequests = new Map();
   let overviewLastUpdatedAt = 0, servicesAreStale = false;
   let triggerStudioConnection = { ip: '', mode: 'tailscale', profiles: {}, configured: false, passwordConfigured: false }, triggerStudioDraftMode = null, triggerStudioDraftProfiles = null, triggerStudioFeedback = '', triggerStudioFeedbackOk = false;
@@ -282,7 +282,6 @@
       const url = new URL(raw, location.origin);
       if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
       if (['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) url.hostname = location.hostname;
-      if (url.origin === location.origin && /^\/rulo-/.test(url.pathname) && base.sessionId) url.searchParams.set('session', base.sessionId);
       return url.href;
     } catch { return null; }
   }
@@ -436,7 +435,11 @@
       const service = services.find(s => s.id === m.serviceId);
       bottom.append(node('span', service ? (service.status === 'online' ? '● Activo' : '○ Detenido') + (servicesAreStale ? ' · guardado' : '') : m.category));
       const href = destination(m.url);
-      if (href) { const a = node('a', 'Abrir panel ↗'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.setAttribute('aria-label', 'Abrir ' + m.name); bottom.append(a); }
+      if (href) {
+        const a = node('a', 'Abrir panel ↗'); a.href = href;
+        if (new URL(href).origin !== location.origin) { a.target = '_blank'; a.rel = 'noopener noreferrer'; }
+        a.setAttribute('aria-label', 'Abrir ' + m.name); bottom.append(a);
+      }
       else bottom.append(node('span', 'Enlace no válido'));
       card.append(bottom);
       if (service) {
@@ -1144,6 +1147,53 @@
   }
   $('search').oninput = () => state && renderCards(); $('category').onchange = () => state && render(); $('profile').onchange = () => activate($('profile').value);
   $('theme-toggle').onclick = () => setTheme(theme === 'dark' ? 'light' : 'dark');
+  $('pwa-copy-url')?.addEventListener('click', async () => {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(location.href);
+      else throw new Error('Clipboard API no disponible');
+      notice('Dirección de Cortex copiada.');
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = location.href;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.append(field);
+      field.select();
+      const copied = document.execCommand('copy');
+      field.remove();
+      notice(copied ? 'Dirección de Cortex copiada.' : 'No se pudo copiar la dirección.', !copied);
+    }
+  });
+  $('pwa-go-back')?.addEventListener('click', () => {
+    if (history.length > 1) history.back();
+    else if (location.pathname !== '/') location.assign('/');
+  });
+  fetch('/api/cortex/restart-capability', { cache: 'no-store' }).then(response => response.ok ? response.json() : null).then(data => {
+    if (data?.available) $('restart-cortex').hidden = false;
+  }).catch(() => {});
+  $('restart-cortex')?.addEventListener('click', async event => {
+    const button = event.currentTarget;
+    if (!window.confirm('¿Reiniciar Cortex ahora? El panel y sus conexiones se interrumpirán brevemente.')) return;
+    button.disabled = true;
+    try {
+      await request('/api/cortex/restart', {});
+      notice('Cortex se está reiniciando. El panel se recargará al volver a estar disponible.');
+      const deadline = Date.now() + 45000;
+      while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 1200));
+        try {
+          const response = await fetch('/api/cortex-base-url', { cache: 'no-store', signal: AbortSignal.timeout(2500) });
+          if (response.ok) { location.reload(); return; }
+        } catch { /* Cortex está reiniciando. */ }
+      }
+      notice('Cortex no volvió a responder. Comprueba la PC y ejecuta Iniciar Control Cortex.bat.', true);
+    } catch (error) {
+      notice('No se pudo reiniciar Cortex: ' + error.message, true);
+    } finally {
+      button.disabled = false;
+    }
+  });
   $('btn-refresh-obs').onclick = async event => {
     const button = event.currentTarget, label = button.querySelector('[data-label]');
     button.disabled = true;
@@ -1313,7 +1363,6 @@
   });
   $('copy-answer').onclick = async () => { try { await navigator.clipboard.writeText($('answer').textContent); notice('Respuesta copiada.'); } catch { notice('Selecciona la respuesta y cópiala con Ctrl+C.', true); } };
   async function load() {
-    void request('/api/cortex-base-url').then(value => { base = value; }).catch(() => {});
     void refreshOverview();
     try {
       state = await request('/api/cortex-home');

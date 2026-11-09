@@ -11,10 +11,6 @@
       const host = target.hostname.replace(/^\[|\]$/g, '').toLowerCase();
       const currentHost = location.hostname.replace(/^\[|\]$/g, '').toLowerCase();
       if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(host) && !['localhost', '127.0.0.1', '::1'].includes(currentHost)) target.hostname = location.hostname;
-      if (target.origin === base && !target.searchParams.has('session')) {
-        const session = new URL(location.href).searchParams.get('session');
-        if (session && target.pathname.startsWith('/rulo-')) target.searchParams.set('session', session);
-      }
       return target.href;
     } catch { return ''; }
   };

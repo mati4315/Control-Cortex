@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Rulo · Cuaderno Vivo</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0a0f16;--panel:#111925;--panel2:#0d141e;--line:#263346;--text:#e9eef5;--muted:#91a0b3;--accent:#a5d80b;--blue:#77a9ff;--warn:#efc65e;--bad:#ff7f84}
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--text);background:radial-gradient(ellipse at 8% 0%,#172333 0,transparent 44%),var(--bg);font:14px/1.5 Inter,"Segoe UI",Arial,sans-serif}
+    a{color:#c4e77b}button,input,select{font:inherit;color:inherit}button{cursor:pointer}.page{width:min(1120px,100%);margin:auto;padding:30px clamp(14px,3vw,34px) 45px}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:24px}.brand{display:flex;align-items:center;gap:13px}.logo{display:grid;width:44px;height:44px;place-items:center;border-radius:14px;color:#1b2607;background:linear-gradient(145deg,#d6f27f,#87b900);font-size:24px;font-weight:950}.eyebrow{color:var(--accent);font-size:10px;font-weight:850;letter-spacing:.16em;text-transform:uppercase}h1{margin:2px 0;font-size:clamp(24px,4vw,34px);line-height:1.1;letter-spacing:-.035em}h1 span{color:var(--accent)}.top-links{display:flex;gap:8px;flex-wrap:wrap}.top-links a,.button{display:inline-flex;align-items:center;justify-content:center;min-height:37px;padding:8px 12px;border:1px solid #344357;border-radius:9px;color:#dbe6f0;background:#121e2c;text-decoration:none;font-weight:750;font-size:12px}.top-links a:hover,.button:hover{border-color:#7186a2}.button.primary{border-color:#718b38;color:#e5f4c3;background:#263315}.button.active{border-color:#a5d80b;color:#e8f6c5;background:#263719}.button.danger{border-color:#855459;color:#ffd7d8;background:#331a20}
+    .banner{margin:0 0 17px;padding:12px 14px;border:1px solid #53633b;border-radius:11px;color:#d8e9bf;background:#172212}.banner strong{color:#edffc8}.grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(300px,.9fr);gap:16px;align-items:start}.card{border:1px solid var(--line);border-radius:15px;background:linear-gradient(160deg,#121b28,#0e151f);box-shadow:0 16px 45px #0003;padding:18px}.card h2{margin:0 0 5px;font-size:16px}.card p{margin:5px 0 13px;color:var(--muted);font-size:12px}.status-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:16px 0}.stat{padding:12px;border:1px solid #2e3d50;border-radius:10px;background:#0b131d}.stat small{display:block;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}.stat strong{display:block;margin-top:4px;font-size:20px}.bar{height:12px;overflow:hidden;border:1px solid #344357;border-radius:999px;background:#090e15}.bar span{display:block;height:100%;width:25%;border-radius:inherit;background:linear-gradient(90deg,#a5d80b,#f4cb4b,#ff7f84);transition:width .2s}.bar-labels{display:flex;justify-content:space-between;margin-top:5px;color:#718096;font-size:10px}.mode{display:flex;gap:8px;margin:14px 0}.levels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.level-button{min-height:56px;display:flex;flex-direction:column;gap:2px;padding:8px 5px;border:1px solid #344357;border-radius:10px;color:#cbd7e5;background:#101925;font-size:11px;font-weight:750}.level-button b{font-size:17px}.level-button[aria-pressed=true]{border-color:var(--accent);color:#e8f6c5;background:#263719;box-shadow:0 0 0 1px #a5d80b22}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.row .button{flex:0 0 auto}.preview{margin-top:14px;padding:13px;border:1px solid #2d4057;border-radius:11px;background:#0d1722}.preview label{display:block;margin:8px 0 4px;color:#d8e2ef;font-size:12px;font-weight:750}.preview input[type=range]{width:100%;accent-color:var(--accent)}.preview select{width:100%;padding:8px 9px;border:1px solid #344357;border-radius:8px;background:#0c141e}.preview-result{margin-top:10px;padding:10px;border-radius:8px;background:#111f2d;color:#dce7f2}.levels-table{width:100%;border-collapse:collapse;margin-top:9px;font-size:11px}.levels-table td{padding:7px 5px;border-bottom:1px solid #243143}.levels-table td:first-child{color:#c8e48d;font-weight:800}.note{color:var(--muted);font-size:11px}.status{min-height:18px;margin-top:12px;color:#c8ec81;font-size:12px}.status.error{color:#ff9a9f}.mobile-only{display:none}
+    [hidden]{display:none!important}.memory-card{margin-top:16px}.memory-toolbar{display:flex;gap:8px;align-items:center;margin:12px 0}.memory-toolbar input,.memory-form input,.memory-form select,.memory-form textarea{min-width:0;padding:9px 10px;border:1px solid #344357;border-radius:8px;background:#0b131d}.memory-toolbar input{flex:1}.memory-columns{display:grid;grid-template-columns:minmax(230px,.72fr) minmax(0,1.28fr);gap:14px;align-items:start}.subject-results,.memory-list,.suggestion-list{display:grid;gap:8px}.subject-result,.memory-item,.suggestion-item{padding:11px;border:1px solid #2b394c;border-radius:10px;background:#0c141e}.subject-result{width:100%;text-align:left}.subject-result:hover,.subject-result[aria-pressed=true]{border-color:#78913f;background:#172214}.subject-result strong,.memory-item strong,.suggestion-item strong{display:block;color:#e8eef5}.subject-result small,.memory-item small,.suggestion-item small{display:block;margin-top:3px;color:var(--muted);font-size:11px}.memory-toolbar .button{flex:0 0 auto}.memory-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}.memory-heading h3{margin:0;font-size:15px}.memory-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0;padding:12px;border:1px solid #2c3a4c;border-radius:11px;background:#0b131d}.memory-form label{display:grid;gap:4px;color:#cbd7e5;font-size:11px;font-weight:750}.memory-form .wide{grid-column:1/-1}.memory-form textarea{min-height:86px;resize:vertical}.memory-actions{display:flex;gap:7px;flex-wrap:wrap}.suggestion-list{margin:12px 0}.suggestion-item .evidence{margin:7px 0;color:#9eacc0;font-size:11px}.memory-list{margin-top:12px}.memory-item{display:grid;gap:7px}.memory-item .item-actions{display:flex;gap:7px;flex-wrap:wrap}.memory-empty{padding:14px;border:1px dashed #344357;border-radius:10px;color:var(--muted);font-size:12px}.memory-status{min-height:20px;margin:8px 0;color:#c8ec81;font-size:12px}.memory-status.error{color:#ff9a9f}
+    @media(max-width:760px){.top{align-items:flex-start;flex-direction:column}.grid{grid-template-columns:1fr}.status-grid{grid-template-columns:1fr 1fr}.status-grid .stat:last-child{grid-column:1/-1}.levels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:760px){.memory-columns{grid-template-columns:1fr}.memory-toolbar{align-items:stretch}.memory-form{grid-template-columns:1fr}.memory-form .wide{grid-column:auto}.memory-heading{align-items:flex-start;flex-direction:column}}
+  </style>
+<script src="/pwa-quick-actions.js" defer></script></head>
+<body>
+  <main class="page">
+    <header class="top">
+      <div class="brand"><div class="logo" aria-hidden="true">R</div><div><div class="eyebrow">Personalidad · control de tono</div><h1>Rulo · <span>Cuaderno Vivo</span></h1></div></div>
+      <nav class="top-links" aria-label="Navegación"><a href="/rulo-hablar.html">Abrir simulador</a><a href="/index.html">Volver a Cortex</a></nav>
+    </header>
+
+    <div class="banner"><strong>Etapa de migración en vista previa.</strong> Estos controles se usan para probar Cuaderno Vivo en el simulador. Las respuestas del chat público todavía usan el generador actual.</div>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="state-title">
+        <div class="row"><div><h2 id="state-title">Estado de tono</h2><p>El modo Manual mantiene el nivel elegido hasta que vuelvas a Automático.</p></div><span id="phase-badge" class="button">Vista previa aislada</span></div>
+        <div class="status-grid">
+          <div class="stat"><small>Modo</small><strong id="mode-value">Cargando…</strong></div>
+          <div class="stat"><small>Nivel aplicado</small><strong id="level-value">—</strong></div>
+          <div class="stat"><small>Puntaje de carga</small><strong id="points-value">—</strong></div>
+        </div>
+        <div class="bar" role="meter" aria-label="Puntaje de carga" aria-valuemin="0" aria-valuemax="40" aria-valuenow="10"><span id="score-bar"></span></div>
+        <div class="bar-labels"><span>0 · Contento</span><span>10 · Normal</span><span>20 · Enojado</span><span>30+ · Muy enojado</span></div>
+        <div class="mode"><button id="automatic-button" class="button primary" type="button">Automático</button><button id="manual-button" class="button" type="button">Manual</button></div>
+        <div id="manual-controls" hidden>
+          <div class="note">Elegí el nivel que querés fijar. No vence por tiempo.</div>
+          <div class="levels" role="group" aria-label="Nivel manual">
+            <button class="level-button" data-level="1" type="button"><b>1</b>Contento</button>
+            <button class="level-button" data-level="2" type="button"><b>2</b>Normal</button>
+            <button class="level-button" data-level="3" type="button"><b>3</b>Enojado</button>
+            <button class="level-button" data-level="4" type="button"><b>4</b>Muy enojado</button>
+          </div>
+        </div>
+        <div id="main-status" class="status" role="status" aria-live="polite"></div>
+      </section>
+
+      <section class="card" aria-labelledby="preview-title">
+        <h2 id="preview-title">Probar la escala de puntos</h2>
+        <p>Este cálculo es una vista previa y no cambia el estado guardado.</p>
+        <div class="preview">
+          <label for="preview-mode">Modo para esta prueba</label>
+          <select id="preview-mode"><option value="automatic">Automático por puntaje</option><option value="manual">Nivel manual</option></select>
+          <label for="preview-level">Nivel manual</label>
+          <select id="preview-level"><option value="1">1 · Contento</option><option value="2" selected>2 · Normal</option><option value="3">3 · Enojado</option><option value="4">4 · Muy enojado</option></select>
+          <label for="preview-points">Puntos: <span id="preview-points-label">10</span> / 40</label>
+          <input id="preview-points" type="range" min="0" max="40" value="10">
+          <div id="preview-result" class="preview-result" aria-live="polite">Calculando nivel…</div>
+        </div>
+        <table class="levels-table" aria-label="Rangos iniciales de la escala">
+          <tbody><tr><td>0–9</td><td>Nivel 1 · Contento</td></tr><tr><td>10–19</td><td>Nivel 2 · Normal</td></tr><tr><td>20–29</td><td>Nivel 3 · Enojado</td></tr><tr><td>30–40</td><td>Nivel 4 · Muy enojado</td></tr></tbody>
+        </table>
+        <p class="note">Las bandas de esta prueba son directas. El estado guardado usa histéresis al bajar: vuelve de nivel en 7, 17 y 27 puntos. Los eventos del chat y la cola todavía no están conectados.</p>
+      </section>
+    </div>
+
+    <section class="card memory-card" aria-labelledby="memory-title">
+      <div class="row"><div><h2 id="memory-title">Memoria por participante</h2><p>Los recuerdos quedan en la base local. Elegí una persona archivada por identidad estable; no se mezclan cuentas por compartir nombre.</p></div><span id="memory-storage-badge" class="button">Conectando memoria…</span></div>
+      <form id="subject-search" class="memory-toolbar">
+        <label class="mobile-only" for="subject-query">Buscar participante</label>
+        <input id="subject-query" type="search" maxlength="120" placeholder="Buscar por nombre visible" autocomplete="off">
+        <button class="button primary" type="submit">Buscar</button>
+      </form>
+      <p class="note">Solo aparecen personas con identidad estable en el archivo. El selector usa una referencia temporal protegida; nunca muestra el ID interno. Al proponer recuerdos se envían hasta 120 comentarios y respuestas públicas recientes al proveedor de IA configurado para Rulo. Revisá cada propuesta antes de guardarla.</p>
+      <div class="memory-columns">
+        <div><div id="subject-results" class="subject-results" aria-live="polite"></div><div id="subject-status" class="memory-status" role="status" aria-live="polite"></div></div>
+        <section id="memory-workspace" hidden aria-labelledby="selected-subject-name">
+          <div class="memory-heading"><div><h3 id="selected-subject-name">Elegí un participante</h3><div id="selected-subject-detail" class="note"></div></div><button id="suggest-memories" class="button" type="button">Analizar historial y proponer</button></div>
+          <div id="memory-status" class="memory-status" role="status" aria-live="polite"></div>
+          <div id="memory-suggestions" class="suggestion-list"></div>
+          <form id="memory-form" class="memory-form">
+            <input id="memory-id" type="hidden">
+            <input id="memory-source-start" type="hidden">
+            <input id="memory-source-end" type="hidden">
+            <label>Tipo<select id="memory-type"><option value="preference">Preferencia</option><option value="interest">Interés</option><option value="summary">Resumen</option><option value="reminder">Tema para retomar</option><option value="fact">Hecho</option></select></label>
+            <label>Confianza<input id="memory-confidence" type="number" min="0" max="1" step="0.01" value="1"></label>
+            <label>Uso<select id="memory-visibility"><option value="context">Contexto de Rulo</option><option value="admin">Solo administración</option></select></label>
+            <label class="wide">Recuerdo<textarea id="memory-content" maxlength="1600" required placeholder="Ej.: Suele pedir rock nacional y prefiere respuestas breves."></textarea></label>
+            <div class="memory-actions wide"><button id="memory-save" class="button primary" type="submit">Guardar recuerdo</button><button id="memory-cancel-edit" class="button" type="button" hidden>Cancelar corrección</button></div>
+          </form>
+          <h3>Recuerdos guardados</h3>
+          <div id="memory-list" class="memory-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+  <script>
+    (() => {
+      const $ = id => document.getElementById(id);
+      let state = null;
+      let selectedSubject = null;
+      const memoryTypeLabels = { preference:'Preferencia', interest:'Interés', summary:'Resumen', reminder:'Tema para retomar', fact:'Hecho' };
+      function showStatus(message, error = false) { $('main-status').textContent = message || ''; $('main-status').classList.toggle('error', error); }
+      function memoryStatus(message, error = false) { $('memory-status').textContent = message || ''; $('memory-status').classList.toggle('error', error); }
+      async function request(url, body, method) {
+        const response = await fetch(url, { method: method || (body === undefined ? 'GET' : 'POST'), headers: { 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }), cache: 'no-store' });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || result.ok !== true) throw new Error(result.error || `Cortex respondió HTTP ${response.status}.`);
+        return result;
+      }
+      function render(current) {
+        state = current;
+        $('mode-value').textContent = current.mode === 'manual' ? 'Manual' : 'Automático';
+        $('level-value').textContent = `${current.currentLevel} · ${current.currentLabel}`;
+        $('points-value').textContent = `${current.points} / ${current.maxPoints}`;
+        $('score-bar').style.width = `${Math.min(100, current.points / current.maxPoints * 100)}%`;
+        document.querySelector('.bar').setAttribute('aria-valuenow', String(current.points));
+        $('automatic-button').classList.toggle('active', current.mode === 'automatic');
+        $('manual-button').classList.toggle('active', current.mode === 'manual');
+        $('manual-controls').hidden = current.mode !== 'manual';
+        $('memory-storage-badge').textContent = current.memoryAvailable ? 'Memoria local lista' : 'Memoria local no disponible';
+        $('memory-storage-badge').classList.toggle('danger', !current.memoryAvailable);
+        $('memory-storage-badge').setAttribute('title', current.memoryError || '');
+        document.querySelectorAll('[data-level]').forEach(button => button.setAttribute('aria-pressed', String(current.mode === 'manual' && Number(button.dataset.level) === current.manualLevel)));
+      }
+      async function load() { try { render(await request('/api/cortex-home/cuaderno-vivo/state')); } catch (error) { showStatus(error.message, true); } }
+      async function setMode(mode, level) {
+        showStatus('Guardando…');
+        try { render(await request('/api/cortex-home/cuaderno-vivo/control', { mode, ...(mode === 'manual' ? { level } : {}) })); showStatus(mode === 'manual' ? 'Nivel manual fijado. Volvé a Automático cuando quieras retomar el puntaje.' : 'Modo Automático activo.'); }
+        catch (error) { showStatus(error.message, true); }
+      }
+      async function preview() {
+        const points = Number($('preview-points').value);
+        $('preview-points-label').textContent = String(points);
+        $('preview-level').disabled = $('preview-mode').value !== 'manual';
+        try {
+          const result = await request('/api/cortex-home/cuaderno-vivo/preview', { mode: $('preview-mode').value, level: Number($('preview-level').value), points });
+          $('preview-result').textContent = `${result.label} · Nivel ${result.level} · ${result.points} puntos`;
+        } catch (error) { $('preview-result').textContent = error.message; }
+      }
+      function node(tag, className, text) {
+        const element = document.createElement(tag);
+        if (className) element.className = className;
+        if (text !== undefined) element.textContent = text;
+        return element;
+      }
+      async function searchSubjects() {
+        $('subject-status').textContent = 'Buscando…'; $('subject-status').classList.remove('error');
+        try {
+          const search = $('subject-query').value.trim();
+          const result = await request(`/api/cortex-home/cuaderno-vivo/subjects?search=${encodeURIComponent(search)}`);
+          const list = $('subject-results'); list.replaceChildren();
+          if (!result.items.length) list.append(node('div', 'memory-empty', 'No encontré participantes con identidad estable para esa búsqueda.'));
+          for (const item of result.items) {
+            const button = node('button', 'subject-result'); button.type = 'button';
+            button.setAttribute('aria-pressed', String(selectedSubject?.handle === item.handle));
+            button.append(node('strong', '', item.displayName || 'Participante'));
+            button.append(node('small', '', `${item.platform} · ${item.commentCount} comentarios · ${item.programCount} programas`));
+            button.append(node('small', '', `${item.firstProgram || '—'} a ${item.lastProgram || '—'}`));
+            button.addEventListener('click', () => selectSubject(item));
+            list.append(button);
+          }
+          $('subject-status').textContent = `${result.items.length} participantes para elegir.`;
+        } catch (error) { $('subject-status').textContent = error.message; $('subject-status').classList.add('error'); }
+      }
+      async function selectSubject(item) {
+        selectedSubject = item;
+        $('memory-workspace').hidden = false;
+        $('selected-subject-name').textContent = item.displayName || 'Participante';
+        $('selected-subject-detail').textContent = `${item.platform} · ${item.commentCount} comentarios archivados · ${item.firstProgram || '—'} a ${item.lastProgram || '—'}`;
+        $('memory-suggestions').replaceChildren(); memoryStatus('Cargando recuerdos…');
+        await searchSubjects();
+        await loadMemories();
+      }
+      async function loadMemories() {
+        if (!selectedSubject) return;
+        try {
+          const result = await request(`/api/cortex-home/cuaderno-vivo/memories?handle=${encodeURIComponent(selectedSubject.handle)}`);
+          renderMemories(result.items);
+          memoryStatus(result.items.length ? `${result.items.length} recuerdos guardados. Se aplican en la simulación al activar Cuaderno Vivo.` : 'Todavía no hay recuerdos para esta persona.');
+        } catch (error) { memoryStatus(error.message, true); }
+      }
+      function renderMemories(items) {
+        const list = $('memory-list'); list.replaceChildren();
+        if (!items.length) { list.append(node('div', 'memory-empty', 'Sin recuerdos guardados. Podés agregar uno o preparar propuestas desde el historial.')); return; }
+        for (const item of items) {
+          const card = node('article', 'memory-item');
+          card.append(node('strong', '', `${memoryTypeLabels[item.type] || item.type} · ${Math.round(item.confidence * 100)}% de confianza`));
+          card.append(node('div', '', item.content));
+          const dates = item.sourceStartDate || item.sourceEndDate ? ` · Archivo ${item.sourceStartDate || '—'} a ${item.sourceEndDate || '—'}` : '';
+          card.append(node('small', '', `${item.visibility === 'context' ? 'Contexto de Rulo' : 'Solo administración'} · ${item.sourceType === 'archive-review' ? 'Revisado desde archivo' : 'Nota manual'}${dates}`));
+          const actions = node('div', 'item-actions');
+          const edit = node('button', 'button', 'Corregir'); edit.type = 'button'; edit.addEventListener('click', () => editMemory(item));
+          const remove = node('button', 'button danger', 'Borrar'); remove.type = 'button'; remove.addEventListener('click', () => deleteMemory(item));
+          actions.append(edit, remove); card.append(actions); list.append(card);
+        }
+      }
+      function editMemory(item) {
+        $('memory-id').value = item.id; $('memory-type').value = item.type;
+        $('memory-confidence').value = String(item.confidence); $('memory-visibility').value = item.visibility;
+        $('memory-content').value = item.content; $('memory-source-start').value = item.sourceStartDate || '';
+        $('memory-source-end').value = item.sourceEndDate || '';
+        $('memory-save').textContent = 'Guardar corrección'; $('memory-cancel-edit').hidden = false;
+        $('memory-content').focus();
+      }
+      function resetMemoryForm() {
+        $('memory-form').reset(); $('memory-id').value = '';
+        $('memory-source-start').value = ''; $('memory-source-end').value = '';
+        $('memory-confidence').value = '1'; $('memory-visibility').value = 'context';
+        $('memory-save').textContent = 'Guardar recuerdo'; $('memory-cancel-edit').hidden = true;
+      }
+      async function saveMemory(input) {
+        if (!selectedSubject) return false;
+        try {
+          const result = await request('/api/cortex-home/cuaderno-vivo/memories', { ...input, handle: selectedSubject.handle });
+          if (result.ok) { memoryStatus('Recuerdo guardado.'); await loadMemories(); return true; }
+          memoryStatus(result.error || 'No se pudo guardar.', true); return false;
+        } catch (error) { memoryStatus(error.message, true); return false; }
+      }
+      async function deleteMemory(item) {
+        if (!selectedSubject || !confirm('¿Borrar este recuerdo de forma permanente?')) return;
+        try {
+          await request(`/api/cortex-home/cuaderno-vivo/memories/${encodeURIComponent(item.id)}?handle=${encodeURIComponent(selectedSubject.handle)}`, undefined, 'DELETE');
+          resetMemoryForm(); await loadMemories(); memoryStatus('Recuerdo borrado.');
+        } catch (error) { memoryStatus(error.message, true); }
+      }
+      function renderSuggestions(result) {
+        const list = $('memory-suggestions'); list.replaceChildren();
+        if (!result.suggestions.length) { list.append(node('div', 'memory-empty', 'No aparecieron propuestas con evidencia suficiente.')); return; }
+        list.append(node('div', 'note', `Propuestas basadas en ${result.sourceCount} comentarios, ${result.sourceStartDate || '—'} a ${result.sourceEndDate || '—'}. Revisá cada una; nada se guardó todavía.`));
+        result.suggestions.forEach(suggestion => {
+          const card = node('article', 'suggestion-item');
+          card.append(node('strong', '', `${memoryTypeLabels[suggestion.type] || suggestion.type} · ${Math.round(suggestion.confidence * 100)}%`));
+          card.append(node('div', '', suggestion.content));
+          if (suggestion.evidenceNote) card.append(node('div', 'evidence', suggestion.evidenceNote));
+          const save = node('button', 'button primary', 'Revisar y guardar'); save.type = 'button';
+          save.addEventListener('click', async () => {
+            save.disabled = true;
+            const saved = await saveMemory({ type: suggestion.type, content: suggestion.content, confidence: suggestion.confidence, visibility: 'context', sourceType: 'archive-review', sourceStartDate: result.sourceStartDate, sourceEndDate: result.sourceEndDate });
+            save.textContent = saved ? 'Guardado' : 'Reintentar'; save.disabled = saved;
+          });
+          card.append(save); list.append(card);
+        });
+      }
+      async function suggestMemories() {
+        if (!selectedSubject) return;
+        $('suggest-memories').disabled = true; $('suggest-memories').textContent = 'Analizando…';
+        memoryStatus('Preparando propuestas desde el archivo público…'); $('memory-suggestions').replaceChildren();
+        try {
+          const result = await request('/api/cortex-home/cuaderno-vivo/memories/suggest', { handle: selectedSubject.handle });
+          renderSuggestions(result); memoryStatus('Propuestas listas para revisión.');
+        } catch (error) { memoryStatus(error.message, true); }
+        finally { $('suggest-memories').disabled = false; $('suggest-memories').textContent = 'Analizar historial y proponer'; }
+      }
+      $('subject-search').addEventListener('submit', event => { event.preventDefault(); searchSubjects(); });
+      $('suggest-memories').addEventListener('click', suggestMemories);
+      $('memory-form').addEventListener('submit', async event => {
+        event.preventDefault();
+        const id = $('memory-id').value;
+        const item = {
+          type: $('memory-type').value,
+          content: $('memory-content').value,
+          confidence: Number($('memory-confidence').value),
+          visibility: $('memory-visibility').value,
+          sourceStartDate: $('memory-source-start').value,
+          sourceEndDate: $('memory-source-end').value
+        };
+        if (id) {
+          try {
+            await request(`/api/cortex-home/cuaderno-vivo/memories/${encodeURIComponent(id)}`, { ...item, handle: selectedSubject?.handle }, 'PATCH');
+            resetMemoryForm(); await loadMemories(); memoryStatus('Recuerdo corregido.');
+          } catch (error) { memoryStatus(error.message, true); }
+        } else if (await saveMemory({ ...item, sourceType: 'manual' })) resetMemoryForm();
+      });
+      $('memory-cancel-edit').addEventListener('click', resetMemoryForm);
+      $('automatic-button').addEventListener('click', () => setMode('automatic'));
+      $('manual-button').addEventListener('click', () => { if (state) setMode('manual', state.manualLevel); });
+      document.querySelectorAll('[data-level]').forEach(button => button.addEventListener('click', () => setMode('manual', Number(button.dataset.level))));
+      ['preview-mode', 'preview-level', 'preview-points'].forEach(id => $(id).addEventListener('input', preview));
+      load(); preview(); searchSubjects(); setInterval(load, 15000);
+    })();
+  </script>
+</body>
+</html>

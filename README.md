@@ -18,6 +18,7 @@ Guía rápida del workspace de Windows. El proyecto está repartido en servicios
 | `Chat Bot Spotify` | Extensión propia para capturar Facebook, OAuth PKCE y procesamiento de pedidos Spotify | 9765 | [`Chat Bot Spotify/README.md`](Chat%20Bot%20Spotify/README.md), [`Chat Bot Spotify/AGENTS.md`](Chat%20Bot%20Spotify/AGENTS.md) |
 | `comentarios` | Historial visual, dashboard y Ruleta de Participantes para OBS | 9742 | `comentarios/public/dashboard.html`, reglas en este README y `AGENTS.md` |
 | `Rulo` | Interfaz conversacional, overlays, historial y entrenamiento | servido por Cortex | [`Rulo/README.md`](Rulo/README.md), [`Rulo/README-SIMULACION-VIVOS.md`](Rulo/README-SIMULACION-VIVOS.md) |
+| `Rulo - Cuaderno Vivo` | Perfil, control de tono y memoria revisable por participante, integrada solo a la simulación aislada | servido por Cortex | [`Rulo - Cuaderno Vivo/README.md`](Rulo%20-%20Cuaderno%20Vivo/README.md), [`ARQUITECTURA-Y-MIGRACION.md`](Rulo%20-%20Cuaderno%20Vivo/ARQUITECTURA-Y-MIGRACION.md) |
 | `Control Cortex/integrations/spotify-auto-music` | Integración heredada con SocialStream Ninja | — | Su [`README.md`](Control%20Cortex/integrations/spotify-auto-music/README.md) documenta el flujo de Spotify Desktop que también conserva el módulo propio. |
 | `Trigger Studio` | Triggers y acciones de OBS | 2188; OBS WebSocket 4455 | `Trigger Studio/README.md`, `Trigger Studio/AGENTS.md` |
 | `Modulo de loteria` | Overlay OBS, relanzamiento inverso, cola persistente administrable y lista de compras con búsqueda | 688 | Revisar su `package.json` y scripts antes de operarlo. |
@@ -26,6 +27,10 @@ Guía rápida del workspace de Windows. El proyecto está repartido en servicios
 | `luces`, `modulo de tiempo y clima` | Overlays y controles independientes | 3758, 3757 | Revisar sus dashboards y `package.json`. |
 
 Los puertos son configuración, no garantía de que cada proceso esté corriendo. `Control Cortex/backend/services.json` es el registro del dashboard central; `pm2 ls` muestra el estado de los procesos administrados por PM2.
+
+Cortex se puede instalar como app web desde Chrome. Para Android fuera de la red local, usa Tailscale Serve para dar HTTPS privado al panel y sigue la guía de [`Control Cortex/CORTEX-INICIO.md`](Control%20Cortex/CORTEX-INICIO.md); no publiques el puerto 4000 con Funnel ni en el router.
+
+Desde el panel también se puede reiniciar Cortex: la acción reinicia el backend de Windows y vuelve a abrirlo minimizado. El reinicio corta brevemente las conexiones del panel y sus WebSockets.
 
 ## Flujo de comentarios, Rulo y SQLite
 
@@ -71,6 +76,7 @@ No expongas `facebook_user_id` ni las asociaciones privadas al overlay, dashboar
 | Ruleta de Participantes | `http://localhost:9742/dashboard.html` |
 | Historial de Rulo | `http://localhost:4000/rulo-chat-historial.html` |
 | Hablar con Rulo | `http://localhost:4000/rulo-hablar.html` |
+| Cuaderno Vivo | `http://localhost:4000/rulo-cuaderno-vivo.html` |
 | Trazas recientes | `http://localhost:4000/event-traces.html` |
 
 Desde otra PC, usa la IP LAN del servidor y comprueba el firewall de Windows. No publiques estos servicios o puertos hacia Internet sin un diseño de autenticación y red específico.
@@ -86,5 +92,6 @@ Desde la raíz, ejecuta `npm run test:regression` para validar trazas, evaluaci�
 - [`CAMBIOS-PROYECTO.md`](CAMBIOS-PROYECTO.md): registro breve de cambios y reinicios requeridos.
 - [`Rulo/README.md`](Rulo/README.md): páginas, API, historial, identidades y avatares.
 - [`Rulo/README-SIMULACION-VIVOS.md`](Rulo/README-SIMULACION-VIVOS.md): simulación de preguntas, aislamiento, Spotify y lotería de solo lectura.
+- [`Rulo - Cuaderno Vivo/README.md`](Rulo%20-%20Cuaderno%20Vivo/README.md): perfil y migración gradual de personalidad y memoria de Rulo.
 - [`Chat Bot Spotify/README.md`](Chat%20Bot%20Spotify/README.md): instalación del capturador y APIs del módulo propio.
 - [`Chat Bot Spotify/AGENTS.md`](Chat%20Bot%20Spotify/AGENTS.md): reglas de trabajo específicas de Spotify y la captura Facebook.

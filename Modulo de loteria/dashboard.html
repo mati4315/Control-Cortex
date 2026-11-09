@@ -678,7 +678,7 @@
   document.head.append(script);
 })();
 </script>
-</head>
+<script src="/pwa-quick-actions.js" defer></script></head>
 <body>
 
   <div class="container">
@@ -793,6 +793,10 @@
           <label>Token de Seguridad WS</label>
           <input type="password" class="input-control" id="ws-token" value="" placeholder="Mismo token que WS_TOKEN del servidor" onchange="saveConfig()">
           <p class="help-text">Secreto compartido con el backend. Debe coincidir con la variable WS_TOKEN del servidor WS.</p>
+          <div class="save-row">
+            <span class="save-state" id="ws-token-save-state" role="status" aria-live="polite">El token se guarda en este navegador.</span>
+            <button class="btn-save" id="btn-save-ws-token" type="button" onclick="saveWsToken()">Guardar token</button>
+          </div>
         </div>
       </div>
 
@@ -1063,6 +1067,7 @@
       document.getElementById('val-right-tilt').textContent = Number(config.RIGHT_TILT_DEG ?? 24).toFixed(0);
       document.getElementById('ws-url').value = config.WEBSOCKET_URL;
       document.getElementById('api-url').value = config.API_URL || '';
+      document.getElementById('ws-token').value = config.WS_TOKEN || '';
       document.getElementById('trigger-num').value = config.TRIGGER_NUM || 7;
       document.getElementById('trigger-name').value = config.TRIGGER_NAME || config.WINNER_NAME || 'Matias Moreira';
       document.getElementById('cfg-ticker-enabled').checked = config.TICKER_ENABLED !== false;
@@ -1724,6 +1729,21 @@
       saveConfig();
       sendConfigUpdate();
       setSavedState('Guardado manual exitoso');
+    }
+
+    function saveWsToken() {
+      saveConfig();
+      const state = document.getElementById('ws-token-save-state');
+      if (state) {
+        state.className = 'save-state ok';
+        state.textContent = 'Token guardado en este navegador.';
+      }
+
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        requestPurchasedEntries();
+      } else {
+        setPurchasedEntriesStatus('Token guardado. Esperando la conexión WebSocket…');
+      }
     }
 
     function resetToDefaults() {
