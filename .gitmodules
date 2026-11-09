@@ -1,0 +1,9 @@
+[submodule "SocialStream Ninja"]
+	path = SocialStream Ninja
+	url = https://github.com/mati4315/Control-Cortex---SocialStream-Ninja.git
+[submodule "Trigger Studio"]
+	path = Trigger Studio
+	url = https://github.com/mati4315/TriggerStudio.git
+[submodule "comentarios"]
+	path = comentarios
+	url = https://github.com/mati4315/Control-Cortex---comentarios.git
