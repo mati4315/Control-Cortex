@@ -1,7 +1,8 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $Modules = @()
+$script:GitExe = $null
 $LocalOnly = @{
   '.' = @('Control Cortex/backend/spotify-device-target.json')
   'SocialStream Ninja' = @('local-overrides/cortex-base-url.js')
@@ -14,7 +15,7 @@ function Invoke-Git {
     [switch]$Silent,
     [switch]$AllowFailure
   )
-  $Output = @(& git -C $Repo @GitArgs 2>&1 | ForEach-Object { [string]$_ })
+  $Output = @(& $script:GitExe -C $Repo @GitArgs 2>&1 | ForEach-Object { [string]$_ })
   $Code = $LASTEXITCODE
   $script:LastGitExitCode = $Code
   if (-not $Silent -and $Output.Count -gt 0) { $Output | ForEach-Object { Write-Host $_ } }
@@ -22,6 +23,28 @@ function Invoke-Git {
     throw "Falló git $($GitArgs -join ' ') dentro de '$Repo' (código $Code)."
   }
   return ,$Output
+}
+
+function Find-Git {
+  $Candidates = @()
+  $FromPath = Get-Command git -ErrorAction SilentlyContinue
+  if ($FromPath -and $FromPath.Source) { $Candidates += $FromPath.Source }
+  if ($env:ProgramFiles) { $Candidates += (Join-Path $env:ProgramFiles 'Git/cmd/git.exe') }
+  if (${env:ProgramFiles(x86)}) { $Candidates += (Join-Path ${env:ProgramFiles(x86)} 'Git/cmd/git.exe') }
+  if ($env:LOCALAPPDATA) { $Candidates += (Join-Path $env:LOCALAPPDATA 'Programs/Git/cmd/git.exe') }
+
+  $WindowsApps = if ($env:ProgramFiles) { Join-Path $env:ProgramFiles 'WindowsApps' } else { '' }
+  if ($WindowsApps -and (Test-Path -LiteralPath $WindowsApps)) {
+    $RuntimeFolders = Get-ChildItem -LiteralPath $WindowsApps -Directory -Filter 'OpenAI.CodexPrimaryRuntime*' -ErrorAction SilentlyContinue | Sort-Object Name -Descending
+    foreach ($Folder in $RuntimeFolders) {
+      $Candidates += (Join-Path $Folder.FullName 'dependencies/native/git/cmd/git.exe')
+    }
+  }
+
+  foreach ($Candidate in $Candidates) {
+    if ($Candidate -and (Test-Path -LiteralPath $Candidate)) { return $Candidate }
+  }
+  return $null
 }
 
 function Get-DirtyPaths {
@@ -244,7 +267,23 @@ function Publish-All {
 }
 
 try {
-  if (-not (Get-Command git -ErrorAction SilentlyContinue)) { throw 'Git no está instalado o no está en PATH.' }
+  $script:GitExe = Find-Git
+  if (-not $script:GitExe) {
+    $Winget = Get-Command winget -ErrorAction SilentlyContinue
+    if ($Winget) {
+      Write-Host 'No se encontró Git for Windows. Es necesario para sincronizar con GitHub.' -ForegroundColor Yellow
+      $InstallAnswer = Read-Host '¿Quieres instalar Git for Windows en esta PC con winget? (S/N)'
+      if ($InstallAnswer -match '^(s|si|sí|y|yes)$') {
+        & $Winget.Source install --id Git.Git --exact --scope user --accept-source-agreements --accept-package-agreements
+        if ($LASTEXITCODE -ne 0) { throw 'winget no pudo instalar Git. Instálalo desde https://git-scm.com/download/win y vuelve a abrir el BAT.' }
+        $script:GitExe = Find-Git
+      }
+    } else {
+      Write-Host 'Voy a abrir la página oficial para instalar Git for Windows.' -ForegroundColor Yellow
+      Start-Process 'https://git-scm.com/download/win'
+    }
+    if (-not $script:GitExe) { throw 'Git for Windows no está instalado. Instálalo desde https://git-scm.com/download/win y vuelve a abrir el BAT.' }
+  }
   $GitRoot = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '--show-toplevel') -Silent
   if ($script:LastGitExitCode -ne 0) { throw 'Esta carpeta no es un repositorio Git.' }
   if (-not (Test-Path -LiteralPath (Join-Path $Root '.gitmodules'))) { throw 'No se encontró el archivo .gitmodules.' }
