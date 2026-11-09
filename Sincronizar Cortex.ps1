@@ -210,6 +210,7 @@ function Sync-Down {
   }
   $ModuleStashes = @()
   foreach ($Module in $Modules) {
+    if (-not (Test-Path -LiteralPath $Module.FullPath)) { continue }
     if (@(Get-DirtyPaths $Module.FullPath | Where-Object { (Get-ExcludedPaths $Module.Path) -contains $_ }).Count -gt 0) {
       $Ref = Get-StashRef $Module.FullPath $Module.Path
       if ($Ref) { $ModuleStashes += [pscustomobject]@{ Repo = $Module.FullPath; Ref = $Ref } }
@@ -265,6 +266,7 @@ function Publish-All {
   }
   $LocalStashes = @()
   foreach ($Module in $Modules) {
+    if (-not (Test-Path -LiteralPath $Module.FullPath)) { continue }
     if (@(Get-DirtyPaths $Module.FullPath | Where-Object { (Get-ExcludedPaths $Module.Path) -contains $_ }).Count -gt 0) {
       $Ref = Get-StashRef $Module.FullPath $Module.Path
       if ($Ref) { $LocalStashes += [pscustomobject]@{ Repo = $Module.FullPath; Ref = $Ref } }
@@ -298,9 +300,26 @@ try {
   }
   $GitRoot = Invoke-Git -Repo $Root -GitArgs @('rev-parse', '--show-toplevel') -Silent
   if ($script:LastGitExitCode -ne 0) { throw 'Esta carpeta no es un repositorio Git.' }
-  if (-not (Test-Path -LiteralPath (Join-Path $Root '.gitmodules'))) { throw 'No se encontró el archivo .gitmodules.' }
+  $GitmodulesPath = Join-Path $Root '.gitmodules'
+  if (-not (Test-Path -LiteralPath $GitmodulesPath)) {
+    if (@(Get-SharedDirtyPaths $Root '.').Count -gt 0) {
+      throw 'Esta copia no tiene .gitmodules y además contiene cambios compartibles. Sincroniza primero una copia limpia para actualizar su estructura.'
+    }
+    Write-Host 'Esta copia aún no tiene .gitmodules; actualizaré el repo principal primero.' -ForegroundColor Yellow
+    $BootstrapStash = $null
+    if (@(Get-DirtyPaths $Root | Where-Object { (Get-ExcludedPaths '.') -contains $_ }).Count -gt 0) {
+      $BootstrapStash = Get-StashRef $Root '.'
+    }
+    try {
+      Invoke-Git -Repo $Root -GitArgs @('fetch', '--prune', 'origin')
+      Invoke-Git -Repo $Root -GitArgs @('pull', '--rebase', 'origin', (Get-BranchName $Root))
+    } finally {
+      Restore-LocalStash $Root $BootstrapStash
+    }
+  }
   $CurrentModule = $null
-  foreach ($Line in Get-Content -LiteralPath (Join-Path $Root '.gitmodules')) {
+  if (Test-Path -LiteralPath $GitmodulesPath) {
+  foreach ($Line in Get-Content -LiteralPath $GitmodulesPath) {
     if ($Line -match '^\s*\[submodule\s+"(.+)"\]\s*$') { $CurrentModule = $Matches[1]; continue }
     if ($CurrentModule -and $Line -match '^\s*path\s*=\s*(.+?)\s*$') {
       $RelativePath = $Matches[1]
@@ -312,8 +331,10 @@ try {
       $CurrentModule = $null
     }
   }
+  }
 
   if ($Auto) {
+    if (@($Modules | Where-Object { -not (Test-Path -LiteralPath (Join-Path $_.FullPath '.git')) }).Count -gt 0) { Sync-Down; exit 0 }
     if (Publish-All) { Sync-Down }
     exit 0
   }
