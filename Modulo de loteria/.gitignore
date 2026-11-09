@@ -13,6 +13,8 @@ service-account.json
 .avatar-cache.json
 lottery-queue-state.json
 lottery-queue-state.json.tmp
+lottery-config-snapshot.json
+lottery-config-snapshot.json.tmp
 
 # Copias de seguridad
 copia de seguridad/

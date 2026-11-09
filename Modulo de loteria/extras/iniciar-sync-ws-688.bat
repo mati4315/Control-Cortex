@@ -32,13 +32,6 @@ echo.
 
 :port_free
 
-:: Token (definilo en .env o variable de entorno, NO hardcodeado)
-if "%WS_TOKEN%"=="" (
-  echo [WARN] WS_TOKEN no definido. El servidor WS no validara tokens.
-  echo        Definila con: set WS_TOKEN=tu-token
-  echo.
-)
-
 where node >nul 2>&1
 if errorlevel 1 (
   echo [ERROR] Node.js no esta instalado o no esta en PATH.

@@ -49,6 +49,8 @@ El backend de Control Cortex vuelve a sincronizar los overrides e inyecta el loa
 
 El nombre Bienvendos y Banner esta escrito asi en disco. No renombrarlo sin revisar scripts, accesos directos y rutas.
 
+El WebSocket del Módulo de lotería funciona sin `WS_TOKEN`. Cualquier dispositivo que pueda alcanzar el puerto 688 puede leer compradores, lanzar bolillas y modificar la cola; no publiques ese puerto fuera de la red privada.
+
 ## Arquitectura actual
 
     Brave + extension SocialStream Ninja
@@ -101,6 +103,8 @@ Archivos de entrada principales:
 Puerto principal: 4000.
 
 El inicio de Cortex tiene manifiesto PWA e iconos para instalarlo desde Chrome. El acceso desde Android por Tailscale requiere HTTPS privado; documentado en Control Cortex/CORTEX-INICIO.md mediante Tailscale Serve apuntando al puerto local 4000. No exponer este panel con Funnel ni abrir el puerto 4000 a Internet.
+
+Las preferencias operativas de Inicio (tema, perfil de transmisión y sus opciones) viven en Control Cortex/backend/cortex-home.json para compartirlas entre localhost, red local y Tailscale HTTPS. Las configuraciones operativas de módulos se guardan en sus servidores locales existentes; secretos y tokens no se incluyen en la sincronización.
 
 La barra superior del inicio permite reiniciar el backend Windows de Cortex desde el panel con confirmación. El servidor programa un proceso auxiliar que espera el cierre y vuelve a lanzar `server.js`, y el cliente recarga al recuperar conexión. El endpoint exige origen del propio panel; solo debe habilitarse a dispositivos confiables de la red privada Tailscale.
 

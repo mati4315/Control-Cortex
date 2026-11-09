@@ -2,6 +2,15 @@
 
 Registro por módulo. Cada entrada indica qué se modificó y qué debe recargarse para que la versión nueva entre en uso.
 
+## 2026-11-09 — Preferencias compartidas y paneles espejo
+
+- Inicio de Cortex guarda en su archivo de estado compartido el tema y los perfiles de transmisión; migra la preferencia del navegador una vez y distribuye cambios entre paneles abiertos. Los cachés de estado siguen siendo locales.
+- Se corrigió la carga de Inicio cuando el estado cacheado de servicios estaba activo: el botón de TriggerStudio ya no se consulta fuera del bloque que lo crea.
+- Lotería guarda su configuración operativa en un archivo local excluido de Git. Los dashboards leen y actualizan la copia del servidor; el token y el endpoint específico de cada cliente quedan fuera de esa copia.
+- Tailscale HTTPS ahora envía el WebSocket de Lotería por el mismo origen y Cortex lo retransmite al servidor local del módulo con límite de tamaño, búfer y comprobación de origen. OBS y las páginas HTTP mantienen su conexión local.
+- Los módulos que ya persisten su configuración en sus servicios locales mantienen esa única fuente de verdad. Las claves y tokens continúan en archivos protegidos o en el navegador del operador.
+- Recarga Inicio y los dashboards con Ctrl+F5. La primera dirección que abra Inicio migra el tema y perfil anteriores de ese navegador; después el servidor comparte esa preferencia entre las direcciones.
+
 ## 2026-11-08 — Cuaderno Vivo: memoria revisable por participante
 
 - Añadida memoria SQLite local asociada por HMAC a identidades estables ya vinculadas en el archivo de audiencia; la base nueva no guarda IDs de participantes.

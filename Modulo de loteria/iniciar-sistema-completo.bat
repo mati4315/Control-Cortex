@@ -3,13 +3,6 @@ setlocal
 title Loteria - Servidor WS + Watcher
 cd /d "%~dp0"
 
-:: ── Token (definilo en .env o como variable de entorno) ──
-if "%WS_TOKEN%"=="" (
-  echo [WARN] WS_TOKEN no definido. El servidor WS no validara tokens.
-  echo        Definila en .env o con: set WS_TOKEN=tu-token
-  echo.
-)
-
 :: ── Node.js check ─────────────────────────────────
 where node >nul 2>&1
 if errorlevel 1 (

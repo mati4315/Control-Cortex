@@ -17,13 +17,19 @@ Modos soportados:
 
 En el dashboard, **Números comprados** consulta las entradas de las loterías activas en Firestore. El botón **Actualizar** vuelve a leer la lista; al pulsar una compra, se vuelve a mostrar su bolilla en el mismo overlay con una trayectoria inversa: empieza arriba a la izquierda, cae y se desplaza hacia la derecha. Esta repetición es visual y no cambia la compra ni el número asignado. Para usarla, guarda el dashboard en modo `manual` o `dynamic`.
 
-El servidor WebSocket mantiene la cola FIFO y entrega un lanzamiento por vez al overlay registrado. El dashboard muestra la bolilla actual y las pendientes, y permite pausar/reanudar la cola, quitar una pendiente, saltar la siguiente o vaciar las pendientes. Estas acciones no cambian las compras. El overlay también muestra las próximas cuatro bolillas y el total pendiente.
+El servidor WebSocket mantiene la cola FIFO y entrega un lanzamiento por vez al overlay registrado. El dashboard muestra la bolilla actual y las pendientes, y permite pausar/reanudar la cola, quitar una pendiente, saltar la siguiente o vaciar las pendientes. Estas acciones no cambian las compras. El overlay puede mostrar las próximas cuatro bolillas y el total pendiente; se controla desde **Mostrar próximas bolillas en el overlay** en el dashboard y está activado por defecto. Deshabilitarlo solo oculta el panel, sin afectar los lanzamientos ni la cola.
 
-La cola se guarda localmente en `lottery-queue-state.json` (excluido de Git). Si OBS o el servidor se reinician, el overlay recupera la bolilla activa y las pendientes. Si el proceso se interrumpe antes de confirmar que una animación terminó, esa bolilla activa puede volver a lanzarse para no perderla. Una compra recibida cuando OBS está desconectado queda pendiente en el servidor. Si `WS_TOKEN` está activo, abre primero el dashboard autenticado desde el mismo origen del overlay (por ejemplo, ambos desde Cortex); el servidor autoriza esa conexión de overlay. Si usa otro origen, carga el token en la configuración local del overlay. El token nunca viaja en los snapshots de configuración ni en los estados de cola.
+El servidor comprueba periódicamente que las conexiones WebSocket sigan vivas y vuelve a enviar la bolilla actual cada 12 segundos hasta recibir su confirmación. El overlay reconoce el mismo `queueId` y no duplica una animación que sigue activa; si ya terminó, reenvía `BALL_FINISHED`. Esto recupera confirmaciones perdidas y evita depender de F5 para destrabar la cola.
+
+La animación calcula su avance según el tiempo transcurrido, incluso si el navegador reduce `requestAnimationFrame` cuando la página queda en segundo plano. Con pocos cuadros puede verse menos fluida, pero la bolilla sigue avanzando y la cola no debería quedar esperando a que alguien enfoque la página.
+
+La cola se guarda localmente en `lottery-queue-state.json` (excluido de Git). Si OBS o el servidor se reinician, el overlay recupera la bolilla activa y las pendientes. Si el proceso se interrumpe antes de confirmar que una animación terminó, esa bolilla activa puede volver a lanzarse para no perderla. Una compra recibida cuando OBS está desconectado queda pendiente en el servidor. El WebSocket funciona sin token: cualquier dispositivo que alcance el puerto 688 puede consultar compradores, disparar bolillas y modificar la cola. Mantén ese puerto dentro de tu red privada y no lo publiques en el router.
 
 Si el WebSocket se desconecta justo después de terminar una animación, el overlay conserva temporalmente el `queueId` pendiente de confirmar y reenvía `BALL_FINISHED` al reconectarse. Así el servidor no vuelve a lanzar una bolilla que ya terminó; si la conexión cae durante la animación, el lanzamiento activo puede recuperarse como antes.
 
-En **Ajustes Físicos y Velocidad**, **Espera máxima cuando hay cola** (`QUEUE_STOP_MS`, 3.5 s por defecto) acorta la parada de la bolilla actual cuando hay pendientes. Si la cola se vacía o se pausa, vuelve a regir `STOP_MS`. La lista de compras del dashboard admite búsqueda por número, comprador o nombre de lotería.
+En **Ajustes Físicos y Velocidad**, **Espera máxima cuando hay cola** (`QUEUE_STOP_MS`, 3.5 s por defecto, ajustable entre 1 y 25 s) acorta la parada de la bolilla actual cuando hay pendientes. Si la cola se vacía o se pausa, vuelve a regir `STOP_MS`. La lista de compras del dashboard admite búsqueda por número, comprador o nombre de lotería.
+
+En **Ticker / Textos**, los mensajes manuales se alternan de a uno con los dinámicos habilitados. Cada mensaje se desplaza una vez y luego espera un intervalo aleatorio de 2 a 6 minutos; tras un lanzamiento el ticker espera al menos 15 segundos y a que termine la animación. Los mensajes dinámicos muestran el número y el participante de la última bolilla, números ocupados/disponibles y el cierre de participación de loterías activas. El resumen se lee en el servidor con Firebase Admin, se limita a contadores y fechas públicos, se cachea por 30 segundos y agrupa las invalidaciones durante una ráfaga de compras. Firebase guarda `endsAt` como cierre de participación, no hay una fecha de sorteo independiente confirmada; el ticker no presenta ese cierre como horario del sorteo.
 
 Sincronizacion robusta ya implementada:
 - `BroadcastChannel` + `localStorage` (mismo navegador/perfil).
@@ -100,9 +106,15 @@ Verificación aislada: `node --test tests/config-sync.test.js`. Las pruebas ejec
 
 Para conservar esta solución, no volver a reenviar los saludos a todos los dashboards cuando el servidor ya tiene configuración, ni reconectar el overlay solo porque cambia `MODE`. Si el síntoma reaparece, comprobar primero el volumen de `WIDGET_HELLO` y `CONFIG_SNAPSHOT` y los modos enviados por cada panel; cambiar el token no corrige este bucle.
 
+### Configuración compartida entre localhost y Tailscale
+
+Los ajustes operativos del dashboard viven en `lottery-config-snapshot.json`, propiedad de `server-ws.js`; el archivo se actualiza de forma atómica y está excluido de Git. Los paneles leen la copia del servidor al conectarse, y los cambios se propagan al resto de paneles y al overlay. El navegador conserva solo una copia de respaldo. Los tokens de configuraciones antiguas se descartan y nunca viajan en las nuevas instantáneas.
+
+`WEBSOCKET_URL` se calcula para cada cliente y no forma parte de la configuración compartida: OBS y páginas HTTP usan el WebSocket local del módulo; paneles abiertos por Tailscale HTTPS usan el proxy seguro `/api/lottery-ws` de Cortex. El proxy acepta solo conexiones del mismo origen y conecta a la dirección local configurada en Cortex. Las preferencias de los paneles de Cortex se guardan en `cortex-home.json` y se sincronizan mientras Inicio está abierto.
+
 ### 4) Consultar compras y relanzar una bolilla
 
-El dashboard envía `REQUEST_PURCHASED_ENTRIES` por WebSocket. El servidor consulta Firestore y responde por esa misma conexión con `PURCHASED_ENTRIES` (o `PURCHASED_ENTRIES_ERROR`). La respuesta incluye número, nombre, avatar y lotería. Para proteger los nombres, esta consulta exige `WS_TOKEN` tanto en el `.env` del servidor como en el campo **Token de Seguridad WS** del dashboard; el token se valida en el servidor y nunca se devuelve en la respuesta. El clic de relanzamiento envía `TRIGGER_BALL` con `direction: "leftToRight"` y un `eventId` nuevo para que una repetición manual de la misma compra no se descarte como duplicada.
+El dashboard envía `REQUEST_PURCHASED_ENTRIES` por WebSocket. El servidor consulta Firestore y responde por esa misma conexión con `PURCHASED_ENTRIES` (o `PURCHASED_ENTRIES_ERROR`). La respuesta incluye número, nombre, avatar y lotería y no requiere token en esta instalación. El clic de relanzamiento envía `TRIGGER_BALL` con `direction: "leftToRight"` y un `eventId` nuevo para que una repetición manual de la misma compra no se descarte como duplicada.
 
 ---
 
@@ -168,7 +180,7 @@ Se usa `id`/`timestamp` para evitar repetir la misma animacion.
 
 - Podemos publicar un endpoint WS (idealmente `wss`) para emitir eventos de compra?
 - El backend puede emitir `TRIGGER_BALL` al confirmar pago?
-- Necesitamos auth/token para proteger el canal WS?
+- El canal de esta instalación está abierto sin token; cualquier cliente que alcance el puerto 688 puede consultar compras y controlar la cola.
 - Donde desplegamos el relay WS (Node, VPS, Docker, PaaS)?
 - Quieren mantener polling HTTP como backup?
 

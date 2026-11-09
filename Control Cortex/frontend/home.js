@@ -1,9 +1,14 @@
 'use strict';
 (() => {
   const $ = id => document.getElementById(id);
+  let dashboardPreferencesState = null;
+  let dashboardPreferenceSaveTimer = null;
+  let dashboardPreferenceWriteQueue = Promise.resolve();
+  let dashboardPreferenceWriteVersion = 0;
+  let pendingDashboardPreferencePatch = {};
   let theme = 'light';
   try { theme = localStorage.getItem('cortex-home-theme') === 'dark' ? 'dark' : 'light'; } catch { /* Preferencia opcional del navegador. */ }
-  function setTheme(next) {
+  function setTheme(next, saveShared = true) {
     theme = next === 'dark' ? 'dark' : 'light';
     document.documentElement.dataset.theme = theme;
     const button = document.getElementById('theme-toggle');
@@ -15,6 +20,7 @@
       button.setAttribute('aria-pressed', String(dark));
     }
     try { localStorage.setItem('cortex-home-theme', theme); } catch { /* La sesión actual mantiene el tema. */ }
+    if (saveShared && dashboardPreferencesState) saveDashboardPreferences({ theme });
   }
   setTheme(theme);
   let state, services = [], view = 'home', busy = false, obsPollBusy = false, editorMode, editingId, noticeTimer, aiModelDirty = false, pendingChanges = [], preflightStartedAt = 0, prepareProgressPollTimer = 0, prepareProgressPollActive = false, prepareProgressLastValue = 0, preflightButtonState = 'initial';
@@ -57,7 +63,7 @@
     if (checkbox && target !== checkbox) event.preventDefault();
   });
   async function request(url, body) {
-    const timeoutMs = url.endsWith('/api/cortex-home/prepare-status') ? 5000 : url.endsWith('/api/cortex-home/prepare') ? 90000 : url.endsWith('/assist') ? 65000 : 60000;
+    const timeoutMs = url.endsWith('/api/cortex-home/dashboard-preferences') || url.endsWith('/api/cortex-home/prepare-status') ? 5000 : url.endsWith('/api/cortex-home/prepare') ? 90000 : url.endsWith('/assist') ? 65000 : 60000;
     let response;
     try { response = await fetch(url, { cache: 'no-store', ...(body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }), signal: AbortSignal.timeout(timeoutMs) }); }
     catch (cause) {
@@ -543,12 +549,72 @@
     pruebas: { services: ['modulo-de-tiempo-y-clima'], rulo: false, socialstream: false, obs: false, ngrok: false }
   };
   function streamProfiles() {
+    if (dashboardPreferencesState?.initialized) return dashboardPreferencesState.streamProfiles;
     try {
       const saved = JSON.parse(localStorage.getItem('cortex-stream-profiles') || '{}');
       return { ...defaultStreamProfiles, ...saved, pruebas: { ...defaultStreamProfiles.pruebas, ...(saved.pruebas || {}), obs: false, ngrok: false, rulo: false, socialstream: false } };
     } catch { return { ...defaultStreamProfiles }; }
   }
   function selectedStreamProfile() { return $('stream-profile').value || 'radio'; }
+  function readLegacyDashboardPreferences() {
+    let savedProfiles = {};
+    try { savedProfiles = JSON.parse(localStorage.getItem('cortex-stream-profiles') || '{}'); } catch { /* Ignora datos locales mal formados. */ }
+    if (savedProfiles.radio && typeof savedProfiles.radio === 'object') {
+      try {
+        savedProfiles.radio.expectedScene ??= localStorage.getItem('cortex-expected-obs-scene') || '';
+        savedProfiles.radio.requiredSources ??= localStorage.getItem('cortex-required-obs-sources') || '';
+      } catch { /* Preferencias antiguas opcionales. */ }
+    }
+    return {
+      initialized: true,
+      theme,
+      selectedStreamProfile: ['radio', 'sorteo', 'pruebas'].includes($('stream-profile').value) ? $('stream-profile').value : 'radio',
+      streamProfiles: { ...defaultStreamProfiles, ...savedProfiles }
+    };
+  }
+  function saveDashboardPreferences(patch, showError = false) {
+    if (!dashboardPreferencesState) dashboardPreferencesState = readLegacyDashboardPreferences();
+    const mergedProfiles = { ...(dashboardPreferencesState.streamProfiles || {}), ...(patch.streamProfiles || {}), ...(patch.streamProfilesPatch || {}) };
+    dashboardPreferencesState = { ...dashboardPreferencesState, ...patch, streamProfiles: mergedProfiles, initialized: true };
+    delete dashboardPreferencesState.streamProfilesPatch;
+    if (state) state.dashboardPreferences = dashboardPreferencesState;
+    const previousPatch = pendingDashboardPreferencePatch;
+    pendingDashboardPreferencePatch = { ...previousPatch, ...patch, initialized: true };
+    if (patch.streamProfiles) pendingDashboardPreferencePatch.streamProfiles = { ...(previousPatch.streamProfiles || {}), ...patch.streamProfiles };
+    if (patch.streamProfilesPatch) pendingDashboardPreferencePatch.streamProfilesPatch = { ...(previousPatch.streamProfilesPatch || {}), ...patch.streamProfilesPatch };
+    clearTimeout(dashboardPreferenceSaveTimer);
+    const writeVersion = ++dashboardPreferenceWriteVersion;
+    dashboardPreferenceSaveTimer = setTimeout(() => {
+      const patchToSave = JSON.parse(JSON.stringify(pendingDashboardPreferencePatch));
+      pendingDashboardPreferencePatch = {};
+      dashboardPreferenceWriteQueue = dashboardPreferenceWriteQueue.catch(() => {}).then(async () => {
+        const saved = await request('/api/cortex-home/dashboard-preferences', patchToSave);
+        if (writeVersion === dashboardPreferenceWriteVersion) {
+          dashboardPreferencesState = saved;
+          if (state) state.dashboardPreferences = saved;
+        }
+      }).catch(error => { if (writeVersion === dashboardPreferenceWriteVersion && showError) notice('No se pudieron sincronizar los ajustes de Inicio: ' + error.message, true); });
+    }, 120);
+  }
+  function applyDashboardPreferences(preferences) {
+    if (!preferences?.initialized) return;
+    dashboardPreferencesState = preferences;
+    $('stream-profile').value = preferences.selectedStreamProfile;
+    setTheme(preferences.theme, false);
+    applyStreamProfile();
+  }
+  async function synchronizeDashboardPreferences() {
+    if (document.hidden || dashboardPreferenceSaveTimer || preflightCard?.contains(document.activeElement)) return;
+    try {
+      const latest = await request('/api/cortex-home/dashboard-preferences');
+      if (latest.initialized && (!dashboardPreferencesState?.initialized || latest.updatedAt !== dashboardPreferencesState.updatedAt)) {
+        dashboardPreferencesState = latest;
+        if (state) state.dashboardPreferences = latest;
+        applyDashboardPreferences(latest);
+        render();
+      }
+    } catch { /* El estado local sigue activo hasta que Cortex vuelva a responder. */ }
+  }
   function applyStreamProfile() {
     const profile = streamProfiles()[selectedStreamProfile()] || defaultStreamProfiles.radio;
     document.body.dataset.streamProfile = selectedStreamProfile();
@@ -583,7 +649,8 @@
   function saveStreamProfile(showSavedNotice = true) {
     const profiles = streamProfiles();
     profiles[selectedStreamProfile()] = { services: [...document.querySelectorAll('#preflight-services [data-service-id]:checked')].map(input => input.dataset.serviceId), stopServices: [...document.querySelectorAll('#end-stream-services [data-stop-service-id]:checked')].map(input => input.dataset.stopServiceId), ...Object.fromEntries(['rulo', 'socialstream', 'obs', 'ngrok'].map(id => [id, $('preflight-' + id).checked])), expectedScene: $('preflight-expected-scene').value, requiredSources: $('preflight-required-sources').value };
-    try { localStorage.setItem('cortex-stream-profiles', JSON.stringify(profiles)); if (showSavedNotice) notice('Selección guardada en el perfil «' + $('stream-profile').selectedOptions[0].textContent + '».'); } catch { if (showSavedNotice) notice('No se pudo guardar el perfil en este navegador.', true); }
+    saveDashboardPreferences({ streamProfilesPatch: { [selectedStreamProfile()]: profiles[selectedStreamProfile()] }, selectedStreamProfile: selectedStreamProfile() }, showSavedNotice);
+    if (showSavedNotice) notice('Selección compartida guardada en el perfil «' + $('stream-profile').selectedOptions[0].textContent + '».');
   }
   function renderPreflightServices() {
     const box = $('preflight-services');
@@ -636,6 +703,7 @@
         }, 'service-app-open');
         openApp.title = 'Abrir la aplicación de escritorio TriggerStudio';
         openApp.setAttribute('aria-label', 'Abrir la aplicación de escritorio TriggerStudio');
+        if (servicesAreStale) { openApp.disabled = true; openApp.title = 'Esperando la comprobación actual del servicio.'; }
         row.classList.add('has-service-app-open');
         row.append(openApp);
       }
@@ -660,7 +728,6 @@
           triggerStudioFeedback = '';
           renderPreflightServices();
         });
-        if (servicesAreStale) { openApp.disabled = true; openApp.title = 'Esperando la comprobación actual del servicio.'; }
         fieldLabel.append(field);
         const controls = node('div', undefined, 'preflight-trigger-actions');
         const saveIp = button('Guardar y aplicar', async () => {
@@ -862,7 +929,7 @@
   $('preflight-recheck').onclick = () => runPreflight(false);
   try { $('stream-profile').value = localStorage.getItem('cortex-stream-profile') || 'radio'; } catch { /* Perfil local opcional. */ }
   applyStreamProfile();
-  $('stream-profile').onchange = async () => { try { localStorage.setItem('cortex-stream-profile', selectedStreamProfile()); } catch { /* Perfil local opcional. */ } Object.values(preflightManual).forEach(id => { $(id).checked = false; }); applyStreamProfile(); restoreCachedOverview(); void refreshOverview(); if ($('preflight-obs').checked) { try { await loadObsScenes(); } catch { /* Se informa en el estado de OBS. */ } } await refreshObsLiveStatus(); if (!$('preflight-results').hidden) runPreflight(false); };
+  $('stream-profile').onchange = async () => { saveDashboardPreferences({ selectedStreamProfile: selectedStreamProfile() }, true); Object.values(preflightManual).forEach(id => { $(id).checked = false; }); applyStreamProfile(); restoreCachedOverview(); void refreshOverview(); if ($('preflight-obs').checked) { try { await loadObsScenes(); } catch { /* Se informa en el estado de OBS. */ } } await refreshObsLiveStatus(); if (!$('preflight-results').hidden) runPreflight(false); };
   $('save-stream-profile').onclick = saveStreamProfile;
   $('preflight-expected-scene').onchange = () => { saveStreamProfile(false); if (!$('preflight-results').hidden) runPreflight(false); };
   $('preflight-required-sources').onchange = () => { saveStreamProfile(false); if (!$('preflight-results').hidden) runPreflight(false); };
@@ -1377,7 +1444,12 @@
   async function load() {
     void refreshOverview();
     try {
-      state = await request('/api/cortex-home');
+      const loadedState = await request('/api/cortex-home');
+      state = loadedState;
+      if (!loadedState.dashboardPreferences?.initialized) {
+        loadedState.dashboardPreferences = await request('/api/cortex-home/dashboard-preferences', { ...readLegacyDashboardPreferences(), initializeIfAbsent: true });
+      }
+      applyDashboardPreferences(loadedState.dashboardPreferences);
       render(); applyStreamProfile(); $('profile').disabled = false;
       if ($('preflight-obs').checked) void loadObsScenes().then(() => applyStreamProfile()).catch(() => { /* La lista de escenas se cargará al preparar un directo. */ });
       void refreshObsLiveStatus();
@@ -1392,10 +1464,17 @@
   window.addEventListener('focus', loadSpotifyAiReplyOptions);
   load();
   setInterval(refreshObsLiveStatus, 8000);
+  setInterval(synchronizeDashboardPreferences, 4000);
   setInterval(async () => {
     if (document.hidden || busy) return;
     if (state) {
-      try { const latest = await request('/api/cortex-home'); state = latest; render(); $('connection').textContent = 'Cortex conectado'; $('connection').style.color = ''; }
+      try {
+        const latest = await request('/api/cortex-home');
+        const preferenceChanged = latest.dashboardPreferences?.updatedAt !== dashboardPreferencesState?.updatedAt;
+        state = latest;
+        if (preferenceChanged && !preflightCard?.contains(document.activeElement)) applyDashboardPreferences(latest.dashboardPreferences);
+        render(); $('connection').textContent = 'Cortex conectado'; $('connection').style.color = '';
+      }
       catch { $('connection').textContent = 'Sin conexión'; }
     }
     await refreshOverview();

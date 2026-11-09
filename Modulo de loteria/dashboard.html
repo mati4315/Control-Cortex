@@ -414,6 +414,34 @@
       gap: 12px;
     }
 
+    .ticker-force-row {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+    }
+
+    .ticker-force-status {
+      min-height: 1.2em;
+      color: var(--text-muted);
+    }
+
+    .ticker-force-status.error { color: #ff7b7b; }
+    .ticker-force-status.success { color: #a5e887; }
+
+    .ticker-advanced-panel {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      background: rgba(0, 0, 0, 0.16);
+    }
+
+    .ticker-advanced-panel[hidden] { display: none; }
+    .ticker-advanced-panel .form-group { margin: 0; }
+
     .ticker-editor-list {
       display: flex;
       flex-direction: column;
@@ -429,6 +457,26 @@
     .ticker-editor-row .input-control {
       flex: 1 1 auto;
     }
+
+    .btn-ticker-send-manual {
+      flex: 0 0 auto;
+      min-height: 44px;
+      padding: 0 12px;
+      border: 1px solid rgba(255, 214, 0, 0.24);
+      border-radius: 9px;
+      background: rgba(255, 214, 0, 0.09);
+      color: var(--primary);
+      cursor: pointer;
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .btn-ticker-send-manual:hover:not(:disabled) {
+      background: rgba(255, 214, 0, 0.16);
+      border-color: rgba(255, 214, 0, 0.44);
+    }
+
+    .btn-ticker-send-manual:disabled { cursor: not-allowed; opacity: 0.48; }
 
     .btn-row-action {
       flex: 0 0 auto;
@@ -781,28 +829,32 @@
         </h2>
         <div class="form-group">
           <label>Servidor WebSocket URL</label>
-          <input type="text" class="input-control" id="ws-url" value="ws://localhost:688" placeholder="ws://tu-servidor.com/ws" onchange="saveConfig()">
+          <input type="text" class="input-control" id="ws-url" value="ws://localhost:688" placeholder="ws://tu-servidor.com/ws" onchange="saveConfig(); sendConfigUpdate(); connectDynamicWS()">
           <p class="help-text">El widget o este panel se conectarán a esta dirección para recibir compras de tu web en vivo.</p>
         </div>
         <div class="form-group">
           <label>API Polling URL (Alternativa)</label>
-          <input type="text" class="input-control" id="api-url" value="" placeholder="https://tu-sitio.com/api/ultima-compra" onchange="saveConfig()">
+          <input type="text" class="input-control" id="api-url" value="" placeholder="https://tu-sitio.com/api/ultima-compra" onchange="saveConfig(); sendConfigUpdate()">
           <p class="help-text">Si no tienes WebSockets, el widget consultará esta URL cada 3 segundos buscando compras pendientes.</p>
         </div>
         <div class="form-group">
-          <label>Token de Seguridad WS</label>
-          <input type="password" class="input-control" id="ws-token" value="" placeholder="Mismo token que WS_TOKEN del servidor" onchange="saveConfig()">
-          <p class="help-text">Secreto compartido con el backend. Debe coincidir con la variable WS_TOKEN del servidor WS.</p>
-          <div class="save-row">
-            <span class="save-state" id="ws-token-save-state" role="status" aria-live="polite">El token se guarda en este navegador.</span>
-            <button class="btn-save" id="btn-save-ws-token" type="button" onclick="saveWsToken()">Guardar token</button>
-          </div>
+          <p class="help-text">Esta instalación no pide token. Los compradores y controles WebSocket quedan disponibles para cualquier dispositivo que alcance el servidor de Lotería.</p>
         </div>
       </div>
 
       <!-- CARD 4: PARÁMETROS GENERALES Y FÍSICA -->
       <div class="card card-full">
         <h2 class="card-title">⚙️ Ajustes Físicos y Velocidad</h2>
+        <div class="toggle-row">
+          <div>
+            <strong style="font-size:0.9rem;">Mostrar próximas bolillas en el overlay</strong>
+            <p class="help-text">Oculta o muestra el panel “Próximas bolillas” en lottery-ball.html. No modifica ni pausa la cola de lanzamientos.</p>
+          </div>
+          <label class="switch" title="Mostrar próximas bolillas en el overlay">
+            <input type="checkbox" id="cfg-queue-display-enabled" onchange="updateConfigText('QUEUE_DISPLAY_ENABLED', this.checked)">
+            <span class="switch-slider"></span>
+          </label>
+        </div>
         <div class="toggle-row">
           <div>
             <strong style="font-size:0.9rem;">Velocidad Random Vinculada</strong>
@@ -839,10 +891,10 @@
             <div class="form-group">
               <label>Espera máxima cuando hay cola (s)</label>
               <div class="slider-container">
-                <input type="range" class="input-control" id="cfg-queue-stop-ms" min="1000" max="8000" step="500" value="3500" oninput="updateConfigValue('QUEUE_STOP_MS', this.value)">
+                <input type="range" class="input-control" id="cfg-queue-stop-ms" min="1000" max="25000" step="500" value="3500" oninput="updateConfigValue('QUEUE_STOP_MS', this.value)">
                 <span class="slider-val" id="val-queue-stop-ms">3.5 s</span>
               </div>
-              <p class="help-text">Si otra bolilla espera su turno, la parada actual se acorta como máximo a este tiempo.</p>
+              <p class="help-text">Si otra bolilla espera su turno, la parada actual se acorta como máximo a este tiempo. Rango: 1–25 s.</p>
             </div>
           </div>
           <div>
@@ -931,7 +983,7 @@
           <div class="toggle-row">
             <div>
               <strong style="font-size:0.9rem;">Ticker activo</strong>
-              <p class="help-text">Activa o desactiva la franja inferior izquierda del OBS.</p>
+              <p class="help-text">Activa o desactiva los mensajes de la franja inferior izquierda del OBS.</p>
             </div>
             <label class="switch" title="Activar ticker">
               <input type="checkbox" id="cfg-ticker-enabled" onchange="updateConfigText('TICKER_ENABLED', this.checked)">
@@ -940,19 +992,154 @@
           </div>
 
           <div class="form-group">
-            <label>Velocidad del Ticker (ms por ciclo)</label>
+            <label>Duración del desplazamiento por mensaje (ms)</label>
             <div class="slider-container">
               <input type="range" class="input-control" id="cfg-ticker-scroll" min="12000" max="50000" step="1000" value="28000" oninput="updateConfigValue('TICKER_SCROLL_MS', this.value)">
               <span class="slider-val" id="val-ticker-scroll">28000</span>
             </div>
-            <p class="help-text">Más alto = más lento y suave.</p>
+            <p class="help-text">Más alto = más lento y suave. Cada mensaje se desplaza una vez; las pausas se ajustan en Opciones avanzadas.</p>
           </div>
 
           <div class="form-group">
-            <label>Textos del Ticker</label>
-            <p class="help-text">Agrega, edita o elimina una línea por cada texto. El ticker repite estas líneas en bucle.</p>
+            <label>Mensajes manuales</label>
+            <p class="help-text">Agrega, edita o elimina mensajes. Cada fila tiene “Enviar ahora” para mandarla al overlay; los mensajes también se alternan con la información dinámica.</p>
             <div id="ticker-text-list" class="ticker-editor-list"></div>
             <button type="button" class="btn-ticker-add" onclick="addTickerTextRow()">+ Agregar texto</button>
+          </div>
+
+          <div class="form-group">
+            <label>Información dinámica</label>
+            <p class="help-text">Los avisos usan datos públicos de las loterías activas. El mismo aviso no se repite en turnos consecutivos.</p>
+            <div class="ticker-force-row">
+              <button type="button" class="btn-ticker-add" id="btn-force-dynamic-ticker" onclick="forceDynamicTickerNow()">📣 Enviar aviso dinámico ahora</button>
+              <span class="help-text ticker-force-status" id="ticker-force-status" role="status" aria-live="polite"></span>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong style="font-size:0.9rem;">Números ocupados y disponibles</strong>
+                <p class="help-text">Muestra cuántos números están ocupados y cuántos quedan libres.</p>
+              </div>
+              <label class="switch" title="Mostrar disponibilidad de números">
+                <input type="checkbox" id="cfg-ticker-dynamic-availability" onchange="updateConfigText('TICKER_DYNAMIC_AVAILABILITY', this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong style="font-size:0.9rem;">Progreso de la grilla</strong>
+                <p class="help-text">Muestra qué porcentaje del cupo total ya está ocupado.</p>
+              </div>
+              <label class="switch" title="Mostrar progreso de la grilla">
+                <input type="checkbox" id="cfg-ticker-dynamic-progress" onchange="updateConfigText('TICKER_DYNAMIC_PROGRESS', this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong style="font-size:0.9rem;">Premio de la lotería</strong>
+                <p class="help-text">Anuncia el premio configurado en la lotería activa, si está disponible.</p>
+              </div>
+              <label class="switch" title="Mostrar el premio de la lotería">
+                <input type="checkbox" id="cfg-ticker-dynamic-prize" onchange="updateConfigText('TICKER_DYNAMIC_PRIZE', this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong style="font-size:0.9rem;">Última bolilla y participante</strong>
+                <p class="help-text">Anuncia el número y el nombre mostrado en la animación, respetando la pausa del ticker.</p>
+              </div>
+              <label class="switch" title="Anunciar la última bolilla">
+                <input type="checkbox" id="cfg-ticker-dynamic-last-ball" onchange="updateConfigText('TICKER_DYNAMIC_LAST_BALL', this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-row">
+              <div>
+                <strong style="font-size:0.9rem;">Cierre de participación</strong>
+                <p class="help-text">Indica hasta cuándo se puede participar, si la lotería tiene fecha de cierre.</p>
+              </div>
+              <label class="switch" title="Mostrar cierre de participación">
+                <input type="checkbox" id="cfg-ticker-dynamic-ends-at" onchange="updateConfigText('TICKER_DYNAMIC_ENDS_AT', this.checked)">
+                <span class="switch-slider"></span>
+              </label>
+            </div>
+            <button type="button" class="btn-ticker-add" id="btn-toggle-ticker-advanced" aria-expanded="false" aria-controls="ticker-advanced-options" onclick="toggleTickerAdvanced()">⚙ Opciones avanzadas</button>
+            <div class="ticker-advanced-panel" id="ticker-advanced-options" hidden>
+              <div class="form-group">
+                <label for="cfg-ticker-height">Altura del ticker (px)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-height" min="42" max="132" step="2" value="64" oninput="updateConfigValue('TICKER_HEIGHT', this.value)">
+                  <span class="slider-val" id="val-ticker-height">64 px</span>
+                </div>
+                <p class="help-text">Aumenta o reduce el alto de la franja.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-bottom">Posición vertical (px desde abajo)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-bottom" min="-40" max="240" step="2" value="18" oninput="updateConfigValue('TICKER_BOTTOM', this.value)">
+                  <span class="slider-val" id="val-ticker-bottom">18 px</span>
+                </div>
+                <p class="help-text">Más alto el valor = más arriba. Un valor negativo baja la franja y puede recortarla.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-side-margin">Margen horizontal (px)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-side-margin" min="0" max="200" step="2" value="0" oninput="updateConfigValue('TICKER_SIDE_MARGIN', this.value)">
+                  <span class="slider-val" id="val-ticker-side-margin">0 px</span>
+                </div>
+                <p class="help-text">Deja el ticker más angosto con márgenes iguales a ambos lados.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-font-size">Tamaño del texto (px)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-font-size" min="12" max="36" step="1" value="17" oninput="updateConfigValue('TICKER_FONT_SIZE', this.value)">
+                  <span class="slider-val" id="val-ticker-font-size">17 px</span>
+                </div>
+                <p class="help-text">Ajusta la lectura del mensaje en la escena.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-bg-opacity">Opacidad del fondo (%)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-bg-opacity" min="0" max="100" step="5" value="92" oninput="updateConfigValue('TICKER_BG_OPACITY', this.value)">
+                  <span class="slider-val" id="val-ticker-bg-opacity">92 %</span>
+                </div>
+                <p class="help-text">Baja la opacidad para dejar más visible la escena detrás.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-radius">Redondeo de esquinas (px)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-radius" min="0" max="36" step="2" value="0" oninput="updateConfigValue('TICKER_RADIUS', this.value)">
+                  <span class="slider-val" id="val-ticker-radius">0 px</span>
+                </div>
+                <p class="help-text">Suaviza las puntas de la franja.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-min-pause">Pausa mínima entre mensajes (min)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-min-pause" min="1" max="10" step="1" value="2" oninput="updateConfigValue('TICKER_MIN_PAUSE_MINUTES', this.value)">
+                  <span class="slider-val" id="val-ticker-min-pause">2 min</span>
+                </div>
+                <p class="help-text">El sistema elige una pausa aleatoria entre este valor y la máxima.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-max-pause">Pausa máxima entre mensajes (min)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-max-pause" min="1" max="15" step="1" value="6" oninput="updateConfigValue('TICKER_MAX_PAUSE_MINUTES', this.value)">
+                  <span class="slider-val" id="val-ticker-max-pause">6 min</span>
+                </div>
+                <p class="help-text">Si queda debajo de la mínima, el dashboard ajusta la otra pausa para mantener el rango válido.</p>
+              </div>
+              <div class="form-group">
+                <label for="cfg-ticker-after-ball">Espera después de una bolilla (s)</label>
+                <div class="slider-container">
+                  <input type="range" class="input-control" id="cfg-ticker-after-ball" min="0" max="60" step="1" value="15" oninput="updateConfigValue('TICKER_AFTER_BALL_DELAY_SEC', this.value)">
+                  <span class="slider-val" id="val-ticker-after-ball">15 s</span>
+                </div>
+                <p class="help-text">El ticker espera además a que termine la animación de la bolilla.</p>
+              </div>
+            </div>
+            <p class="help-text">Firebase actualmente guarda la fecha de cierre de participación (`endsAt`), pero no una fecha de sorteo separada; el ticker no la presentará como horario del sorteo.</p>
           </div>
         </div>
       </div>
@@ -973,9 +1160,8 @@
       PAUSE_MS: 600,
       WINNER_NAME: 'Matias Moreira',
       MODE: 'test',
-      WEBSOCKET_URL: `ws://${window.location.hostname || 'localhost'}:688`,
+      WEBSOCKET_URL: window.location.protocol === 'https:' ? `wss://${window.location.host}/api/lottery-ws` : `ws://${window.location.hostname || 'localhost'}:688`,
       API_URL: '',
-      WS_TOKEN: '',
       TRIGGER_NUM: 7,
       TRIGGER_NAME: 'Matias Moreira',
       NUMBER_FONT_REM: 1.25,
@@ -983,14 +1169,29 @@
       LEFT_TILT_DEG: -24,
       RIGHT_TILT_DEG: 24,
       RANDOM_LINKED_SPEED: false,
+      QUEUE_DISPLAY_ENABLED: true,
       TICKER_ENABLED: true,
+      TICKER_DYNAMIC_AVAILABILITY: true,
+      TICKER_DYNAMIC_PROGRESS: true,
+      TICKER_DYNAMIC_PRIZE: true,
+      TICKER_DYNAMIC_LAST_BALL: true,
+      TICKER_DYNAMIC_ENDS_AT: true,
       TICKER_LABEL: 'Radio',
       TICKER_TEXTS: [
         'Loteria Ball lista para OBS',
         'Ticker inferior izquierdo activo',
         'Se oculta cuando se lanza una bolilla'
       ],
-      TICKER_SCROLL_MS: 28000
+      TICKER_SCROLL_MS: 28000,
+      TICKER_HEIGHT: 64,
+      TICKER_BOTTOM: 18,
+      TICKER_SIDE_MARGIN: 0,
+      TICKER_FONT_SIZE: 17,
+      TICKER_BG_OPACITY: 92,
+      TICKER_RADIUS: 0,
+      TICKER_MIN_PAUSE_MINUTES: 2,
+      TICKER_MAX_PAUSE_MINUTES: 6,
+      TICKER_AFTER_BALL_DELAY_SEC: 15
     };
     let config = { ...DEFAULT_CONFIG };
     let purchasedEntries = [];
@@ -1004,6 +1205,9 @@
     let saveStateTimer = null;
     let feedbackTimer = null;
     let tickerRenderLock = false;
+    let tickerForceRequestId = '';
+    let tickerForceRequestTimer = null;
+    let tickerForceSourceButton = null;
     const VALUE_LABEL_IDS = {
       FALL_SPEED: 'val-fall',
       SLIDE_SPEED: 'val-slide',
@@ -1014,9 +1218,56 @@
       NUMBER_FONT_REM: 'val-number-font',
       BADGE_SIZE_REM: 'val-badge-size',
       TICKER_SCROLL_MS: 'val-ticker-scroll',
+      TICKER_HEIGHT: 'val-ticker-height',
+      TICKER_BOTTOM: 'val-ticker-bottom',
+      TICKER_SIDE_MARGIN: 'val-ticker-side-margin',
+      TICKER_FONT_SIZE: 'val-ticker-font-size',
+      TICKER_BG_OPACITY: 'val-ticker-bg-opacity',
+      TICKER_RADIUS: 'val-ticker-radius',
+      TICKER_MIN_PAUSE_MINUTES: 'val-ticker-min-pause',
+      TICKER_MAX_PAUSE_MINUTES: 'val-ticker-max-pause',
+      TICKER_AFTER_BALL_DELAY_SEC: 'val-ticker-after-ball',
       LEFT_TILT_DEG: 'val-left-tilt',
       RIGHT_TILT_DEG: 'val-right-tilt'
     };
+
+    const TICKER_ADVANCED_FIELDS = [
+      ['TICKER_HEIGHT', 'cfg-ticker-height', 'val-ticker-height', 64, 'px'],
+      ['TICKER_BOTTOM', 'cfg-ticker-bottom', 'val-ticker-bottom', 18, 'px'],
+      ['TICKER_SIDE_MARGIN', 'cfg-ticker-side-margin', 'val-ticker-side-margin', 0, 'px'],
+      ['TICKER_FONT_SIZE', 'cfg-ticker-font-size', 'val-ticker-font-size', 17, 'px'],
+      ['TICKER_BG_OPACITY', 'cfg-ticker-bg-opacity', 'val-ticker-bg-opacity', 92, '%'],
+      ['TICKER_RADIUS', 'cfg-ticker-radius', 'val-ticker-radius', 0, 'px'],
+      ['TICKER_MIN_PAUSE_MINUTES', 'cfg-ticker-min-pause', 'val-ticker-min-pause', 2, 'min'],
+      ['TICKER_MAX_PAUSE_MINUTES', 'cfg-ticker-max-pause', 'val-ticker-max-pause', 6, 'min'],
+      ['TICKER_AFTER_BALL_DELAY_SEC', 'cfg-ticker-after-ball', 'val-ticker-after-ball', 15, 's']
+    ];
+
+    function syncTickerAdvancedControls() {
+      TICKER_ADVANCED_FIELDS.forEach(([key, inputId, valueId, fallback, unit]) => {
+        const input = document.getElementById(inputId);
+        const valueLabel = document.getElementById(valueId);
+        const numericValue = Number(config[key]);
+        const value = Number.isFinite(numericValue) ? numericValue : fallback;
+        if (input) input.value = String(value);
+        if (valueLabel) valueLabel.textContent = `${value} ${unit}`;
+      });
+    }
+
+    function toggleTickerAdvanced() {
+      const panel = document.getElementById('ticker-advanced-options');
+      const button = document.getElementById('btn-toggle-ticker-advanced');
+      if (!panel || !button) return;
+      panel.hidden = !panel.hidden;
+      button.setAttribute('aria-expanded', String(!panel.hidden));
+      button.textContent = panel.hidden ? '⚙ Opciones avanzadas' : '⚙ Ocultar opciones avanzadas';
+    }
+
+    function formatConfigValue(key, value) {
+      if (key === 'QUEUE_STOP_MS') return `${(parseInt(value, 10) / 1000).toFixed(1)} s`;
+      const tickerField = TICKER_ADVANCED_FIELDS.find(([field]) => field === key);
+      return tickerField ? `${value} ${tickerField[4]}` : value;
+    }
 
     // Inicializar canal de comunicación
     try {
@@ -1025,18 +1276,7 @@
       console.error("BroadcastChannel no soportado en este navegador.", e);
     }
 
-    // Cargar config guardada de localStorage si existe
-    function initDashboard() {
-      const saved = localStorage.getItem('lottery_ball_config');
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          config = Object.assign(config, parsed);
-        } catch(e) {}
-      }
-      config.QUEUE_STOP_MS = Number(config.QUEUE_STOP_MS) || DEFAULT_CONFIG.QUEUE_STOP_MS;
-      if (!['test', 'manual', 'dynamic'].includes(config.MODE)) config.MODE = DEFAULT_CONFIG.MODE;
-
+    function syncDashboardControls() {
       // Sincronizar UI
       document.getElementById('cfg-fall').value = config.FALL_SPEED;
       document.getElementById('val-fall').textContent = config.FALL_SPEED;
@@ -1067,12 +1307,18 @@
       document.getElementById('val-right-tilt').textContent = Number(config.RIGHT_TILT_DEG ?? 24).toFixed(0);
       document.getElementById('ws-url').value = config.WEBSOCKET_URL;
       document.getElementById('api-url').value = config.API_URL || '';
-      document.getElementById('ws-token').value = config.WS_TOKEN || '';
       document.getElementById('trigger-num').value = config.TRIGGER_NUM || 7;
       document.getElementById('trigger-name').value = config.TRIGGER_NAME || config.WINNER_NAME || 'Matias Moreira';
       document.getElementById('cfg-ticker-enabled').checked = config.TICKER_ENABLED !== false;
+      document.getElementById('cfg-queue-display-enabled').checked = config.QUEUE_DISPLAY_ENABLED !== false;
+      document.getElementById('cfg-ticker-dynamic-availability').checked = config.TICKER_DYNAMIC_AVAILABILITY !== false;
+      document.getElementById('cfg-ticker-dynamic-progress').checked = config.TICKER_DYNAMIC_PROGRESS !== false;
+      document.getElementById('cfg-ticker-dynamic-prize').checked = config.TICKER_DYNAMIC_PRIZE !== false;
+      document.getElementById('cfg-ticker-dynamic-last-ball').checked = config.TICKER_DYNAMIC_LAST_BALL !== false;
+      document.getElementById('cfg-ticker-dynamic-ends-at').checked = config.TICKER_DYNAMIC_ENDS_AT !== false;
       document.getElementById('cfg-ticker-scroll').value = config.TICKER_SCROLL_MS || 28000;
       document.getElementById('val-ticker-scroll').textContent = String(config.TICKER_SCROLL_MS || 28000);
+      syncTickerAdvancedControls();
       
       document.getElementById('cfg-w').value = config.W || 720;
       document.getElementById('cfg-h').value = config.H || 1280;
@@ -1080,6 +1326,49 @@
 
       renderTickerEditor();
       setMode(config.MODE); // Carga el modo guardado sin aplicarlo de nuevo
+    }
+
+    function normalizeDashboardWebSocketUrl(value) {
+      let endpoint;
+      try { endpoint = new URL(value); } catch { endpoint = new URL(DEFAULT_CONFIG.WEBSOCKET_URL); }
+      const loopback = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(endpoint.hostname.toLowerCase());
+      if (window.location.protocol === 'https:' && (endpoint.protocol === 'ws:' || loopback)) {
+        return `wss://${window.location.host}/api/lottery-ws`;
+      }
+      if (loopback) return `ws://${window.location.hostname || 'localhost'}:688`;
+      return endpoint.toString().replace(/\/$/, '');
+    }
+
+    function applySharedConfigSnapshot(snapshot) {
+      if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return;
+      const currentUrl = config.WEBSOCKET_URL;
+      config = { ...DEFAULT_CONFIG, ...config, ...snapshot };
+      delete config.WS_TOKEN;
+      config.WEBSOCKET_URL = normalizeDashboardWebSocketUrl(config.WEBSOCKET_URL);
+      config.QUEUE_STOP_MS = Math.min(25000, Math.max(1000, Number(config.QUEUE_STOP_MS) || DEFAULT_CONFIG.QUEUE_STOP_MS));
+      if (!['test', 'manual', 'dynamic'].includes(config.MODE)) config.MODE = DEFAULT_CONFIG.MODE;
+      syncDashboardControls();
+      try { localStorage.setItem('lottery_ball_config', JSON.stringify(config)); } catch (error) { console.warn('No se pudo guardar la copia local de respaldo:', error?.message || error); }
+      if (config.WEBSOCKET_URL !== currentUrl) connectDynamicWS();
+    }
+
+    // El almacenamiento local solo sirve de respaldo; el servidor WS entrega la configuración compartida.
+    function initDashboard() {
+      const saved = localStorage.getItem('lottery_ball_config');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          config = Object.assign(config, parsed);
+        } catch(e) {}
+      }
+      delete config.WS_TOKEN;
+      if (saved) {
+        try { localStorage.setItem('lottery_ball_config', JSON.stringify(config)); } catch(e) {}
+      }
+      config.QUEUE_STOP_MS = Math.min(25000, Math.max(1000, Number(config.QUEUE_STOP_MS) || DEFAULT_CONFIG.QUEUE_STOP_MS));
+      if (!['test', 'manual', 'dynamic'].includes(config.MODE)) config.MODE = DEFAULT_CONFIG.MODE;
+      config.WEBSOCKET_URL = normalizeDashboardWebSocketUrl(config.WEBSOCKET_URL);
+      syncDashboardControls();
       document.getElementById('btn-refresh-purchases').addEventListener('click', requestPurchasedEntries);
       document.getElementById('purchased-filter').addEventListener('input', renderPurchasedEntries);
       document.getElementById('btn-queue-pause').addEventListener('click', () => sendQueueControl(ballQueueState.paused ? 'resume' : 'pause'));
@@ -1155,7 +1444,7 @@
       };
 
       if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        sendMessageWS({ ...msg, ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
+        sendMessageWS(msg);
       } else {
         broadcast(msg, { sendWs: false });
       }
@@ -1194,14 +1483,22 @@
             statusBadge.textContent = 'Sync WS activo';
           }
           console.log("WebSocket Dashboard conectado a", config.WEBSOCKET_URL);
-          sendConfigSnapshotWS('dashboard_onopen');
-          sendMessageWS({ type: 'REQUEST_BALL_QUEUE_STATE', ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
+          sendMessageWS({ type: 'REQUEST_CONFIG' });
+          sendMessageWS({ type: 'REQUEST_BALL_QUEUE_STATE' });
           setTimeout(requestPurchasedEntries, 500);
         };
 
         wsClient.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
+            if (data?.type === 'CONFIG_SNAPSHOT' && data?.config) {
+              applySharedConfigSnapshot(data.config);
+              return;
+            }
+            if (data?.type === 'UPDATE_CONFIG' && data?.config) {
+              applySharedConfigSnapshot(data.config);
+              return;
+            }
             if (data?.type === 'WIDGET_HELLO' || data?.type === 'REQUEST_CONFIG') {
               sendConfigSnapshotWS('widget_request');
               return;
@@ -1213,6 +1510,32 @@
                 paused: data.paused === true,
                 overlayConnected: data.overlayConnected === true
               };
+              renderBallQueueDashboard();
+              return;
+            }
+            if (data?.type === 'FORCE_TICKER_DYNAMIC_ACCEPTED' && data.requestId === tickerForceRequestId) {
+              setTickerForceStatus(data.message || 'Aviso solicitado; se mostrará cuando el overlay quede libre.');
+              return;
+            }
+            if (data?.type === 'FORCE_TICKER_DYNAMIC_RESULT' && data.requestId === tickerForceRequestId) {
+              clearTimeout(tickerForceRequestTimer);
+              tickerForceRequestTimer = null;
+              tickerForceRequestId = '';
+              setTickerForceStatus(data.message || (data.ok ? 'Aviso dinámico enviado.' : 'No se pudo enviar el aviso.'), data.ok ? 'success' : 'error');
+              if (tickerForceSourceButton) tickerForceSourceButton.textContent = 'Enviar ahora';
+              tickerForceSourceButton = null;
+              syncTickerForceButtons();
+              renderBallQueueDashboard();
+              return;
+            }
+            if (data?.type === 'FORCE_TICKER_DYNAMIC_ERROR' && data.requestId === tickerForceRequestId) {
+              clearTimeout(tickerForceRequestTimer);
+              tickerForceRequestTimer = null;
+              tickerForceRequestId = '';
+              setTickerForceStatus(data.message || 'No se pudo enviar el aviso dinámico.', 'error');
+              if (tickerForceSourceButton) tickerForceSourceButton.textContent = 'Enviar ahora';
+              tickerForceSourceButton = null;
+              syncTickerForceButtons();
               renderBallQueueDashboard();
               return;
             }
@@ -1317,8 +1640,7 @@
       setPurchasedEntriesStatus('Consultando números comprados…');
       sendMessageWS({
         type: 'REQUEST_PURCHASED_ENTRIES',
-        requestId,
-        token: config.WS_TOKEN || ''
+        requestId
       });
       purchasedEntriesRequestTimer = setTimeout(() => {
         if (purchasedEntriesRequestId !== requestId) return;
@@ -1399,7 +1721,7 @@
         forceReplay: true,
         eventId: `replay-${entry.entryKey}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
       };
-      sendMessageWS({ ...msg, ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {}) });
+      sendMessageWS(msg);
       addLog(msg.number, msg.name, config.MODE);
       showEventFeedback(`Relanzamiento solicitado. #${msg.number} de ${msg.name} se agregó a la cola.`);
     }
@@ -1419,6 +1741,7 @@
       const pauseButton = document.getElementById('btn-queue-pause');
       const skipButton = document.getElementById('btn-queue-skip');
       const clearButton = document.getElementById('btn-queue-clear');
+      const forceTickerButton = document.getElementById('btn-force-dynamic-ticker');
       if (!status || !current || !list || !pauseButton || !skipButton || !clearButton) return;
 
       const pending = Array.isArray(ballQueueState.pending) ? ballQueueState.pending : [];
@@ -1428,6 +1751,8 @@
       pauseButton.disabled = !isConnected;
       skipButton.disabled = !isConnected || pending.length === 0;
       clearButton.disabled = !isConnected || pending.length === 0;
+      if (forceTickerButton) forceTickerButton.disabled = config.TICKER_ENABLED === false || !isConnected || !ballQueueState.overlayConnected || !!tickerForceRequestId;
+      syncTickerForceButtons();
 
       current.replaceChildren();
       const currentLabel = document.createElement('span');
@@ -1479,8 +1804,7 @@
       sendMessageWS({
         type: 'BALL_QUEUE_CONTROL',
         action,
-        queueId,
-        ...(config.WS_TOKEN ? { token: config.WS_TOKEN } : {})
+        queueId
       });
     }
 
@@ -1523,23 +1847,109 @@
     function sendMessageWS(msg) {
       if (!wsClient || wsClient.readyState !== WebSocket.OPEN) return;
       try {
-        wsClient.send(JSON.stringify(msg));
+        const publicMessage = { ...msg };
+        delete publicMessage.token;
+        if (publicMessage.config && typeof publicMessage.config === 'object') {
+          publicMessage.config = { ...publicMessage.config };
+          delete publicMessage.config.WS_TOKEN;
+        }
+        wsClient.send(JSON.stringify(publicMessage));
       } catch (e) {
         console.error("No se pudo enviar mensaje por WS:", e);
       }
     }
 
+    function setTickerForceStatus(message, tone = '') {
+      const status = document.getElementById('ticker-force-status');
+      if (!status) return;
+      status.className = `help-text ticker-force-status${tone ? ` ${tone}` : ''}`;
+      status.textContent = message || '';
+    }
+
+    function syncTickerForceButtons() {
+      const canSend = config.TICKER_ENABLED !== false &&
+        !!wsClient && wsClient.readyState === WebSocket.OPEN &&
+        ballQueueState.overlayConnected && !tickerForceRequestId;
+      document.querySelectorAll('.btn-ticker-send-manual').forEach(button => {
+        const input = button.closest('.ticker-editor-row')?.querySelector('.ticker-item-input');
+        const text = String(input?.value || '').trim();
+        button.disabled = !canSend || !text || text.length > 500;
+      });
+    }
+
+    function forceDynamicTickerNow() {
+      const button = document.getElementById('btn-force-dynamic-ticker');
+      if (config.TICKER_ENABLED === false) {
+        setTickerForceStatus('Activa primero “Ticker activo” para mostrar el aviso.', 'error');
+        return;
+      }
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN || !ballQueueState.overlayConnected) {
+        setTickerForceStatus('Conecta el overlay de lotería para enviar el aviso.', 'error');
+        return;
+      }
+      if (tickerForceRequestId) return;
+
+      const requestId = 'ticker-force-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+      tickerForceRequestId = requestId;
+      syncTickerForceButtons();
+      setTickerForceStatus('Solicitando el próximo aviso dinámico…');
+      sendMessageWS({ type: 'FORCE_TICKER_DYNAMIC', requestId });
+      tickerForceRequestTimer = setTimeout(() => {
+        if (tickerForceRequestId !== requestId) return;
+        tickerForceRequestId = '';
+        tickerForceRequestTimer = null;
+        setTickerForceStatus('El overlay no confirmó el aviso. Comprueba que siga conectado y vuelve a intentar.', 'error');
+        if (tickerForceSourceButton) tickerForceSourceButton.textContent = 'Enviar ahora';
+        tickerForceSourceButton = null;
+        syncTickerForceButtons();
+        renderBallQueueDashboard();
+      }, 120000);
+    }
+
+    function forceManualTickerNow(button) {
+      const input = button?.closest('.ticker-editor-row')?.querySelector('.ticker-item-input');
+      const text = String(input?.value || '').trim();
+      if (!text || text.length > 500) {
+        setTickerForceStatus('El texto manual debe tener entre 1 y 500 caracteres.', 'error');
+        return;
+      }
+      if (config.TICKER_ENABLED === false) {
+        setTickerForceStatus('Activa primero “Ticker activo” para mostrar el texto.', 'error');
+        return;
+      }
+      if (!wsClient || wsClient.readyState !== WebSocket.OPEN || !ballQueueState.overlayConnected) {
+        setTickerForceStatus('Conecta el overlay de lotería para enviar el texto.', 'error');
+        return;
+      }
+      if (tickerForceRequestId) return;
+
+      const requestId = 'ticker-manual-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+      tickerForceRequestId = requestId;
+      tickerForceSourceButton = button;
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'En cola…';
+      }
+      syncTickerForceButtons();
+      setTickerForceStatus('Enviando el mensaje manual seleccionado…');
+      sendMessageWS({ type: 'FORCE_TICKER_MANUAL', requestId, text });
+      tickerForceRequestTimer = setTimeout(() => {
+        if (tickerForceRequestId !== requestId) return;
+        tickerForceRequestId = '';
+        tickerForceRequestTimer = null;
+        if (tickerForceSourceButton) tickerForceSourceButton.textContent = 'Enviar ahora';
+        tickerForceSourceButton = null;
+        setTickerForceStatus('El overlay no confirmó el mensaje. Comprueba que siga conectado y vuelve a intentar.', 'error');
+        syncTickerForceButtons();
+      }, 120000);
+    }
+
     function normalizeTickerTexts(texts) {
-      const fallback = [
-        'Loteria Ball lista para OBS',
-        'Ticker inferior izquierdo activo',
-        'Se oculta cuando se lanza una bolilla'
-      ];
       const list = Array.isArray(texts) ? texts : [];
       const cleaned = list
         .map((item) => typeof item === 'string' ? item.trim() : '')
         .filter(Boolean);
-      return cleaned.length ? cleaned : fallback;
+      return cleaned;
     }
 
     function getTickerEditorValues() {
@@ -1566,10 +1976,12 @@
         const row = document.createElement('div');
         row.className = 'ticker-editor-row';
         row.innerHTML = `
-          <input type="text" class="input-control ticker-item-input" data-index="${index}" value="${value.replace(/"/g, '&quot;')}" placeholder="Texto ${index + 1}">
+          <input type="text" class="input-control ticker-item-input" data-index="${index}" maxlength="500" value="${value.replace(/"/g, '&quot;')}" placeholder="Texto ${index + 1}">
+          <button type="button" class="btn-ticker-send-manual" title="Enviar este texto al overlay ahora">Enviar ahora</button>
           <button type="button" class="btn-row-action" title="Eliminar texto">−</button>
         `;
         const input = row.querySelector('.ticker-item-input');
+        const sendBtn = row.querySelector('.btn-ticker-send-manual');
         const removeBtn = row.querySelector('.btn-row-action');
 
         input.addEventListener('input', () => {
@@ -1577,7 +1989,10 @@
           syncTickerConfigFromEditor();
           saveConfig();
           sendConfigUpdate();
+          syncTickerForceButtons();
         });
+
+        sendBtn.addEventListener('click', () => forceManualTickerNow(sendBtn));
 
         removeBtn.addEventListener('click', () => {
           row.remove();
@@ -1593,6 +2008,7 @@
       });
 
       tickerRenderLock = false;
+      syncTickerForceButtons();
     }
 
     function addTickerTextRow(value = '') {
@@ -1601,17 +2017,22 @@
       const row = document.createElement('div');
       row.className = 'ticker-editor-row';
       row.innerHTML = `
-        <input type="text" class="input-control ticker-item-input" value="${String(value).replace(/"/g, '&quot;')}" placeholder="Nuevo texto">
+        <input type="text" class="input-control ticker-item-input" maxlength="500" value="${String(value).replace(/"/g, '&quot;')}" placeholder="Nuevo texto">
+        <button type="button" class="btn-ticker-send-manual" title="Enviar este texto al overlay ahora">Enviar ahora</button>
         <button type="button" class="btn-row-action" title="Eliminar texto">−</button>
       `;
       const input = row.querySelector('.ticker-item-input');
+      const sendBtn = row.querySelector('.btn-ticker-send-manual');
       const removeBtn = row.querySelector('.btn-row-action');
 
       input.addEventListener('input', () => {
         syncTickerConfigFromEditor();
         saveConfig();
         sendConfigUpdate();
+        syncTickerForceButtons();
       });
+
+      sendBtn.addEventListener('click', () => forceManualTickerNow(sendBtn));
 
       removeBtn.addEventListener('click', () => {
         row.remove();
@@ -1626,13 +2047,14 @@
       list.appendChild(row);
       input.focus();
       syncTickerConfigFromEditor();
+      syncTickerForceButtons();
     }
 
     // Funciones de actualización de config
     function updateConfigValue(key, val) {
       const labelId = VALUE_LABEL_IDS[key];
       const label = labelId ? document.getElementById(labelId) : null;
-      if (label) label.textContent = key === 'QUEUE_STOP_MS' ? `${(parseInt(val, 10) / 1000).toFixed(1)} s` : val;
+      if (label) label.textContent = formatConfigValue(key, val);
       config[key] = parseInt(val);
       markDirty();
       saveConfig();
@@ -1685,7 +2107,7 @@
       // Leer valores dinámicos
       config.WEBSOCKET_URL = document.getElementById('ws-url').value;
       config.API_URL = document.getElementById('api-url').value;
-      config.WS_TOKEN = document.getElementById('ws-token').value;
+      delete config.WS_TOKEN;
       config.W = parseInt(document.getElementById('cfg-w').value) || 720;
       config.H = parseInt(document.getElementById('cfg-h').value) || 1280;
       config.TRIGGER_NUM = parseInt(document.getElementById('trigger-num').value) || 7;
@@ -1695,8 +2117,29 @@
       config.LEFT_TILT_DEG = parseInt(document.getElementById('cfg-left-tilt').value, 10);
       config.RIGHT_TILT_DEG = parseInt(document.getElementById('cfg-right-tilt').value, 10);
       config.RANDOM_LINKED_SPEED = !!document.getElementById('cfg-random-linked-speed').checked;
+      config.QUEUE_DISPLAY_ENABLED = !!document.getElementById('cfg-queue-display-enabled').checked;
       config.TICKER_ENABLED = !!document.getElementById('cfg-ticker-enabled').checked;
+      config.TICKER_DYNAMIC_AVAILABILITY = !!document.getElementById('cfg-ticker-dynamic-availability').checked;
+      config.TICKER_DYNAMIC_PROGRESS = !!document.getElementById('cfg-ticker-dynamic-progress').checked;
+      config.TICKER_DYNAMIC_PRIZE = !!document.getElementById('cfg-ticker-dynamic-prize').checked;
+      config.TICKER_DYNAMIC_LAST_BALL = !!document.getElementById('cfg-ticker-dynamic-last-ball').checked;
+      config.TICKER_DYNAMIC_ENDS_AT = !!document.getElementById('cfg-ticker-dynamic-ends-at').checked;
       config.TICKER_SCROLL_MS = parseInt(document.getElementById('cfg-ticker-scroll').value, 10) || 28000;
+      TICKER_ADVANCED_FIELDS.forEach(([key, inputId, , fallback]) => {
+        const input = document.getElementById(inputId);
+        const raw = Number.parseInt(input?.value, 10);
+        const minimum = Number(input?.min);
+        const maximum = Number(input?.max);
+        const value = Number.isFinite(raw) ? raw : fallback;
+        config[key] = Number.isFinite(minimum) && Number.isFinite(maximum)
+          ? Math.max(minimum, Math.min(maximum, value))
+          : value;
+      });
+      if (config.TICKER_MIN_PAUSE_MINUTES > config.TICKER_MAX_PAUSE_MINUTES) {
+        if (document.activeElement?.id === 'cfg-ticker-max-pause') config.TICKER_MIN_PAUSE_MINUTES = config.TICKER_MAX_PAUSE_MINUTES;
+        else config.TICKER_MAX_PAUSE_MINUTES = config.TICKER_MIN_PAUSE_MINUTES;
+      }
+      syncTickerAdvancedControls();
       config.QUEUE_STOP_MS = parseInt(document.getElementById('cfg-queue-stop-ms').value, 10) || DEFAULT_CONFIG.QUEUE_STOP_MS;
       if (!tickerRenderLock) {
         syncTickerConfigFromEditor();
@@ -1731,21 +2174,6 @@
       setSavedState('Guardado manual exitoso');
     }
 
-    function saveWsToken() {
-      saveConfig();
-      const state = document.getElementById('ws-token-save-state');
-      if (state) {
-        state.className = 'save-state ok';
-        state.textContent = 'Token guardado en este navegador.';
-      }
-
-      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
-        requestPurchasedEntries();
-      } else {
-        setPurchasedEntriesStatus('Token guardado. Esperando la conexión WebSocket…');
-      }
-    }
-
     function resetToDefaults() {
       const ok = confirm('¿Restaurar todos los ajustes a valores por defecto?');
       if (!ok) return;
@@ -1776,14 +2204,27 @@
       document.getElementById('cfg-random-linked-speed').checked = !!config.RANDOM_LINKED_SPEED;
       document.getElementById('ws-url').value = config.WEBSOCKET_URL;
       document.getElementById('api-url').value = config.API_URL;
-      document.getElementById('ws-token').value = config.WS_TOKEN;
       document.getElementById('cfg-w').value = config.W;
       document.getElementById('cfg-h').value = config.H;
       document.getElementById('trigger-num').value = config.TRIGGER_NUM;
       document.getElementById('trigger-name').value = config.TRIGGER_NAME;
       document.getElementById('cfg-ticker-enabled').checked = !!config.TICKER_ENABLED;
+      document.getElementById('cfg-queue-display-enabled').checked = config.QUEUE_DISPLAY_ENABLED !== false;
+      document.getElementById('cfg-ticker-dynamic-availability').checked = !!config.TICKER_DYNAMIC_AVAILABILITY;
+      document.getElementById('cfg-ticker-dynamic-progress').checked = !!config.TICKER_DYNAMIC_PROGRESS;
+      document.getElementById('cfg-ticker-dynamic-prize').checked = !!config.TICKER_DYNAMIC_PRIZE;
+      document.getElementById('cfg-ticker-dynamic-last-ball').checked = !!config.TICKER_DYNAMIC_LAST_BALL;
+      document.getElementById('cfg-ticker-dynamic-ends-at').checked = !!config.TICKER_DYNAMIC_ENDS_AT;
       document.getElementById('cfg-ticker-scroll').value = config.TICKER_SCROLL_MS;
       document.getElementById('val-ticker-scroll').textContent = config.TICKER_SCROLL_MS;
+      syncTickerAdvancedControls();
+      const advancedPanel = document.getElementById('ticker-advanced-options');
+      const advancedButton = document.getElementById('btn-toggle-ticker-advanced');
+      if (advancedPanel) advancedPanel.hidden = true;
+      if (advancedButton) {
+        advancedButton.setAttribute('aria-expanded', 'false');
+        advancedButton.textContent = '⚙ Opciones avanzadas';
+      }
       renderTickerEditor();
 
       setMode(config.MODE);
@@ -1804,7 +2245,8 @@
     // Helpers
     function broadcast(msg, options = {}) {
       const { sendWs = true } = options;
-      let publicMessage = msg;
+      let publicMessage = { ...msg };
+      delete publicMessage.token;
       if (msg?.config && ['UPDATE_CONFIG', 'CONFIG_SNAPSHOT'].includes(msg.type)) {
         const publicConfig = { ...msg.config };
         delete publicConfig.WS_TOKEN;

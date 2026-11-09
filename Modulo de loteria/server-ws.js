@@ -4,16 +4,24 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+delete process.env.WS_TOKEN;
 const admin = require("firebase-admin");
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 688;
-const WS_TOKEN = process.env.WS_TOKEN || "";
 const wss = new WebSocket.Server({ port: PORT });
+const CURRENT_BALL_RETRY_MS = 12_000;
+const SOCKET_HEARTBEAT_MS = 15_000;
+const LOTTERY_TICKER_CACHE_MS = 30_000;
 
 let lastConfigSnapshot = null;
 let lastConfigRequestAt = -Infinity;
 const CONFIG_REQUEST_COOLDOWN_MS = 2000;
+const CONFIG_SNAPSHOT_FILE = path.join(__dirname, "lottery-config-snapshot.json");
+let configSnapshotSaveTimer = null;
 let firestoreDb = null;
+let lotteryTickerSummaryCache = null;
+let lotteryTickerSummaryPromise = null;
+let lotteryTickerRefreshTimer = null;
 const recentEventIds = new Set();
 const DEDUP_TTL_MS = 30_000;
 const WATCHER_SCRIPT = path.join(__dirname, "observe-entries.js");
@@ -25,12 +33,55 @@ const WATCHER_RESTART_MAX_MS = 30_000;
 let ballQueueState = loadBallQueueState();
 let overlayClient = null;
 let overlayBusy = false;
-const authorizedDashboardOrigins = new Set();
-
+let lastCurrentBallDispatchAt = 0;
 let watcherProcess = null;
 let watcherRestartTimer = null;
 let watcherRestartDelayMs = WATCHER_RESTART_BASE_MS;
 let shuttingDown = false;
+
+function loadConfigSnapshot() {
+  try {
+    const saved = JSON.parse(fs.readFileSync(CONFIG_SNAPSHOT_FILE, "utf8"));
+    if (!saved || typeof saved !== "object" || Array.isArray(saved)) return null;
+    delete saved.WS_TOKEN;
+    delete saved.WEBSOCKET_URL;
+    return saved;
+  } catch { return null; }
+}
+
+function saveConfigSnapshot(snapshot) {
+  const tempFile = `${CONFIG_SNAPSHOT_FILE}.tmp`;
+  try {
+    fs.writeFileSync(tempFile, JSON.stringify(snapshot), "utf8");
+    fs.renameSync(tempFile, CONFIG_SNAPSHOT_FILE);
+  } catch (error) {
+    console.error("[loteria-ws] no se pudo guardar la configuración compartida:", error?.message || error);
+    try { fs.rmSync(tempFile, { force: true }); } catch {}
+  }
+}
+
+function scheduleConfigSnapshotSave() {
+  if (configSnapshotSaveTimer) clearTimeout(configSnapshotSaveTimer);
+  configSnapshotSaveTimer = setTimeout(() => {
+    configSnapshotSaveTimer = null;
+    if (lastConfigSnapshot) saveConfigSnapshot(lastConfigSnapshot);
+  }, 350);
+  configSnapshotSaveTimer.unref?.();
+}
+
+lastConfigSnapshot = loadConfigSnapshot();
+
+function scheduleLotteryTickerSummaryRefresh() {
+  if (lotteryTickerRefreshTimer) clearTimeout(lotteryTickerRefreshTimer);
+  lotteryTickerRefreshTimer = setTimeout(() => {
+    lotteryTickerRefreshTimer = null;
+    lotteryTickerSummaryCache = null;
+    if (overlayClient?.readyState === WebSocket.OPEN) {
+      sendJson(overlayClient, { type: "LOTTERY_TICKER_DATA_INVALIDATED" });
+    }
+  }, 5_000);
+  lotteryTickerRefreshTimer.unref?.();
+}
 
 function getRunningWatcherPid() {
   try {
@@ -86,6 +137,10 @@ function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.log(`[loteria-ws] cerrando servidor (${signal})`);
+
+  if (configSnapshotSaveTimer) clearTimeout(configSnapshotSaveTimer);
+  configSnapshotSaveTimer = null;
+  if (lastConfigSnapshot) saveConfigSnapshot(lastConfigSnapshot);
 
   if (watcherRestartTimer) clearTimeout(watcherRestartTimer);
   if (watcherProcess && !watcherProcess.killed) watcherProcess.kill();
@@ -154,15 +209,6 @@ function hasConnectedOverlay() {
   return Boolean(overlayClient && overlayClient.readyState === WebSocket.OPEN);
 }
 
-function rememberAuthorizedDashboardOrigin(ws) {
-  const origin = String(ws?.origin || "");
-  if (/^https?:\/\//i.test(origin)) authorizedDashboardOrigins.add(origin);
-}
-
-function isAuthorizedOverlay(ws, data) {
-  return !WS_TOKEN || data?.token === WS_TOKEN || authorizedDashboardOrigins.has(ws.origin || "");
-}
-
 function broadcastBallQueueState(exceptWs = null) {
   const payload = {
     type: "BALL_QUEUE_STATE",
@@ -202,6 +248,7 @@ function dispatchNextBall() {
   overlayBusy = true;
   persistBallQueueState();
   broadcastBallQueueState();
+  lastCurrentBallDispatchAt = Date.now();
   sendJson(overlayClient, { type: "START_QUEUED_BALL", ...ballQueueState.current });
   return true;
 }
@@ -245,18 +292,96 @@ async function readPurchasedEntries() {
   return batches.flat().filter(Boolean).sort((a, b) => b.createdAt - a.createdAt);
 }
 
+function getTimestampMillis(value) {
+  if (typeof value?.toMillis === "function") return value.toMillis();
+  if (value instanceof Date) return value.getTime();
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+async function readLotteryTickerSummaries() {
+  const now = Date.now();
+  if (lotteryTickerSummaryCache && now - lotteryTickerSummaryCache.generatedAt < LOTTERY_TICKER_CACHE_MS) {
+    return lotteryTickerSummaryCache;
+  }
+  if (lotteryTickerSummaryPromise) return lotteryTickerSummaryPromise;
+
+  lotteryTickerSummaryPromise = (async () => {
+    const db = getFirestoreDb();
+    const [modulesSnap, activeSnap] = await Promise.all([
+      db.collection("_config").doc("modules").get(),
+      db.collection("lotteries").where("status", "==", "active").limit(20).get()
+    ]);
+    const moduleEnabled = modulesSnap.data()?.lottery?.enabled !== false;
+    const activeDocs = moduleEnabled ? activeSnap.docs.filter(doc => {
+      const lottery = doc.data() || {};
+      if (lottery.deletedAt != null || lottery.winner) return false;
+      const startsAt = getTimestampMillis(lottery.startsAt);
+      const endsAt = getTimestampMillis(lottery.endsAt);
+      return (startsAt == null || startsAt <= now) && (endsAt == null || endsAt >= now);
+    }).slice(0, 10) : [];
+
+    const lotteries = await Promise.all(activeDocs.map(async lotteryDoc => {
+      const lottery = lotteryDoc.data() || {};
+      const rawMaxNumber = Number(lottery.maxNumber);
+      const maxNumber = Number.isFinite(rawMaxNumber)
+        ? Math.max(10, Math.min(200, Math.floor(rawMaxNumber)))
+        : 100;
+      const entriesSnap = await lotteryDoc.ref.collection("entries").select("selectedNumber", "number").get();
+      const occupied = new Set();
+      for (const entryDoc of entriesSnap.docs) {
+        const entry = entryDoc.data() || {};
+        const legacyNumber = /^n_(\d+)$/.exec(entryDoc.id)?.[1];
+        const number = Number(entry.selectedNumber ?? entry.number ?? legacyNumber);
+        if (Number.isInteger(number) && number >= 1 && number <= maxNumber) occupied.add(number);
+      }
+      let prize = "";
+      if (lottery.hasPremio !== false) {
+        if (lottery.premioType === "otros") {
+          prize = String(lottery.premioOtros || "").trim().slice(0, 180);
+        } else if (typeof lottery.premioDinero === "number" && Number.isFinite(lottery.premioDinero) && lottery.premioDinero > 0) {
+          prize = `$${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 2 }).format(lottery.premioDinero)} ARS`;
+        }
+      }
+      return {
+        name: String(lottery.title || lottery.name || lottery.label || "Lotería activa").trim().slice(0, 100),
+        occupiedCount: occupied.size,
+        availableCount: Math.max(0, maxNumber - occupied.size),
+        maxNumber,
+        prize,
+        endsAt: getTimestampMillis(lottery.endsAt)
+      };
+    }));
+
+    lotteryTickerSummaryCache = { generatedAt: Date.now(), lotteries };
+    return lotteryTickerSummaryCache;
+  })();
+
+  try {
+    return await lotteryTickerSummaryPromise;
+  } finally {
+    lotteryTickerSummaryPromise = null;
+  }
+}
+
+async function respondWithLotteryTickerData(ws, data) {
+  const requestId = String(data.requestId || "").slice(0, 100);
+  try {
+    const summary = await readLotteryTickerSummaries();
+    sendJson(ws, { type: "LOTTERY_TICKER_DATA", requestId, ...summary });
+  } catch (error) {
+    console.warn("[loteria-ws] no se pudo leer el resumen dinámico del ticker:", error?.message || error);
+    sendJson(ws, { type: "LOTTERY_TICKER_DATA_ERROR", requestId, error: "No se pudo consultar la información de la lotería." });
+  }
+}
+
 async function respondWithPurchasedEntries(ws, data) {
   const requestId = String(data.requestId || "").slice(0, 100);
-  if (!WS_TOKEN) {
-    sendJson(ws, { type: "PURCHASED_ENTRIES_ERROR", requestId, error: "Configura WS_TOKEN en .env y en el dashboard para consultar compradores." });
-    return;
-  }
-  if (data.token !== WS_TOKEN) {
-    sendJson(ws, { type: "PURCHASED_ENTRIES_ERROR", requestId, error: "El token de seguridad no es válido." });
-    return;
-  }
   ws.isLotteryDashboard = true;
-  rememberAuthorizedDashboardOrigin(ws);
   try {
     const entries = await readPurchasedEntries();
     sendJson(ws, { type: "PURCHASED_ENTRIES", requestId, entries, generatedAt: Date.now() });
@@ -278,6 +403,9 @@ function broadcast(payload, exceptWs = null) {
 
 wss.on("connection", (ws, request) => {
   ws.origin = request?.headers?.origin || "";
+  ws.isAlive = true;
+  ws.lastPingAt = 0;
+  ws.on("pong", () => { ws.isAlive = true; });
   if (lastConfigSnapshot) {
     sendJson(ws, {
       type: "CONFIG_SNAPSHOT",
@@ -290,6 +418,7 @@ wss.on("connection", (ws, request) => {
     if (overlayClient === ws) {
       overlayClient = null;
       overlayBusy = false;
+      lastCurrentBallDispatchAt = 0;
       broadcastBallQueueState();
     }
   });
@@ -301,6 +430,52 @@ wss.on("connection", (ws, request) => {
     } catch {
       return;
     }
+    if (data && typeof data === "object") delete data.token;
+
+    if (data?.type === "FORCE_TICKER_DYNAMIC_RESULT") {
+      if (!ws.isLotteryOverlay || overlayClient !== ws) return;
+      broadcastToDashboards({
+        type: "FORCE_TICKER_DYNAMIC_RESULT",
+        requestId: String(data.requestId || "").slice(0, 100),
+        ok: data.ok === true,
+        message: String(data.message || "").slice(0, 200)
+      });
+      return;
+    }
+
+    if (data?.type === "FORCE_TICKER_DYNAMIC" || data?.type === "FORCE_TICKER_MANUAL") {
+      ws.isLotteryDashboard = true;
+      const requestId = String(data.requestId || "").slice(0, 100);
+      const isManualMessage = data.type === "FORCE_TICKER_MANUAL";
+      const manualText = isManualMessage ? String(data.text || "").trim() : "";
+      if (!requestId) {
+        sendJson(ws, { type: "FORCE_TICKER_DYNAMIC_ERROR", requestId: "", message: "La solicitud del aviso no es válida." });
+        return;
+      }
+      if (isManualMessage && (!manualText || manualText.length > 500)) {
+        sendJson(ws, { type: "FORCE_TICKER_DYNAMIC_ERROR", requestId, message: "El texto manual debe tener entre 1 y 500 caracteres." });
+        return;
+      }
+      if (!hasConnectedOverlay()) {
+        sendJson(ws, { type: "FORCE_TICKER_DYNAMIC_ERROR", requestId, message: "El overlay de lotería está desconectado." });
+        return;
+      }
+      sendJson(overlayClient, isManualMessage
+        ? { type: "FORCE_TICKER_MANUAL", requestId, text: manualText }
+        : { type: "FORCE_TICKER_DYNAMIC", requestId });
+      sendJson(ws, {
+        type: "FORCE_TICKER_DYNAMIC_ACCEPTED",
+        requestId,
+        message: "Mensaje solicitado; se mostrará cuando termine la animación y se cumpla la espera mínima."
+      });
+      return;
+    }
+
+    if (data?.type === "REQUEST_LOTTERY_TICKER_DATA") {
+      if (!ws.isLotteryOverlay || overlayClient !== ws) return;
+      void respondWithLotteryTickerData(ws, data);
+      return;
+    }
 
     if (data?.type === "REQUEST_PURCHASED_ENTRIES") {
       void respondWithPurchasedEntries(ws, data);
@@ -308,14 +483,8 @@ wss.on("connection", (ws, request) => {
     }
 
     if (data?.type === "REQUEST_BALL_QUEUE_STATE") {
-      const hasToken = !WS_TOKEN || data?.token === WS_TOKEN;
-      if (!hasToken && !ws.isLotteryOverlay && !authorizedDashboardOrigins.has(ws.origin)) {
-        sendJson(ws, { type: "BALL_QUEUE_STATE_ERROR", error: "El token de seguridad no es válido." });
-        return;
-      }
       if (!ws.isLotteryOverlay) {
         ws.isLotteryDashboard = true;
-        if (hasToken) rememberAuthorizedDashboardOrigin(ws);
       }
       sendJson(ws, {
         type: "BALL_QUEUE_STATE",
@@ -326,10 +495,6 @@ wss.on("connection", (ws, request) => {
     }
 
     if (data?.type === "BALL_QUEUE_CONTROL") {
-      if (WS_TOKEN && data?.token !== WS_TOKEN) {
-        sendJson(ws, { type: "BALL_QUEUE_CONTROL_ERROR", error: "El token de seguridad no es válido." });
-        return;
-      }
       ws.isLotteryDashboard = true;
       const action = String(data.action || "");
       if (action === "pause") ballQueueState.paused = true;
@@ -353,6 +518,7 @@ wss.on("connection", (ws, request) => {
       if (!ws.isLotteryOverlay || overlayClient !== ws || !ballQueueState.current || data.queueId !== ballQueueState.current.queueId) return;
       ballQueueState.current = null;
       overlayBusy = false;
+      lastCurrentBallDispatchAt = 0;
       persistBallQueueState();
       dispatchNextBall();
       return;
@@ -368,7 +534,14 @@ wss.on("connection", (ws, request) => {
     if (data?.type === "CONFIG_SNAPSHOT" && data?.config) {
       const publicConfig = { ...data.config };
       delete publicConfig.WS_TOKEN;
-      lastConfigSnapshot = publicConfig;
+      // WebSocket endpoints depend on where a client is opened; keep them local.
+      delete publicConfig.WEBSOCKET_URL;
+      const serializedConfig = JSON.stringify(publicConfig);
+      if (Buffer.byteLength(serializedConfig, "utf8") > 256 * 1024) return;
+      if (serializedConfig !== JSON.stringify(lastConfigSnapshot)) {
+        lastConfigSnapshot = publicConfig;
+        scheduleConfigSnapshotSave();
+      }
       broadcast({
         type: "CONFIG_SNAPSHOT",
         source: data.source || "client",
@@ -380,15 +553,11 @@ wss.on("connection", (ws, request) => {
 
     if (data?.type === "WIDGET_HELLO" || data?.type === "REQUEST_CONFIG") {
       if (data?.type === "WIDGET_HELLO" && data?.source === "widget") {
-        if (!isAuthorizedOverlay(ws, data)) {
-          sendJson(ws, { type: "OVERLAY_AUTH_ERROR", error: "El overlay necesita un WS_TOKEN válido o un dashboard autenticado desde el mismo origen." });
-          ws.close(1008, "Overlay authentication failed");
-          return;
-        }
         if (overlayClient && overlayClient !== ws) overlayClient.isLotteryOverlay = false;
         ws.isLotteryOverlay = true;
         overlayClient = ws;
         overlayBusy = data.busy === true;
+        lastCurrentBallDispatchAt = 0;
         broadcastBallQueueState();
       }
       if (lastConfigSnapshot) {
@@ -402,19 +571,13 @@ wss.on("connection", (ws, request) => {
         // Bootstrap only: relaying every hello makes open dashboards compete
         // with stale settings and can cause an endless reconnect/config loop.
         lastConfigRequestAt = Date.now();
-        const { token, ...publicHello } = data;
-        broadcast(publicHello, ws);
+        broadcast(data, ws);
       }
       if (ws.isLotteryOverlay) dispatchNextBall();
       return;
     }
 
     if (data?.type === "TRIGGER_BALL") {
-      if (WS_TOKEN && data?.token !== WS_TOKEN && !ws.isLotteryOverlay) {
-        console.warn("[loteria-ws] TRIGGER_BALL rejected: invalid token");
-        return;
-      }
-
       if (data?.eventId) {
         const eventId = String(data.eventId).slice(0, 200);
         const existingPendingIndex = ballQueueState.pending.findIndex(item => item.eventId === eventId);
@@ -437,7 +600,7 @@ wss.on("connection", (ws, request) => {
         setTimeout(() => recentEventIds.delete(eventId), DEDUP_TTL_MS);
       }
 
-      const { token, ...clean } = data;
+      const clean = data;
       clean.queueId = String(clean.queueId || crypto.randomUUID()).slice(0, 100);
       clean.createdAt = Number(clean.createdAt) || Date.now();
       const item = sanitizeQueueItem(clean);
@@ -451,6 +614,7 @@ wss.on("connection", (ws, request) => {
       persistBallQueueState();
       broadcastBallQueueState();
       if (clean.entryKey) {
+        scheduleLotteryTickerSummaryRefresh();
         broadcastToDashboards({ type: "PURCHASE_ENTRY_EVENT", ...item, entryKey: String(clean.entryKey).slice(0, 200) }, ws);
       }
       sendJson(ws, {
@@ -467,17 +631,41 @@ wss.on("connection", (ws, request) => {
   });
 });
 
-setInterval(() => {
+const wsMaintenanceTimer = setInterval(() => {
+  const now = Date.now();
+  for (const client of wss.clients) {
+    if (now - client.lastPingAt < SOCKET_HEARTBEAT_MS) continue;
+    if (client.isAlive === false) {
+      if (overlayClient === client) {
+        overlayClient = null;
+        overlayBusy = false;
+        lastCurrentBallDispatchAt = 0;
+        broadcastBallQueueState();
+      }
+      client.terminate();
+      continue;
+    }
+    client.isAlive = false;
+    client.lastPingAt = now;
+    try { client.ping(); } catch { client.terminate(); }
+  }
+
+  if (ballQueueState.current && hasConnectedOverlay() && now - lastCurrentBallDispatchAt >= CURRENT_BALL_RETRY_MS) {
+    lastCurrentBallDispatchAt = now;
+    sendJson(overlayClient, { type: "START_QUEUED_BALL", ...ballQueueState.current });
+  }
+
+}, 3_000);
+wsMaintenanceTimer.unref?.();
+
+const recentEventCleanupTimer = setInterval(() => {
   if (recentEventIds.size > 500) recentEventIds.clear();
 }, 300_000);
+recentEventCleanupTimer.unref?.();
 
 wss.on("listening", () => {
   console.log(`[loteria-ws] listening on ws://localhost:${PORT}`);
-  if (WS_TOKEN) {
-    console.log("[loteria-ws] token auth ENABLED");
-  } else {
-    console.log("[loteria-ws] token auth DISABLED (set WS_TOKEN env var to enable)");
-  }
+  console.log("[loteria-ws] autenticación desactivada: cualquier cliente que alcance el puerto puede consultar y controlar la cola");
   startWatcher();
 });
 

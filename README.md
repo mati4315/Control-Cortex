@@ -28,6 +28,10 @@ Guía rápida del workspace de Windows. El proyecto está repartido en servicios
 
 Los puertos son configuración, no garantía de que cada proceso esté corriendo. `Control Cortex/backend/services.json` es el registro del dashboard central; `pm2 ls` muestra el estado de los procesos administrados por PM2.
 
+El WebSocket del Módulo de lotería funciona sin `WS_TOKEN`: cualquier dispositivo que pueda alcanzar el puerto 688 puede consultar compradores, lanzar bolillas y modificar la cola. No publiques ese puerto fuera de tu red privada.
+
+Las preferencias operativas de Inicio (tema, perfil de transmisión y sus opciones) se guardan en el backend de Cortex para compartirlas entre localhost, la red local y Tailscale HTTPS. Los secretos y tokens conservan su almacenamiento protegido o por dispositivo.
+
 Cortex se puede instalar como app web desde Chrome. Para Android fuera de la red local, usa Tailscale Serve para dar HTTPS privado al panel y sigue la guía de [`Control Cortex/CORTEX-INICIO.md`](Control%20Cortex/CORTEX-INICIO.md); no publiques el puerto 4000 con Funnel ni en el router.
 
 Desde el panel también se puede reiniciar Cortex: la acción reinicia el backend de Windows y vuelve a abrirlo minimizado. El reinicio corta brevemente las conexiones del panel y sus WebSockets.

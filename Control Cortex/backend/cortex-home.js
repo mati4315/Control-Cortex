@@ -259,6 +259,43 @@ function preferences(input = {}) {
     links: Array.isArray(input.links) ? input.links.slice(0, 100).map(x => ({ id: 'custom-' + label(x.id).replace(/^custom-/, ''), name: label(x.name), category: label(x.category || 'Mis accesos'), url: safeUrl(x.url), description: String(x.description || '').slice(0, 300) })) : []
   };
 }
+const DEFAULT_DASHBOARD_PREFERENCES = {
+  initialized: false,
+  theme: 'light',
+  selectedStreamProfile: 'radio',
+  streamProfiles: {
+    radio: { services: ['modulo-de-tiempo-y-clima', 'comentarios', 'trigger-studio', 'chat-bot-spotify'], stopServices: [], rulo: true, socialstream: true, obs: true, ngrok: false, expectedScene: '', requiredSources: '' },
+    sorteo: { services: ['modulo-de-tiempo-y-clima', 'comentarios', 'trigger-studio', 'modulo-de-loteria', 'chat-bot-spotify'], stopServices: [], rulo: true, socialstream: true, obs: true, ngrok: false, expectedScene: '', requiredSources: '' },
+    pruebas: { services: ['modulo-de-tiempo-y-clima'], stopServices: [], rulo: false, socialstream: false, obs: false, ngrok: false, expectedScene: '', requiredSources: '' }
+  }
+};
+function dashboardPreferences(input = {}) {
+  assert(input && typeof input === 'object' && !Array.isArray(input), 'Preferencias compartidas no válidas.');
+  const savedProfiles = input.streamProfiles && typeof input.streamProfiles === 'object' && !Array.isArray(input.streamProfiles) ? input.streamProfiles : {};
+  const streamProfiles = {};
+  for (const id of ['radio', 'sorteo', 'pruebas']) {
+    const base = DEFAULT_DASHBOARD_PREFERENCES.streamProfiles[id];
+    const saved = savedProfiles[id] && typeof savedProfiles[id] === 'object' && !Array.isArray(savedProfiles[id]) ? savedProfiles[id] : {};
+    streamProfiles[id] = {
+      services: Array.isArray(saved.services) ? [...new Set(saved.services.filter(value => typeof value === 'string' && /^[a-z0-9-]{1,80}$/.test(value)))].slice(0, 100) : [...base.services],
+      stopServices: Array.isArray(saved.stopServices) ? [...new Set(saved.stopServices.filter(value => typeof value === 'string' && /^[a-z0-9-]{1,80}$/.test(value)))].slice(0, 100) : [],
+      rulo: typeof saved.rulo === 'boolean' ? saved.rulo : base.rulo,
+      socialstream: typeof saved.socialstream === 'boolean' ? saved.socialstream : base.socialstream,
+      obs: typeof saved.obs === 'boolean' ? saved.obs : base.obs,
+      ngrok: typeof saved.ngrok === 'boolean' ? saved.ngrok : base.ngrok,
+      expectedScene: typeof saved.expectedScene === 'string' ? saved.expectedScene.slice(0, 160) : '',
+      requiredSources: typeof saved.requiredSources === 'string' ? saved.requiredSources.slice(0, 2000) : ''
+    };
+    if (id === 'pruebas') Object.assign(streamProfiles[id], { rulo: false, socialstream: false, obs: false, ngrok: false });
+  }
+  return {
+    initialized: input.initialized === true,
+    theme: input.theme === 'dark' ? 'dark' : 'light',
+    selectedStreamProfile: ['radio', 'sorteo', 'pruebas'].includes(input.selectedStreamProfile) ? input.selectedStreamProfile : 'radio',
+    streamProfiles,
+    updatedAt: typeof input.updatedAt === 'string' ? input.updatedAt.slice(0, 40) : ''
+  };
+}
 function validateSettings(settings, template) {
   assert(settings && typeof settings === 'object' && !Array.isArray(settings), 'Faltan configuraciones.');
   assert(Object.keys(settings).length === PROFILE_SETTING_KEYS.length, 'El respaldo no contiene todos los módulos compatibles.');
@@ -377,6 +414,14 @@ function createHome({ file, api, overlayApi, contextFile, historyFile, catalog, 
       }
       const template = await capture();
       let migrated = saved.version !== 2 || assistantMigrated;
+      if (!saved.dashboardPreferences || typeof saved.dashboardPreferences !== 'object') {
+        saved.dashboardPreferences = clone(DEFAULT_DASHBOARD_PREFERENCES);
+        migrated = true;
+      } else {
+        const normalizedPreferences = dashboardPreferences(saved.dashboardPreferences);
+        if (JSON.stringify(normalizedPreferences) !== JSON.stringify(saved.dashboardPreferences)) migrated = true;
+        saved.dashboardPreferences = normalizedPreferences;
+      }
       for (const profile of saved.profiles) {
         assert(profile.settings && typeof profile.settings === 'object', 'El perfil ' + profile.name + ' no tiene ajustes guardados.');
         for (const key of Object.keys(profile.settings)) assert(PROFILE_SETTING_KEYS.includes(key), 'Campo desconocido en el perfil: ' + key);
@@ -394,7 +439,7 @@ function createHome({ file, api, overlayApi, contextFile, historyFile, catalog, 
       return;
     }
     const settings = await capture();
-    persist({ version: 2, activeId: 'default', assistant: defaultAssistant, profiles: [
+    persist({ version: 2, activeId: 'default', assistant: defaultAssistant, dashboardPreferences: clone(DEFAULT_DASHBOARD_PREFERENCES), profiles: [
       { id: 'default', name: 'Por defecto', preferences: preferences({ favorites: ['spotify', 'chat', 'overlay'] }), settings, savedAt: new Date().toISOString() },
       { id: 'tests', name: 'Pruebas', preferences: preferences({ favorites: ['training', 'spotify'] }), settings: clone(settings), savedAt: new Date().toISOString() }
     ] });
@@ -493,7 +538,7 @@ function createHome({ file, api, overlayApi, contextFile, historyFile, catalog, 
       openai: { name: 'OpenAI', configured: true, keyConfigured: !!keys.openai, environmentKey: 'OPENAI_API_KEY', defaultModel: 'gpt-5.4-nano' }
     };
     const context = loadContext();
-    return { version: 2, activeId: state.activeId, profiles: state.profiles.map(({ settings, ...profile }) => profile), modules: [...BUILTINS, ...catalog()], coverage: ['Apariencia de Rulo', 'Sistema de lotería de Rulo', 'Overlay unificado', 'Configuraciones seguras de plugins', 'Ajustes de Spotify', 'Vocabulario y respuestas'], context: { files: context.files.length, routes: (context.codeMap || []).reduce((n, item) => n + (item.routes?.length || 0), 0), schemas: (context.codeMap || []).filter(item => item.schema).length, updatedAt: context.updatedAt }, ai: { enabled: providers[state.assistant.provider].configured, configured: providers[state.assistant.provider].configured, keyConfigured: providers[state.assistant.provider].keyConfigured, model: state.assistant.model, provider: state.assistant.provider, providers } };
+    return { version: 2, activeId: state.activeId, dashboardPreferences: clone(state.dashboardPreferences || DEFAULT_DASHBOARD_PREFERENCES), profiles: state.profiles.map(({ settings, ...profile }) => profile), modules: [...BUILTINS, ...catalog()], coverage: ['Apariencia de Rulo', 'Sistema de lotería de Rulo', 'Overlay unificado', 'Configuraciones seguras de plugins', 'Ajustes de Spotify', 'Vocabulario y respuestas'], context: { files: context.files.length, routes: (context.codeMap || []).reduce((n, item) => n + (item.routes?.length || 0), 0), schemas: (context.codeMap || []).filter(item => item.schema).length, updatedAt: context.updatedAt }, ai: { enabled: providers[state.assistant.provider].configured, configured: providers[state.assistant.provider].configured, keyConfigured: providers[state.assistant.provider].keyConfigured, model: state.assistant.model, provider: state.assistant.provider, providers } };
   };
   async function apply(settings) {
     for (const [key, [url]] of Object.entries(ADAPTERS)) await api(url, settings[key]);
@@ -502,7 +547,19 @@ function createHome({ file, api, overlayApi, contextFile, historyFile, catalog, 
   async function action(type, body = {}) {
     return exclusive(async () => {
       await init();
+      if (type === 'dashboard-preferences') return clone(state.dashboardPreferences || DEFAULT_DASHBOARD_PREFERENCES);
       if (type === 'state') return publicState();
+      if (type === 'save-dashboard-preferences') {
+        const next = clone(state);
+        const previous = next.dashboardPreferences || DEFAULT_DASHBOARD_PREFERENCES;
+        if (body.initializeIfAbsent === true && previous.initialized === true) return clone(previous);
+        const { initializeIfAbsent: _initializeIfAbsent, ...patch } = body;
+        const streamProfiles = { ...previous.streamProfiles, ...(patch.streamProfiles || {}), ...(patch.streamProfilesPatch || {}) };
+        next.dashboardPreferences = dashboardPreferences({ ...previous, ...patch, streamProfiles, initialized: true });
+        next.dashboardPreferences.updatedAt = new Date().toISOString();
+        persist(next);
+        return clone(next.dashboardPreferences);
+      }
       if (type === 'export') {
         const p = clone(find(body.id));
         if (p.id === state.activeId) p.settings = await capture();
@@ -1512,6 +1569,8 @@ function mountHome(app, { server, readServices, aiConfig, providerKeys, audience
   });
   app.get('/', (req, res) => res.sendFile(path.join(__dirname, '../frontend/home.html')));
   app.get('/api/cortex-home', async (req, res) => { try { res.json(await home.action('state')); } catch { res.status(500).json({ error: 'No se pudo cargar Inicio. Revisa las APIs de Rulo y el archivo cortex-home.json.' }); } });
+  app.get('/api/cortex-home/dashboard-preferences', async (_req, res) => { try { res.set('Cache-Control', 'no-store'); res.json(await home.action('dashboard-preferences')); } catch (error) { res.status(500).json({ error: error.message }); } });
+  app.post('/api/cortex-home/dashboard-preferences', async (req, res) => { try { res.set('Cache-Control', 'no-store'); res.json(await home.action('save-dashboard-preferences', req.body)); } catch (error) { res.status(400).json({ error: error.message }); } });
   app.post('/api/cortex-home/ai-config', async (req, res) => { try { res.json(await home.configureAi(req.body)); } catch (e) { res.status(400).json({ error: e.message }); } });
   app.post('/api/cortex-home/context-refresh', async (req, res) => { try { res.json(await home.refreshContext()); } catch (e) { res.status(400).json({ error: e.message }); } });
   app.get('/api/cortex-home/overlay-catalog', async (req, res) => { try { res.json({ overlays: await home.overlayInventory() }); } catch (e) { res.status(400).json({ error: e.message }); } });

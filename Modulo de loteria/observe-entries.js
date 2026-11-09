@@ -1,4 +1,5 @@
 require('dotenv').config();
+delete process.env.WS_TOKEN;
 const admin = require('firebase-admin');
 const WebSocket = require('ws');
 const ftp = require('basic-ftp');
@@ -9,7 +10,6 @@ const { Readable } = require('stream');
 
 // ── Config ──────────────────────────────────────────────
 const WS_URL = process.env.WS_URL || 'ws://localhost:688';
-const WS_TOKEN = process.env.WS_TOKEN || '';
 const SA_PATH = process.env.FIREBASE_SA_PATH || path.join(__dirname, 'service-account.json');
 const STATE_FILE = path.join(__dirname, '.watcher-state.json');
 const AVATAR_CACHE_FILE = path.join(__dirname, '.avatar-cache.json');
@@ -82,7 +82,6 @@ function publishToOBS(number, name, entryId, profilePicUrl, createdAt) {
       entryKey: entryId, createdAt: Number(createdAt) || Date.now(),
       eventId: `obs_${entryId}`
     };
-    if (WS_TOKEN) payload.token = WS_TOKEN;
     ws.send(JSON.stringify(payload));
     ws.close();
   });

@@ -37,6 +37,7 @@ const { SPOTIFY_MODULE_VERSION } = require('./versions');
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ noServer: true });
+const lotteryProxyWss = new WebSocket.Server({ noServer: true, maxPayload: 256 * 1024 });
 const eventTraceStore = new EventTraceStore(1000);
 // These registries are used by startup settings broadcasts before the WS server listens.
 const clients = new Set();
@@ -6217,6 +6218,64 @@ app.get('/api/system', (req, res) => {
 
 // WebSocket upgrade and connection handling
 server.on('upgrade', (request, socket, head) => {
+  const requestUrl = new URL(request.url, 'http://localhost');
+  if (requestUrl.pathname === '/api/lottery-ws') {
+    const origin = String(request.headers.origin || '');
+    let originHost = '';
+    try { originHost = new URL(origin).host.toLowerCase(); } catch { socket.destroy(); return; }
+    const acceptedHosts = [request.headers.host]
+      .concat(['127.0.0.1', '::1'].includes(String(request.socket.remoteAddress || '').replace(/^::ffff:/, '')) ? [request.headers['x-forwarded-host']] : [])
+      .flatMap(value => String(value || '').split(','))
+      .map(value => value.trim().toLowerCase())
+      .filter(Boolean);
+    if (!acceptedHosts.includes(originHost)) { socket.destroy(); return; }
+    lotteryProxyWss.handleUpgrade(request, socket, head, client => {
+      const upstream = new WebSocket(process.env.CORTEX_LOTTERY_WS_URL || 'ws://127.0.0.1:688', {
+        headers: { origin },
+        maxPayload: 256 * 1024
+      });
+      const pending = [];
+      let upstreamReady = false;
+      let closing = false;
+      const connectTimer = setTimeout(() => {
+        if (!upstreamReady && !closing) { closing = true; client.close(1011, 'Lotería no respondió'); upstream.terminate(); }
+      }, 8000);
+      upstream.once('open', () => {
+        upstreamReady = true;
+        clearTimeout(connectTimer);
+        while (pending.length && client.readyState === WebSocket.OPEN && upstream.readyState === WebSocket.OPEN) {
+          const message = pending.shift();
+          upstream.send(message.data, { binary: message.binary });
+        }
+      });
+      client.on('message', (data, binary) => {
+        if (closing) return;
+        if (upstreamReady && upstream.readyState === WebSocket.OPEN) upstream.send(data, { binary });
+        else if (pending.length < 100) pending.push({ data, binary });
+        else { closing = true; client.close(1008, 'Demasiados mensajes pendientes'); upstream.terminate(); }
+      });
+      upstream.on('message', (data, binary) => {
+        if (client.readyState === WebSocket.OPEN) client.send(data, { binary });
+      });
+      client.once('close', (code, reason) => {
+        closing = true;
+        clearTimeout(connectTimer);
+        const safeCode = [1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014].includes(code) || (code >= 3000 && code <= 4999) ? code : 1000;
+        if (upstream.readyState === WebSocket.OPEN) upstream.close(safeCode, reason.toString().slice(0, 50));
+        else upstream.terminate();
+      });
+      upstream.once('close', (code, reason) => {
+        clearTimeout(connectTimer);
+        const safeCode = [1000, 1001, 1002, 1003, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014].includes(code) || (code >= 3000 && code <= 4999) ? code : 1011;
+        if (!closing && client.readyState === WebSocket.OPEN) client.close(safeCode, reason.toString().slice(0, 50));
+      });
+      upstream.once('error', () => {
+        clearTimeout(connectTimer);
+        if (!closing && client.readyState === WebSocket.OPEN) client.close(1011, 'No se pudo conectar con Lotería');
+      });
+    });
+    return;
+  }
   wss.handleUpgrade(request, socket, head, (ws) => {
     wss.emit('connection', ws, request);
   });

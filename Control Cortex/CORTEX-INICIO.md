@@ -10,6 +10,14 @@ En Android, confirma que Tailscale esté conectado y abre esa dirección HTTPS e
 
 El PWA muestra abajo los accesos para copiar la dirección y volver atrás. Los dashboards integrados de Cortex y los paneles de módulos registrados cargan la misma barra rápida. Los módulos en otros puertos siguen necesitando que ese servicio y el puerto 4000 de Cortex sean accesibles desde el dispositivo; los overlays de OBS no incluyen estos controles.
 
+## Ajustes compartidos entre direcciones
+
+localhost, la IP de red y el nombre HTTPS de Tailscale llegan al mismo backend de Cortex cuando se usan en esta notebook. Los ajustes de Inicio que afectan a la operación —tema, perfil de transmisión seleccionado y opciones de cada perfil— se guardan en backend/cortex-home.json; se migran una sola vez desde las preferencias antiguas del navegador y luego se sincronizan entre paneles abiertos.
+
+Los módulos conservan su configuración operativa en el archivo o servicio que ya es dueño de ella: por ejemplo, las luces, el clima, comentarios y el banner persisten en sus servidores locales, y los perfiles de Cortex guardan capturas de esos mismos ajustes. Evita duplicar una segunda copia por origen del navegador. Tokens, contraseñas y claves quedan fuera de la sincronización del dashboard; se mantienen en sus archivos .env protegidos o en el navegador cuando el flujo exige que el operador los introduzca.
+
+El inicio del almacenamiento central es atómico: una migración lo inicializa y las solicitudes concurrentes reciben ese mismo estado sin sobrescribirlo. En esta instalación se inicializó desde `127.0.0.1` con las preferencias existentes de Inicio; el backend queda como fuente de verdad y los paneles abiertos vuelven a consultarlo periódicamente. Los ajustes personales de lectura y las cachés de estado conservan su alcance local.
+
 ## Organización
 
 Inicio reúne los dashboards de Rulo y los servicios registrados en Cortex. Busca por función, filtra por categoría y marca estrellas para encontrar tus favoritos primero. «Añadir acceso» incorpora otros dashboards mediante su URL. Cada perfil conserva sus favoritos y enlaces. Para añadir un proceso que Cortex pueda arrancar o detener, usa **Control de servicios**, disponible en `/index.html`.

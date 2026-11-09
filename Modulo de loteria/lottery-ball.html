@@ -18,11 +18,11 @@
 
     #ticker-overlay {
       position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 18px;
-      width: 100%;
-      height: 64px;
+      left: var(--ticker-side-margin, 0px);
+      right: var(--ticker-side-margin, 0px);
+      bottom: var(--ticker-bottom, 18px);
+      width: auto;
+      height: var(--ticker-height, 64px);
       display: flex;
       align-items: center;
       opacity: 0;
@@ -112,8 +112,8 @@
       display: flex;
       align-items: stretch;
       overflow: hidden;
-      border-radius: 0;
-      background: linear-gradient(105deg, rgba(10, 18, 31, 0.90) 0%, rgba(23, 30, 51, 0.92) 55%, rgba(12, 18, 32, 0.94) 100%);
+      border-radius: var(--ticker-radius, 0px);
+      background: linear-gradient(105deg, rgba(10, 18, 31, var(--ticker-bg-opacity, 0.92)) 0%, rgba(23, 30, 51, var(--ticker-bg-opacity, 0.92)) 55%, rgba(12, 18, 32, var(--ticker-bg-opacity, 0.92)) 100%);
       border: 1px solid rgba(139, 92, 246, 0.28);
       box-shadow:
         0 12px 30px rgba(0, 0, 0, 0.38),
@@ -132,7 +132,7 @@
       display: flex;
       align-items: center;
       width: max-content;
-      animation: ticker-scroll linear infinite;
+      animation: none;
       will-change: transform;
     }
 
@@ -155,7 +155,7 @@
       min-height: 40px;
       color: #f8fafc;
       font-family: 'Montserrat', sans-serif;
-      font-size: 1.08rem;
+      font-size: var(--ticker-font-size, 17px);
       font-weight: 800;
       letter-spacing: 0.04em;
       text-transform: uppercase;
@@ -575,17 +575,32 @@
       LEFT_TILT_DEG: -24,
       RIGHT_TILT_DEG: 24,
       RANDOM_LINKED_SPEED: false,
+      QUEUE_DISPLAY_ENABLED: true,
       MODE: 'test',            // 'test' | 'manual' | 'dynamic'
-      WEBSOCKET_URL: `ws://${window.location.hostname || 'localhost'}:688`,
+      WEBSOCKET_URL: window.location.protocol === 'https:' ? `wss://${window.location.host}/api/lottery-ws` : `ws://${window.location.hostname || 'localhost'}:688`,
       API_URL: '',
       TICKER_ENABLED: true,
+      TICKER_DYNAMIC_AVAILABILITY: true,
+      TICKER_DYNAMIC_PROGRESS: true,
+      TICKER_DYNAMIC_PRIZE: true,
+      TICKER_DYNAMIC_LAST_BALL: true,
+      TICKER_DYNAMIC_ENDS_AT: true,
       TICKER_LABEL: 'Radio',
       TICKER_TEXTS: [
         'Loteria Ball lista para OBS',
         'Ticker inferior izquierdo activo',
         'Se oculta cuando se lanza una bolilla'
       ],
-      TICKER_SCROLL_MS: 28000
+      TICKER_SCROLL_MS: 28000,
+      TICKER_HEIGHT: 64,
+      TICKER_BOTTOM: 18,
+      TICKER_SIDE_MARGIN: 0,
+      TICKER_FONT_SIZE: 17,
+      TICKER_BG_OPACITY: 92,
+      TICKER_RADIUS: 0,
+      TICKER_MIN_PAUSE_MINUTES: 2,
+      TICKER_MAX_PAUSE_MINUTES: 6,
+      TICKER_AFTER_BALL_DELAY_SEC: 15
     };
 
     /* ══════════════════════════════════════════════════════════
@@ -634,6 +649,26 @@
     let lastTriggerAt = 0;
     const recentTriggerIds = new Set();
     const TRIGGER_DEDUP_MS = 2000;
+    const TICKER_DATA_REFRESH_MS = 60 * 1000;
+    let tickerMessageActive = false;
+    let tickerCurrentMessage = null;
+    let tickerMessageIndex = 0;
+    let tickerDynamicMessageIndex = 0;
+    let tickerLastMessageSignature = '';
+    let tickerHasShownMessage = false;
+    let tickerNextAllowedAt = 0;
+    let tickerStartTimer = null;
+    let tickerEndTimer = null;
+    let tickerRunId = 0;
+    let tickerForcedRequestId = '';
+    let tickerForcedMessageText = '';
+    let lastBallLaunchedAt = 0;
+    let latestTickerBall = null;
+    let lastAnnouncedTickerBallId = '';
+    let lotteryTickerData = [];
+    let lotteryTickerDataUpdatedAt = 0;
+    let lotteryTickerRequestId = '';
+    let lastTickerDataRequestAt = 0;
 
     function escapeHtml(text) {
       return String(text)
@@ -645,42 +680,357 @@
     }
 
     function normalizeTickerTexts(texts) {
-      const fallback = [
-        'Loteria Ball lista para OBS',
-        'Ticker inferior izquierdo activo',
-        'Se oculta cuando se lanza una bolilla'
-      ];
       const list = Array.isArray(texts) ? texts : [];
       const cleaned = list
         .map((item) => typeof item === 'string' ? item.trim() : '')
         .filter(Boolean);
-      return cleaned.length ? cleaned : fallback;
+      return cleaned;
     }
 
     function renderTicker() {
       if (!tickerTrack) return;
-      const items = normalizeTickerTexts(CONFIG.TICKER_TEXTS);
       const scrollMs = Math.max(6000, parseInt(CONFIG.TICKER_SCROLL_MS, 10) || 20000);
-      const groupHtml = items.map((text) => `
-        <span class="ticker-item">
-          <span class="ticker-text">${escapeHtml(text)}</span>
-        </span>
-      `).join('<span class="ticker-item"><span class="ticker-text">•</span></span>');
+      tickerTrack.dataset.durationMs = String(scrollMs);
+      const numericSetting = (key, fallback, minimum, maximum) => {
+        const value = Number(CONFIG[key]);
+        return Math.max(minimum, Math.min(maximum, Number.isFinite(value) ? value : fallback));
+      };
+      tickerOverlay.style.setProperty('--ticker-height', `${numericSetting('TICKER_HEIGHT', 64, 42, 132)}px`);
+      tickerOverlay.style.setProperty('--ticker-bottom', `${numericSetting('TICKER_BOTTOM', 18, -40, 240)}px`);
+      tickerOverlay.style.setProperty('--ticker-side-margin', `${numericSetting('TICKER_SIDE_MARGIN', 0, 0, 200)}px`);
+      tickerOverlay.style.setProperty('--ticker-font-size', `${numericSetting('TICKER_FONT_SIZE', 17, 12, 36)}px`);
+      tickerOverlay.style.setProperty('--ticker-bg-opacity', String(numericSetting('TICKER_BG_OPACITY', 92, 0, 100) / 100));
+      tickerOverlay.style.setProperty('--ticker-radius', `${numericSetting('TICKER_RADIUS', 0, 0, 36)}px`);
+    }
 
-      tickerTrack.innerHTML = groupHtml ? `<div class="ticker-group">${groupHtml}</div><div class="ticker-group" aria-hidden="true">${groupHtml}</div>` : '';
-      tickerTrack.style.animationDuration = `${scrollMs}ms`;
+    function hideTickerVisual() {
+      if (!tickerOverlay) return;
+      tickerOverlay.classList.remove('visible');
+      tickerOverlay.setAttribute('aria-hidden', 'true');
+    }
+
+    function randomTickerPauseMs() {
+      const rawMinimum = Number(CONFIG.TICKER_MIN_PAUSE_MINUTES);
+      const rawMaximum = Number(CONFIG.TICKER_MAX_PAUSE_MINUTES);
+      const minimum = Math.max(1, Math.min(10, Number.isFinite(rawMinimum) ? rawMinimum : 2));
+      const maximum = Math.max(minimum, Math.min(15, Number.isFinite(rawMaximum) ? rawMaximum : 6));
+      const minimumMs = minimum * 60 * 1000;
+      const maximumMs = maximum * 60 * 1000;
+      return minimumMs + Math.floor(Math.random() * (maximumMs - minimumMs + 1));
+    }
+
+    function tickerAfterBallDelayMs() {
+      const rawSeconds = Number(CONFIG.TICKER_AFTER_BALL_DELAY_SEC);
+      const seconds = Math.max(0, Math.min(60, Number.isFinite(rawSeconds) ? rawSeconds : 15));
+      return seconds * 1000;
+    }
+
+    function tickerHasDynamicMessages() {
+      return CONFIG.TICKER_DYNAMIC_AVAILABILITY !== false ||
+        CONFIG.TICKER_DYNAMIC_PROGRESS !== false ||
+        CONFIG.TICKER_DYNAMIC_PRIZE !== false ||
+        CONFIG.TICKER_DYNAMIC_LAST_BALL !== false ||
+        CONFIG.TICKER_DYNAMIC_ENDS_AT !== false;
+    }
+
+    function requestTickerDataIfNeeded(force = false) {
+      if (CONFIG.TICKER_ENABLED === false || !tickerHasDynamicMessages() || !ws || ws.readyState !== WebSocket.OPEN) return false;
+      if (lotteryTickerRequestId) return false;
+      const now = Date.now();
+      const latestTickerDataAt = Math.max(lotteryTickerDataUpdatedAt, lastTickerDataRequestAt);
+      if (!force && now - latestTickerDataAt < TICKER_DATA_REFRESH_MS) return false;
+      const requestId = `ticker-${makeQueueId()}`;
+      lotteryTickerRequestId = requestId;
+      lastTickerDataRequestAt = now;
+      try {
+        ws.send(JSON.stringify({ type: 'REQUEST_LOTTERY_TICKER_DATA', requestId }));
+        return true;
+      } catch (error) {
+        lotteryTickerRequestId = '';
+        console.warn('No se pudieron actualizar los datos del ticker:', error?.message || error);
+        return false;
+      }
+    }
+
+    function formatTickerDate(timestamp) {
+      const date = new Date(Number(timestamp));
+      if (!Number.isFinite(date.getTime())) return '';
+      return new Intl.DateTimeFormat('es-AR', {
+        timeZone: 'America/Argentina/Buenos_Aires',
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      }).format(date);
+    }
+
+    function buildTickerMessages() {
+      const messages = normalizeTickerTexts(CONFIG.TICKER_TEXTS).map((text, index) => ({
+        type: 'manual', key: `manual-${index}-${text}`, text
+      }));
+
+      if (CONFIG.TICKER_DYNAMIC_AVAILABILITY !== false) {
+        lotteryTickerData.forEach((lottery, index) => {
+          const occupied = Math.max(0, Number(lottery.occupiedCount) || 0);
+          const available = Math.max(0, Number(lottery.availableCount) || 0);
+          const name = String(lottery.name || 'la lotería').trim().slice(0, 100);
+          messages.push({
+            type: 'availability', key: `availability-${index}-${name}`,
+            text: `En ${name} hay ${occupied} números ocupados y quedan ${available} disponibles.`
+          });
+        });
+      }
+
+      if (CONFIG.TICKER_DYNAMIC_PROGRESS !== false) {
+        lotteryTickerData.forEach((lottery, index) => {
+          const occupied = Math.max(0, Number(lottery.occupiedCount) || 0);
+          const available = Math.max(0, Number(lottery.availableCount) || 0);
+          const maxNumber = Math.max(0, Number(lottery.maxNumber) || occupied + available);
+          if (!maxNumber) return;
+          const progress = Math.min(100, Math.round((occupied / maxNumber) * 100));
+          const name = String(lottery.name || 'la lotería').trim().slice(0, 100);
+          messages.push({
+            type: 'grid-progress', key: `grid-progress-${index}-${name}`,
+            text: progress >= 100
+              ? `La grilla de ${name} está completa: todos los números están ocupados.`
+              : `La grilla de ${name} ya está ocupada en un ${progress}%.`
+          });
+        });
+      }
+
+      if (CONFIG.TICKER_DYNAMIC_PRIZE !== false) {
+        lotteryTickerData.forEach((lottery, index) => {
+          const prize = String(lottery.prize || '').trim().slice(0, 180);
+          if (!prize) return;
+          const name = String(lottery.name || 'la lotería').trim().slice(0, 100);
+          messages.push({
+            type: 'lottery-prize', key: `lottery-prize-${index}-${name}`,
+            text: `El premio de ${name} es ${prize}.`
+          });
+        });
+      }
+
+      if (CONFIG.TICKER_DYNAMIC_ENDS_AT !== false) {
+        lotteryTickerData.forEach((lottery, index) => {
+          const endsAt = Number(lottery.endsAt);
+          if (!Number.isFinite(endsAt) || endsAt <= 0) return;
+          const name = String(lottery.name || 'la lotería').trim().slice(0, 100);
+          const date = formatTickerDate(endsAt);
+          if (!date) return;
+          messages.push({
+            type: 'participation-end', key: `participation-end-${index}-${name}`,
+            text: `La participación en ${name} cierra el ${date}, hora argentina.`
+          });
+        });
+      }
+
+      if (CONFIG.TICKER_DYNAMIC_LAST_BALL !== false && latestTickerBall &&
+          !latestTickerBall.isTest && latestTickerBall.key !== lastAnnouncedTickerBallId) {
+        messages.unshift({
+          type: 'last-ball', key: latestTickerBall.key,
+          text: `El número ${latestTickerBall.number} fue seleccionado por ${latestTickerBall.name}.`
+        });
+      }
+      return messages;
+    }
+
+    function tickerMessageSignature(message) {
+      return `${message.type}\u0000${message.text}`;
+    }
+
+    function chooseTickerMessage(forceDynamic = false) {
+      const allMessages = buildTickerMessages();
+      const messages = forceDynamic ? allMessages.filter(message => message.type !== 'manual') : allMessages;
+      if (!messages.length) return null;
+      if (!forceDynamic && messages[0].type === 'last-ball' &&
+          tickerMessageSignature(messages[0]) !== tickerLastMessageSignature) return messages[0];
+      let index = (forceDynamic ? tickerDynamicMessageIndex : tickerMessageIndex) % messages.length;
+      if (messages[index].type !== 'manual' &&
+          tickerMessageSignature(messages[index]) === tickerLastMessageSignature) {
+        let alternateIndex = -1;
+        for (let offset = 1; offset < messages.length; offset += 1) {
+          const candidate = (index + offset) % messages.length;
+          if (messages[candidate].type === 'manual' ||
+              tickerMessageSignature(messages[candidate]) !== tickerLastMessageSignature) {
+            alternateIndex = candidate;
+            break;
+          }
+        }
+        if (alternateIndex >= 0) index = alternateIndex;
+        else if (!forceDynamic) return null;
+      }
+      if (forceDynamic) tickerDynamicMessageIndex = (index + 1) % messages.length;
+      else tickerMessageIndex = (index + 1) % messages.length;
+      return messages[index];
+    }
+
+    function finishForcedTickerRequest(ok, message) {
+      const requestId = tickerForcedRequestId;
+      if (!requestId) return;
+      tickerForcedRequestId = '';
+      tickerForcedMessageText = '';
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'FORCE_TICKER_DYNAMIC_RESULT',
+          requestId,
+          ok: ok === true,
+          message: String(message || '').slice(0, 200)
+        }));
+      }
+    }
+
+    function requestForcedTickerMessage(requestId, manualText = null) {
+      const safeRequestId = String(requestId || '').slice(0, 100);
+      if (!safeRequestId) return;
+      const isManualMessage = manualText !== null;
+      const safeManualText = isManualMessage ? String(manualText || '').trim() : '';
+      if (CONFIG.TICKER_ENABLED === false) {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({
+          type: 'FORCE_TICKER_DYNAMIC_RESULT', requestId: safeRequestId, ok: false,
+          message: 'El ticker está desactivado en el dashboard.'
+        }));
+        return;
+      }
+      if (tickerForcedRequestId) {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({
+          type: 'FORCE_TICKER_DYNAMIC_RESULT', requestId: safeRequestId, ok: false,
+          message: 'Ya hay otro mensaje esperando para mostrarse.'
+        }));
+        return;
+      }
+      if (isManualMessage && (!safeManualText || safeManualText.length > 500)) {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({
+          type: 'FORCE_TICKER_DYNAMIC_RESULT', requestId: safeRequestId, ok: false,
+          message: 'El texto manual debe tener entre 1 y 500 caracteres.'
+        }));
+        return;
+      }
+      if (!isManualMessage && !tickerHasDynamicMessages()) {
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({
+          type: 'FORCE_TICKER_DYNAMIC_RESULT', requestId: safeRequestId, ok: false,
+          message: 'Activa al menos una opción de información dinámica.'
+        }));
+        return;
+      }
+
+      tickerForcedRequestId = safeRequestId;
+      tickerForcedMessageText = safeManualText;
+      if (!isManualMessage) requestTickerDataIfNeeded(true);
+      syncTickerVisibility();
+    }
+
+    function cancelTickerMessage(pauseIfInterrupted = false) {
+      if (tickerStartTimer) {
+        clearTimeout(tickerStartTimer);
+        tickerStartTimer = null;
+      }
+      if (tickerEndTimer) {
+        clearTimeout(tickerEndTimer);
+        tickerEndTimer = null;
+      }
+      if (pauseIfInterrupted && tickerMessageActive) tickerNextAllowedAt = Date.now() + randomTickerPauseMs();
+      tickerMessageActive = false;
+      tickerCurrentMessage = null;
+      tickerRunId += 1;
+      if (tickerTrack) tickerTrack.style.animation = 'none';
+      hideTickerVisual();
+    }
+
+    function finishTickerMessage(runId) {
+      if (runId !== tickerRunId || !tickerMessageActive) return;
+      const completed = tickerCurrentMessage;
+      if (completed?.key) tickerLastMessageSignature = tickerMessageSignature(completed);
+      if (completed?.type === 'last-ball') lastAnnouncedTickerBallId = completed.key;
+      cancelTickerMessage(false);
+      tickerNextAllowedAt = Date.now() + randomTickerPauseMs();
+      if (completed?.forcedRequestId && completed.forcedRequestId === tickerForcedRequestId) {
+        finishForcedTickerRequest(true, 'Mensaje mostrado en el overlay.');
+      }
+      syncTickerVisibility();
+    }
+
+    function startTickerMessage() {
+      const forceRequestId = tickerForcedRequestId;
+      const forcedManualText = tickerForcedMessageText;
+      if (forceRequestId && !forcedManualText && lotteryTickerRequestId) {
+        hideTickerVisual();
+        return;
+      }
+      const message = forcedManualText
+        ? { type: 'manual', key: `forced-manual-${forceRequestId}`, text: forcedManualText }
+        : chooseTickerMessage(Boolean(forceRequestId));
+      if (!message) {
+        if (forceRequestId && lotteryTickerRequestId) {
+          hideTickerVisual();
+          return;
+        }
+        if (forceRequestId) {
+          finishForcedTickerRequest(false, 'No hay avisos dinámicos disponibles para mostrar ahora.');
+          syncTickerVisibility();
+          return;
+        }
+        hideTickerVisual();
+        tickerNextAllowedAt = Date.now() + 60_000;
+        tickerStartTimer = setTimeout(() => {
+          tickerStartTimer = null;
+          syncTickerVisibility();
+        }, 60_000);
+        return;
+      }
+
+      const safeText = escapeHtml(message.text);
+      const group = `<div class="ticker-group"><span class="ticker-item"><span class="ticker-text">${safeText}</span></span></div>`;
+      const scrollMs = Math.max(6000, parseInt(CONFIG.TICKER_SCROLL_MS, 10) || 20000);
+      tickerCurrentMessage = forceRequestId ? { ...message, forcedRequestId: forceRequestId } : message;
+      tickerMessageActive = true;
+      tickerHasShownMessage = true;
+      const runId = ++tickerRunId;
+      tickerTrack.innerHTML = `${group}${group.replace('<div class="ticker-group">', '<div class="ticker-group" aria-hidden="true">')}`;
+      tickerTrack.style.animation = 'none';
+      tickerOverlay.classList.add('visible');
+      tickerOverlay.setAttribute('aria-hidden', 'false');
+      void tickerTrack.offsetWidth;
+      tickerTrack.style.animation = `ticker-scroll ${scrollMs}ms linear 1 both`;
+      tickerEndTimer = setTimeout(() => finishTickerMessage(runId), scrollMs + 1200);
     }
 
     function syncTickerVisibility() {
       if (!tickerOverlay) return;
-      const shouldShow = CONFIG.TICKER_ENABLED !== false && phase === 'pausing';
-      tickerOverlay.classList.toggle('visible', shouldShow);
-      tickerOverlay.setAttribute('aria-hidden', shouldShow ? 'false' : 'true');
+      if (CONFIG.TICKER_ENABLED === false) {
+        if (tickerForcedRequestId) finishForcedTickerRequest(false, 'El ticker está desactivado en el dashboard.');
+        cancelTickerMessage(false);
+        return;
+      }
+      if (phase !== 'pausing') {
+        cancelTickerMessage(false);
+        return;
+      }
+      if (tickerMessageActive) return;
+      if (tickerStartTimer) {
+        clearTimeout(tickerStartTimer);
+        tickerStartTimer = null;
+      }
+      requestTickerDataIfNeeded();
+      const eligibleAt = tickerForcedRequestId
+        ? lastBallLaunchedAt + tickerAfterBallDelayMs()
+        : Math.max(tickerNextAllowedAt, lastBallLaunchedAt + tickerAfterBallDelayMs());
+      const delayMs = eligibleAt - Date.now();
+      if (delayMs > 0) {
+        hideTickerVisual();
+        tickerStartTimer = setTimeout(() => {
+          tickerStartTimer = null;
+          syncTickerVisibility();
+        }, delayMs);
+        return;
+      }
+      startTickerMessage();
     }
 
     function showTicker() {
       syncTickerVisibility();
     }
+
+    tickerTrack?.addEventListener('animationend', (event) => {
+      if (event.target === tickerTrack && event.animationName === 'ticker-scroll') finishTickerMessage(tickerRunId);
+    });
 
     function renderBallQueue() {
       if (!queueStatus || !queueCount || !queueList) return;
@@ -700,8 +1050,9 @@
         more.textContent = `y ${queuedCount - 4} más`;
         queueList.appendChild(more);
       }
-      queueStatus.classList.toggle('visible', queuedCount > 0);
-      queueStatus.setAttribute('aria-hidden', queuedCount > 0 ? 'false' : 'true');
+      const shouldShowQueue = CONFIG.QUEUE_DISPLAY_ENABLED !== false && queuedCount > 0;
+      queueStatus.classList.toggle('visible', shouldShowQueue);
+      queueStatus.setAttribute('aria-hidden', shouldShowQueue ? 'false' : 'true');
     }
 
     function restorePendingFinishedQueueIds() {
@@ -728,7 +1079,9 @@
     function sendOverlayQueueMessage(message) {
       if (!ws || ws.readyState !== WebSocket.OPEN) return false;
       try {
-        ws.send(JSON.stringify({ ...message, ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+        const publicMessage = { ...message };
+        delete publicMessage.token;
+        ws.send(JSON.stringify(publicMessage));
         return true;
       } catch (error) {
         console.error('No se pudo sincronizar la cola con el servidor:', error);
@@ -797,9 +1150,7 @@
     }
 
     function hideTicker() {
-      if (!tickerOverlay) return;
-      tickerOverlay.classList.remove('visible');
-      tickerOverlay.setAttribute('aria-hidden', 'true');
+      cancelTickerMessage(true);
     }
 
     function shouldAcceptTrigger(number, name, eventId, forceReplay = false) {
@@ -831,7 +1182,9 @@
         const saved = localStorage.getItem('lottery_ball_config');
         if (saved) {
           const parsed = JSON.parse(saved);
+          delete parsed.WS_TOKEN;
           Object.assign(CONFIG, parsed);
+          localStorage.setItem('lottery_ball_config', JSON.stringify(parsed));
         }
       } catch(e) {
         console.error("Error loading config:", e);
@@ -842,6 +1195,10 @@
 
     function normalizeOverlayWebSocketUrl() {
       const pageHost = String(window.location.hostname || '').toLowerCase();
+      if (window.location.protocol === 'https:' && /^wss?:/i.test(String(CONFIG.WEBSOCKET_URL || ''))) {
+        CONFIG.WEBSOCKET_URL = `wss://${window.location.host}/api/lottery-ws`;
+        return;
+      }
       if (!pageHost || ['localhost', '127.0.0.1', '::1', '[::1]'].includes(pageHost)) return;
       try {
         const endpoint = new URL(CONFIG.WEBSOCKET_URL);
@@ -874,6 +1231,7 @@
 
     function parkBall() {
       const startX = CONFIG.W - CONFIG.BALL_SIZE - 30;
+      wrapper.style.visibility = 'visible';
       setPos(startX, CONFIG.START_Y);
       shadow.style.opacity = '0';
       phase = 'pausing';
@@ -1075,7 +1433,7 @@
     function shortenCurrentStopForQueue() {
       if (phase !== 'stopped' || !stopStartedAt) return;
       const standardStopMs = Math.max(1000, Number(CONFIG.STOP_MS) || 10000);
-      const queueStopMs = Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500);
+      const queueStopMs = Math.min(25000, Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500));
       const targetDuration = pendingQueueCount > 0 && !queuePaused
         ? Math.min(standardStopMs, queueStopMs)
         : standardStopMs;
@@ -1102,7 +1460,11 @@
        ══════════════════════════════════════════════════════════ */
     function tick(ts) {
       if (!lastTime) lastTime = ts;
-      const dt = Math.min((ts - lastTime) / 1000, 0.08);
+      // Mantener el avance ligado al tiempo real. Limitarlo a 80 ms hacía que,
+      // cuando el navegador bajaba requestAnimationFrame a 1 FPS en segundo plano,
+      // la bolilla avanzara apenas 80 ms por segundo y dejara la cola bloqueada.
+      // El límite de 1 s evita saltos enormes al volver de una pestaña suspendida.
+      const dt = Math.min(Math.max((ts - lastTime) / 1000, 0), 1);
       lastTime = ts;
 
       /* ── FALLING ── */
@@ -1140,7 +1502,7 @@
           stopTrail();
           stopStartedAt = Date.now();
           const standardStopMs = Math.max(1000, Number(CONFIG.STOP_MS) || 10000);
-          const queueStopMs = Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500);
+          const queueStopMs = Math.min(25000, Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500));
           activeStopDuration = pendingQueueCount > 0 && !queuePaused
             ? Math.min(standardStopMs, queueStopMs)
             : standardStopMs;
@@ -1161,6 +1523,9 @@
 
         if (movingRight ? nx >= CONFIG.W : nx + CONFIG.BALL_SIZE <= 0) {
           // Ball gone — close banner & reset
+          setPos(movingRight ? CONFIG.W + CONFIG.BALL_SIZE + 64 : -CONFIG.BALL_SIZE - 64, y);
+          wrapper.style.visibility = 'hidden';
+          setSpinState('off');
           closeBanner();
           hideCountdownRing();
           stopTrail();
@@ -1192,8 +1557,20 @@
 
     function startBall(item, { serverQueue = false, isTest = false } = {}) {
       currentBall = cleanQueueItem(item) || item;
+      currentBall.isTest = isTest === true || currentBall.isTest === true || CONFIG.MODE === 'test';
       currentQueueId = serverQueue ? String(currentBall.queueId || '') : '';
+      lastBallLaunchedAt = Date.now();
+      if (!currentBall.isTest) {
+        latestTickerBall = {
+          number: Number(currentBall.number),
+          name: String(currentBall.name || 'Alguien').trim().slice(0, 80) || 'Alguien',
+          key: String(currentBall.queueId || currentBall.eventId || `${currentBall.number}-${Date.now()}`),
+          isTest: false
+        };
+        requestTickerDataIfNeeded();
+      }
       currentDirection = item.direction === 'leftToRight' ? 'leftToRight' : 'rightToLeft';
+      wrapper.style.visibility = 'visible';
       if (stopTimer) { clearTimeout(stopTimer); stopTimer = null; }
       if (queueAdvanceTimer) { clearTimeout(queueAdvanceTimer); queueAdvanceTimer = null; }
       closeBanner();
@@ -1378,22 +1755,68 @@
               type: 'WIDGET_HELLO',
               source: 'widget',
               requestConfig: true,
-              busy: CONFIG.MODE === 'test' || phase !== 'pausing' || Boolean(queueAdvanceTimer) || pendingFinishedQueueIds.size > 0,
-              ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {})
+              busy: CONFIG.MODE === 'test' || phase !== 'pausing' || Boolean(queueAdvanceTimer) || pendingFinishedQueueIds.size > 0
             }));
             for (const queueId of pendingFinishedQueueIds) {
-              activeSocket.send(JSON.stringify({ type: 'BALL_FINISHED', queueId, ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+              activeSocket.send(JSON.stringify({ type: 'BALL_FINISHED', queueId }));
             }
             for (const item of pendingToRelay) {
-              activeSocket.send(JSON.stringify({ type: 'TRIGGER_BALL', ...item, source: 'overlay', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+              activeSocket.send(JSON.stringify({ type: 'TRIGGER_BALL', ...item, source: 'overlay' }));
             }
-            activeSocket.send(JSON.stringify({ type: 'REQUEST_BALL_QUEUE_STATE', ...(CONFIG.WS_TOKEN ? { token: CONFIG.WS_TOKEN } : {}) }));
+            activeSocket.send(JSON.stringify({ type: 'REQUEST_BALL_QUEUE_STATE' }));
+            requestTickerDataIfNeeded(true);
           } catch (e) {}
         };
         activeSocket.onmessage = (event) => {
           if (ws !== activeSocket) return;
           try {
             const data = JSON.parse(event.data);
+            if (data?.type === 'LOTTERY_TICKER_DATA') {
+              if (lotteryTickerRequestId && data.requestId && data.requestId !== lotteryTickerRequestId) return;
+              lotteryTickerRequestId = '';
+              lotteryTickerData = Array.isArray(data.lotteries) ? data.lotteries.slice(0, 10).map(item => ({
+                name: String(item?.name || 'Lotería activa').trim().slice(0, 100),
+                occupiedCount: Math.max(0, Number(item?.occupiedCount) || 0),
+                availableCount: Math.max(0, Number(item?.availableCount) || 0),
+                maxNumber: Math.max(0, Number(item?.maxNumber) || 0),
+                prize: String(item?.prize || '').trim().slice(0, 180),
+                endsAt: Number(item?.endsAt) || null
+              })) : [];
+              lotteryTickerDataUpdatedAt = Number(data.generatedAt) || Date.now();
+              if (!tickerHasShownMessage && !tickerMessageActive) {
+                tickerNextAllowedAt = Date.now();
+                if (tickerStartTimer) {
+                  clearTimeout(tickerStartTimer);
+                  tickerStartTimer = null;
+                }
+              }
+              if (tickerForcedRequestId && !tickerForcedMessageText &&
+                  !buildTickerMessages().some(message => message.type !== 'manual')) {
+                finishForcedTickerRequest(false, 'No hay loterías activas ni avisos dinámicos para mostrar.');
+              }
+              syncTickerVisibility();
+              return;
+            }
+            if (data?.type === 'LOTTERY_TICKER_DATA_INVALIDATED') {
+              lotteryTickerDataUpdatedAt = 0;
+              lastTickerDataRequestAt = 0;
+              requestTickerDataIfNeeded(true);
+              return;
+            }
+            if (data?.type === 'LOTTERY_TICKER_DATA_ERROR') {
+              if (!data.requestId || data.requestId === lotteryTickerRequestId) lotteryTickerRequestId = '';
+              if (tickerForcedRequestId) {
+                const hasDynamicFallback = tickerForcedMessageText || buildTickerMessages().some(message => message.type !== 'manual');
+                if (hasDynamicFallback) syncTickerVisibility();
+                else finishForcedTickerRequest(false, data.error || 'No se pudo consultar la información dinámica.');
+              }
+              console.warn(data.error || 'No se pudieron consultar los datos dinámicos de la lotería.');
+              return;
+            }
+            if (data?.type === 'FORCE_TICKER_DYNAMIC' || data?.type === 'FORCE_TICKER_MANUAL') {
+              requestForcedTickerMessage(data.requestId, data.type === 'FORCE_TICKER_MANUAL' ? data.text : null);
+              return;
+            }
             if (data?.type === 'TRIGGER_QUEUED') {
               const offlineIndex = offlineQueue.findIndex(item => item.queueId === data.queueId);
               if (offlineIndex >= 0) offlineQueue.splice(offlineIndex, 1);
@@ -1445,6 +1868,8 @@
         activeSocket.onclose = (event) => {
           if (ws !== activeSocket) return;
           ws = null;
+          lotteryTickerRequestId = '';
+          lastTickerDataRequestAt = 0;
           overlayQueueReady = false;
           console.warn(`Widget WebSocket desconectado (código ${event.code}${event.reason ? `: ${event.reason}` : ''}). Reconectando…`);
           if (!wsReconnectTimer) {
@@ -1549,8 +1974,10 @@
         const oldMode = CONFIG.MODE;
         
         Object.assign(CONFIG, incoming);
+        CONFIG.QUEUE_STOP_MS = Math.min(25000, Math.max(1000, Number(CONFIG.QUEUE_STOP_MS) || 3500));
         applyDimensions();
         applyNumberStyles();
+        renderBallQueue();
         renderTicker();
         syncTickerVisibility();
         shortenCurrentStopForQueue();
