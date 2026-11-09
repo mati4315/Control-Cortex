@@ -157,7 +157,7 @@ function Publish-Repo {
   $SharedChanges = @(Get-SharedDirtyPaths $Repo $RepoKey)
   if ($SharedChanges.Count -gt 0) {
     Show-RepoStatus $Repo $Label
-    $Answer = Read-Host "¿Preparar y publicar los cambios mostrados en $Label? (S/N)"
+    $Answer = Read-Host "¿Preparar y publicar los cambios mostrados en ${Label}? (S/N)"
     if ($Answer -match '^(s|si|sí|y|yes)$') {
       Stage-RepoChanges $Repo $RepoKey
       $Staged = Invoke-Git -Repo $Repo -GitArgs @('diff', '--cached', '--name-only') -Silent
