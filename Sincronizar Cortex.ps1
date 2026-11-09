@@ -59,14 +59,14 @@ function Get-DirtyPaths {
   $Lines = Invoke-Git -Repo $Repo -GitArgs @('status', '--porcelain=v1', '--untracked-files=all') -Silent
   $Paths = @()
   foreach ($Line in $Lines) {
-    if ($Line.Length -lt 4) { continue }
+    if ([string]::IsNullOrWhiteSpace($Line) -or $Line.Length -lt 4) { continue }
     $Path = $Line.Substring(3)
     if ($Path.StartsWith('"')) {
       try { $Path = ConvertFrom-Json -InputObject $Path } catch { }
     }
     $Paths += ($Path -replace '\\', '/')
   }
-  return ,$Paths
+  return $Paths
 }
 
 function Get-ExcludedPaths {
@@ -80,9 +80,9 @@ function Get-SharedDirtyPaths {
   $Excluded = Get-ExcludedPaths $RepoKey
   $Shared = @()
   foreach ($Path in Get-DirtyPaths $Repo) {
-    if ($Excluded -notcontains $Path) { $Shared += $Path }
+    if (-not [string]::IsNullOrWhiteSpace($Path) -and $Excluded -notcontains $Path) { $Shared += $Path }
   }
-  return ,$Shared
+  return $Shared
 }
 
 function Show-RepoStatus {
